@@ -1,0 +1,9 @@
+{
+  "name": "waveify-landing",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "python -m http.server 3000",
+    "build": "echo 'Static site, no build needed'"
+  },
+  "license": "MIT"
+}
