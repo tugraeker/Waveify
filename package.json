@@ -52,8 +52,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "Fruex",
-        "repo": "T2cd",
+        "owner": "tugraeker",
+        "repo": "Waveify",
         "releaseType": "release"
       }
     ]
