@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: waveify-server
+    env: node
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        value: "*"
+    healthCheckPath: /api/health

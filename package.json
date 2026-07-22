@@ -1,0 +1,93 @@
+{
+  "name": "waveify",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Waveify - Özel müzik paylaşım platformu",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "dist": "vite build && electron-builder",
+    "dist:portable": "vite build && electron-builder --win portable",
+    "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.sesli.app",
+    "productName": "Sesli",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": null,
+      "artifactName": "Sesli-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "artifactName": "Sesli-${version}-Setup-${arch}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "portable": {
+      "artifactName": "Sesli-${version}-portable.exe",
+      "splashImage": null
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Fruex",
+        "repo": "T2cd",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.47.0",
+    "@xhayper/discord-rpc": "^1.3.4",
+    "bufferutil": "^4.1.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "electron-updater": "^6.8.9",
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "socket.io-client": "^4.8.1",
+    "tailwind-merge": "^2.6.0",
+    "utf-8-validate": "^5.0.10",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "@types/discord-rpc": "^4.0.11",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3",
+    "vite-plugin-electron": "^0.28.8",
+    "vite-plugin-electron-renderer": "^0.14.6"
+  }
+}

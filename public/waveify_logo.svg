@@ -1,0 +1,49 @@
+<svg width="1024" height="576" viewBox="0 0 1024 576" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="576" rx="32" fill="#0F0F14"/>
+  
+  <!-- Gradient wave #1 -->
+  <path d="M0 420C80 380 160 340 240 360C320 380 400 460 480 440C560 420 640 300 720 280C800 260 880 340 960 360L1024 370V576H0V420Z" fill="url(#wave1)" opacity="0.3"/>
+  
+  <!-- Gradient wave #2 -->
+  <path d="M0 440C100 400 200 370 300 390C400 410 500 490 600 470C700 450 800 330 900 310C950 300 1000 330 1024 350V576H0V440Z" fill="url(#wave2)" opacity="0.4"/>
+  
+  <!-- Gradient wave #3 -->
+  <path d="M0 460C120 420 240 390 360 410C480 430 600 510 720 490C840 470 920 380 1024 370V576H0V460Z" fill="url(#wave3)" opacity="0.5"/>
+
+  <!-- Wave bars -->
+  <g transform="translate(120, 80)">
+    <rect x="0" y="140" width="40" height="100" rx="8" fill="#0FABA6" opacity="0.5"/>
+    <rect x="55" y="100" width="40" height="140" rx="8" fill="#0FABA6" opacity="0.6"/>
+    <rect x="110" y="60" width="40" height="180" rx="8" fill="#0FABA6" opacity="0.7"/>
+    <rect x="165" y="20" width="40" height="220" rx="8" fill="#22C7C0" opacity="0.8"/>
+    <rect x="220" y="80" width="40" height="160" rx="8" fill="#0FABA6" opacity="0.7"/>
+    <rect x="275" y="120" width="40" height="120" rx="8" fill="#0FABA6" opacity="0.6"/>
+    <rect x="330" y="150" width="40" height="90" rx="8" fill="#0FABA6" opacity="0.5"/>
+  </g>
+
+  <!-- Text -->
+  <text x="512" y="220" text-anchor="middle" font-family="'Inter', system-ui, sans-serif" font-size="96" font-weight="800" fill="url(#textGrad)" letter-spacing="-2">Waveify</text>
+  <text x="512" y="280" text-anchor="middle" font-family="'Inter', system-ui, sans-serif" font-size="28" fill="#7B7F8E" letter-spacing="4" font-weight="500">MÜZİK PAYLAŞIM PLATFORMU</text>
+
+  <defs>
+    <linearGradient id="wave1" x1="0" y1="400" x2="1024" y2="400">
+      <stop offset="0%" stop-color="#0FABA6"/>
+      <stop offset="50%" stop-color="#22C7C0"/>
+      <stop offset="100%" stop-color="#098B88"/>
+    </linearGradient>
+    <linearGradient id="wave2" x1="0" y1="400" x2="1024" y2="400">
+      <stop offset="0%" stop-color="#22C7C0"/>
+      <stop offset="50%" stop-color="#0FABA6"/>
+      <stop offset="100%" stop-color="#098B88"/>
+    </linearGradient>
+    <linearGradient id="wave3" x1="0" y1="400" x2="1024" y2="400">
+      <stop offset="0%" stop-color="#098B88"/>
+      <stop offset="50%" stop-color="#0FABA6"/>
+      <stop offset="100%" stop-color="#22C7C0"/>
+    </linearGradient>
+    <linearGradient id="textGrad" x1="0" y1="0" x2="1024" y2="0">
+      <stop offset="0%" stop-color="#22C7C0"/>
+      <stop offset="100%" stop-color="#0FABA6"/>
+    </linearGradient>
+  </defs>
+</svg>

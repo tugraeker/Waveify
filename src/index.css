@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --surface-50: 246 246 247;
+    --surface-100: 226 227 230;
+    --surface-200: 200 202 208;
+    --surface-300: 162 165 176;
+    --surface-400: 123 127 142;
+    --surface-500: 96 100 116;
+    --surface-600: 75 78 92;
+    --surface-700: 61 64 75;
+    --surface-800: 53 55 64;
+    --surface-900: 30 31 36;
+    --surface-950: 18 18 22;
+
+    --wave-50: 238 251 250;
+    --wave-100: 213 245 242;
+    --wave-200: 174 234 229;
+    --wave-300: 106 217 210;
+    --wave-400: 34 199 192;
+    --wave-500: 15 171 166;
+    --wave-600: 9 139 136;
+    --wave-700: 12 111 109;
+    --wave-800: 15 89 88;
+    --wave-900: 18 74 73;
+    --wave-950: 3 45 45;
+  }
+
+  html.light {
+    --surface-50: 246 246 247;
+    --surface-100: 226 227 230;
+    --surface-200: 200 202 208;
+    --surface-300: 162 165 176;
+    --surface-400: 123 127 142;
+    --surface-500: 96 100 116;
+    --surface-600: 75 78 92;
+    --surface-700: 200 202 208;
+    --surface-800: 226 227 230;
+    --surface-900: 246 246 247;
+    --surface-950: 255 255 255;
+  }
+
+  * {
+    @apply border-surface-800;
+  }
+
+  html.light * {
+    @apply border-surface-300;
+  }
+
+  body {
+    @apply bg-surface-950 text-surface-50;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  ::selection {
+    @apply bg-wave-500/30 text-white;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #3d404b transparent;
+    scrollbar-gutter: stable;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #3d404b;
+    border-radius: 3px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #4b4e5c;
+  }
+
+  html.light .scrollbar-thin {
+    scrollbar-color: #c8cad0 transparent;
+  }
+  html.light .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #c8cad0;
+  }
+
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  .glass {
+    @apply bg-surface-900/60 backdrop-blur-xl border border-surface-800/50;
+  }
+  .glass-hover {
+    @apply hover:bg-surface-800/60 hover:border-surface-700/50;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-wave-400 to-wave-300;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:bg-surface-800/80 hover:shadow-lg hover:shadow-wave-500/5 hover:scale-[1.01];
+  }
+
+  .glow {
+    box-shadow: 0 0 20px rgba(15, 171, 166, 0.15), 0 0 60px rgba(15, 171, 166, 0.05);
+  }
+  .glow-sm {
+    box-shadow: 0 0 10px rgba(15, 171, 166, 0.1);
+  }
+}
+
+@layer components {
+  .wave-bar {
+    @apply w-0.5 bg-gradient-to-t from-wave-500 to-wave-300 rounded-full;
+    animation: wave 1.5s ease-in-out infinite;
+  }
+  .wave-bar:nth-child(1) { animation-delay: 0s; height: 40%; }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; height: 70%; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; height: 50%; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; height: 90%; }
+  .wave-bar:nth-child(5) { animation-delay: 0.4s; height: 30%; }
+  .wave-bar:nth-child(6) { animation-delay: 0.5s; height: 60%; }
+  .wave-bar:nth-child(7) { animation-delay: 0.6s; height: 45%; }
+  .wave-bar:nth-child(8) { animation-delay: 0.7s; height: 80%; }
+  .wave-bar:nth-child(9) { animation-delay: 0.8s; height: 35%; }
+  .wave-bar:nth-child(10) { animation-delay: 0.9s; height: 75%; }
+}
