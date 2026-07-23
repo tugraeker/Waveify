@@ -3,6 +3,7 @@ import cors from 'cors'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import dotenv from 'dotenv'
+import fs from 'fs'
 import { setupSocketHandlers } from './socket/syncHandler.js'
 import { createClient } from '@supabase/supabase-js'
 
@@ -76,58 +77,97 @@ app.post('/api/import', async (req, res) => {
     // Clean URL (remove playlist/radio params)
     const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
 
-    // Method 1: Try youtube-dl-exec (yt-dlp) with android client (bypasses bot detection)
-    try {
-      const youtubedl = await import('youtube-dl-exec').then(m => m.default)
-      console.log('[Import] Starting yt-dlp download...')
-      const audioProcess = youtubedl.exec(cleanUrl, {
-        extractAudio: true,
-        audioFormat: 'mp3',
-        output: '-',
-        noCheckCertificates: true,
-        noWarnings: true,
-        preferFreeFormats: true,
-        noPlaylist: true,
-        socketTimeout: 30,
-        retries: 3,
-        extractorArgs: 'youtube:player_client=android,web',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      } as any)
-      // Timeout after 120 seconds
-      const killTimer = setTimeout(() => { try { audioProcess.kill() } catch {} }, 120_000)
-      // Log stderr for debugging
-      audioProcess.stderr?.on('data', (d: Buffer) => console.log('[yt-dlp]', d.toString().trim()))
-      const audioChunks: Buffer[] = []
-      for await (const chunk of audioProcess.stdout!) {
-        audioChunks.push(Buffer.from(chunk))
-      }
-      clearTimeout(killTimer)
-      console.log('[Import] yt-dlp downloaded', audioChunks.length, 'bytes')
-      audioBuffer = Buffer.concat(audioChunks)
-      // Try to get metadata via yt-dlp
-      try {
-        const metaProcess = youtubedl.exec(cleanUrl, {
-          dumpSingleJson: true,
-          noCheckCertificates: true,
-          noWarnings: true,
-          noPlaylist: true,
-        })
-        let metaOut = ''
-        for await (const chunk of metaProcess.stdout!) {
-          metaOut += chunk.toString()
-        }
-        const json = JSON.parse(metaOut)
-        finalTitle = title || json.title || ''
-        finalArtist = artist || json.artist || json.uploader || ''
-        duration = json.duration || 0
-      } catch (e2: any) { console.log('[Import] metadata failed:', e2?.message?.slice(0, 80)) }
-    } catch (e: any) {
-      console.log('[Import] yt-dlp failed:', e?.message?.slice(0, 200))
-    }
-
-    // Method 2: Try @distube/ytdl-core (maintained fork)
+    // Method 1: Direct YouTube page scraping (bypasses yt-dlp bot detection)
+    // Fetches the player response directly from YouTube's webpage and extracts audio URL
     if (!audioBuffer) {
       try {
+        console.log('[Import] Method 1: Direct YouTube page scrape...')
+        const pageRes = await fetch(cleanUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+          },
+        })
+        const html = await pageRes.text()
+        // Try to extract ytInitialPlayerResponse from the page
+        const ytMatch = html.match(/ytInitialPlayerResponse\s*=\s*({[^<]+?});\s*(?:var|window|<\/)/)
+        if (ytMatch) {
+          const playerResponse = JSON.parse(ytMatch[1])
+          const formats = playerResponse?.streamingData?.adaptiveFormats || []
+          const audioFormats = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
+          if (audioFormats.length > 0) {
+            // Pick the highest bitrate audio
+            audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+            const best = audioFormats[0]
+            const audioUrl = best.url || best.signatureCipher || ''
+            let finalUrl = audioUrl
+            if (audioUrl.includes('s=') || !audioUrl.startsWith('http')) {
+              // Need to decrypt signature - skip, use next method
+            } else {
+              console.log('[Import] Got audio URL from player response')
+              const dlRes = await fetch(finalUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+              if (dlRes.ok) {
+                audioBuffer = Buffer.from(await dlRes.arrayBuffer())
+                finalTitle = title || playerResponse?.videoDetails?.title || ''
+                finalArtist = artist || playerResponse?.videoDetails?.author || ''
+                duration = parseInt(playerResponse?.videoDetails?.lengthSeconds || '0')
+              }
+            }
+          }
+        }
+        if (!audioBuffer) console.log('[Import] Method 1 failed: could not extract audio URL')
+      } catch (e: any) { console.log('[Import] Method 1 failed:', e?.message?.slice(0, 100)) }
+    }
+
+    // Method 2: Try youtube-dl-exec (yt-dlp) - fallback with cookies from env
+    if (!audioBuffer) {
+      try {
+        const youtubedl = await import('youtube-dl-exec').then(m => m.default)
+        console.log('[Import] Method 2: yt-dlp...')
+        const ytArgs: any = {
+          extractAudio: true,
+          audioFormat: 'mp3',
+          output: '-',
+          noCheckCertificates: true,
+          noWarnings: true,
+          preferFreeFormats: true,
+          noPlaylist: true,
+          socketTimeout: 30,
+          retries: 3,
+        }
+        // Add cookies from env if available
+        if (process.env.YT_COOKIES) {
+          ytArgs.cookies = '/tmp/yt_cookies.txt'
+          fs.writeFileSync('/tmp/yt_cookies.txt', process.env.YT_COOKIES)
+        }
+        const audioProcess = youtubedl.exec(cleanUrl, ytArgs)
+        const killTimer = setTimeout(() => { try { audioProcess.kill() } catch {} }, 120_000)
+        audioProcess.stderr?.on('data', (d: Buffer) => console.log('[yt-dlp]', d.toString().trim()))
+        const audioChunks: Buffer[] = []
+        for await (const chunk of audioProcess.stdout!) {
+          audioChunks.push(Buffer.from(chunk))
+        }
+        clearTimeout(killTimer)
+        console.log('[Import] yt-dlp downloaded', audioChunks.length, 'bytes')
+        if (audioChunks.length > 0) audioBuffer = Buffer.concat(audioChunks)
+        // Try to get metadata
+        try {
+          const metaProcess = youtubedl.exec(cleanUrl, { dumpSingleJson: true, noCheckCertificates: true, noWarnings: true, noPlaylist: true })
+          let metaOut = ''
+          for await (const chunk of metaProcess.stdout!) { metaOut += chunk.toString() }
+          const json = JSON.parse(metaOut)
+          finalTitle = title || json.title || ''
+          finalArtist = artist || json.artist || json.uploader || ''
+          duration = json.duration || 0
+        } catch {}
+      } catch (e: any) { console.log('[Import] yt-dlp failed:', e?.message?.slice(0, 200)) }
+    }
+
+    // Method 3: Try @distube/ytdl-core
+    if (!audioBuffer) {
+      try {
+        console.log('[Import] Method 3: @distube/ytdl-core...')
         const ytdl = await import('@distube/ytdl-core').then(m => m.default)
         const info = await ytdl.getInfo(videoId)
         const format = ytdl.chooseFormat(info.formats, { quality: 'lowestaudio', filter: 'audioonly' })
@@ -140,70 +180,62 @@ app.post('/api/import', async (req, res) => {
           finalArtist = artist || info.videoDetails.author?.name || ''
           duration = info.videoDetails.lengthSeconds ? parseInt(info.videoDetails.lengthSeconds) : 0
         }
-      } catch {}
+      } catch (e: any) { console.log('[Import] @distube/ytdl-core failed:', e?.message?.slice(0, 100)) }
     }
 
-    // Method 3: Try vevioz API
-    if (!audioBuffer) {
+    // Method 4: Try invidious instances (privacy-friendly YouTube proxies)
+    const INVIDIOUS_INSTANCES = [
+      'https://inv.nadeko.net',
+      'https://yewtu.be',
+      'https://invidious.snopyta.org',
+      'https://vid.puffyan.us',
+    ]
+    for (const instance of INVIDIOUS_INSTANCES) {
+      if (audioBuffer) break
       try {
-        const apiUrl = `https://api.vevioz.com/api/button/mp3/${videoId}`
-        const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 60000)
-        const apiRes = await fetch(apiUrl, { redirect: 'follow', signal: controller.signal })
-        clearTimeout(timeout)
-        if (apiRes.ok) {
-          audioBuffer = Buffer.from(await apiRes.arrayBuffer())
+        console.log('[Import] Method 4: Invidious', instance)
+        const invRes = await fetch(`${instance}/latest_version?id=${videoId}&itag=140&local=true`, {
+          redirect: 'manual',
+          signal: AbortSignal.timeout(15000),
+        })
+        const location = invRes.headers.get('location')
+        if (location) {
+          const dlRes = await fetch(location, { signal: AbortSignal.timeout(60000) })
+          if (dlRes.ok) audioBuffer = Buffer.from(await dlRes.arrayBuffer())
         }
-      } catch {}
+      } catch (e: any) { console.log('[Import] Invidious failed:', instance, e?.message?.slice(0, 60)) }
     }
 
-    // Method 4: Try yt-dlp via API (cobalt.tools)
+    // Method 5: Try vevioz API
     if (!audioBuffer) {
       try {
+        console.log('[Import] Method 5: vevioz...')
+        const apiRes = await fetch(`https://api.vevioz.com/api/button/mp3/${videoId}`, {
+          redirect: 'follow',
+          signal: AbortSignal.timeout(60000),
+        })
+        if (apiRes.ok) audioBuffer = Buffer.from(await apiRes.arrayBuffer())
+      } catch (e: any) { console.log('[Import] vevioz failed:', e?.message?.slice(0, 60)) }
+    }
+
+    // Method 6: Try cobalt.tools API
+    if (!audioBuffer) {
+      try {
+        console.log('[Import] Method 6: cobalt.tools...')
         const cobaltRes = await fetch('https://api.cobalt.tools/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({ url: cleanUrl, videoQuality: '144', filenameStyle: 'basic' }),
+          signal: AbortSignal.timeout(30000),
         })
         if (cobaltRes.ok) {
           const cobaltData = await cobaltRes.json()
           if (cobaltData.url) {
-            const dlRes = await fetch(cobaltData.url)
+            const dlRes = await fetch(cobaltData.url, { signal: AbortSignal.timeout(60000) })
             if (dlRes.ok) audioBuffer = Buffer.from(await dlRes.arrayBuffer())
           }
         }
-      } catch {}
-    }
-
-    // Method 5: Try invidious API (privacy-friendly YouTube proxy)
-    if (!audioBuffer) {
-      try {
-        const invidiousRes = await fetch(`https://inv.nadeko.net/latest_version?id=${videoId}&itag=140&local=true`, {
-          redirect: 'manual',
-        })
-        const location = invidiousRes.headers.get('location')
-        if (location) {
-          const dlRes = await fetch(location)
-          if (dlRes.ok) audioBuffer = Buffer.from(await dlRes.arrayBuffer())
-        }
-      } catch {}
-    }
-
-    // Method 6: Try youtubei (another API fallback)
-    if (!audioBuffer) {
-      try {
-        const apiRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        })
-        const html = await apiRes.text()
-        // Parse audio URL from page
-        const match = html.match(/"audioQuality"[^}]+url":"([^"]+)"/)
-        if (match) {
-          const audioUrl = match[1].replace(/\\u0026/g, '&')
-          const dlRes = await fetch(audioUrl)
-          if (dlRes.ok) audioBuffer = Buffer.from(await dlRes.arrayBuffer())
-        }
-      } catch {}
+      } catch (e: any) { console.log('[Import] cobalt.tools failed:', e?.message?.slice(0, 60)) }
     }
 
     if (!audioBuffer) throw new Error('Ses dosyası indirilemedi (tüm yöntemler başarısız)')
