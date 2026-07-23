@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useStore } from '@/store/store'
 import { audioEngine } from '@/lib/audioEngine'
+import { supabase } from '@/lib/supabase'
 import type { Song } from '@/types'
 
 export function useAudio() {
@@ -64,14 +65,13 @@ export function useAudio() {
     setDuration(currentSong.duration || 0)
     setCurrentTime(0)
     addToHistory(currentSong)
-    // Log listen history
+    // Log listen history & activity
     const state = useStore.getState()
     if (state.user) {
-      import('@/lib/supabase').then((mod) => {
-        mod.supabase.from('listen_history').insert({ user_id: state.user!.id, song_id: currentSong.id }).select().then(() => {
-          mod.supabase.from('activities').insert({ user_id: state.user!.id, type: 'listen', data: { song_id: currentSong.id } }).select()
-        })
-      })
+      Promise.all([
+        supabase.from('listen_history').insert({ user_id: state.user!.id, song_id: currentSong.id }),
+        supabase.from('activities').insert({ user_id: state.user!.id, type: 'listen', data: { song_id: currentSong.id } }),
+      ])
     }
   }, [currentSong?.id])
 
@@ -96,28 +96,29 @@ export function useAudio() {
     return () => clearInterval(intervalRef.current)
   }, [isPlaying])
 
-  // Sleep timer
+  // Sleep timer (uses Date.now to survive background throttling)
   useEffect(() => {
     if (!sleepTimer.active) return
-    // End of song mode - no interval, will stop in onEnded callback
     if (sleepTimer.endOfSong) return
     if (sleepTimer.remaining <= 0) return
-    const id = setInterval(() => {
+    const startedAt = Date.now()
+    const startedRemaining = sleepTimer.remaining
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000)
+      const newRemaining = Math.max(0, startedRemaining - elapsed)
       const state = useStore.getState()
-      const t = state.sleepTimer
-      if (!t.active) { clearInterval(id); return }
-      const newRemaining = t.remaining - 1
+      if (!state.sleepTimer.active) return
       if (newRemaining <= 0) {
         audioEngine.pause()
         state.setIsPlaying(false)
         state.setSleepTimer({ remaining: 0, endOfSong: false, active: false })
-        clearInterval(id)
       } else {
-        state.setSleepTimer({ ...t, remaining: newRemaining })
+        state.setSleepTimer({ ...state.sleepTimer, remaining: newRemaining })
       }
-    }, 1000)
+    }
+    const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [sleepTimer.active, sleepTimer.remaining, sleepTimer.endOfSong])
+  }, [sleepTimer.active, sleepTimer.endOfSong])
 
   const togglePlay = useCallback(() => {
     if (isPlaying) { audioEngine.pause(); setIsPlaying(false) }

@@ -137,12 +137,12 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show()
     mainWindow?.focus()
+    mainWindow?.webContents.openDevTools()
   })
 
   const devUrl = import.meta.env.VITE_DEV_SERVER_URL || process.env.VITE_DEV_SERVER_URL
   if (devUrl) {
     mainWindow.loadURL(devUrl)
-    mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }

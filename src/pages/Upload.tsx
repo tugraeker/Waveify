@@ -117,7 +117,9 @@ export default function UploadPage() {
         const { error: artError } = await supabase.from('song_artists').insert(
           selectedUsers.map((u) => ({ song_id: song.id, user_id: u.id }))
         )
-        if (artError) throw new Error(`Sanatçı ekleme hatası: ${artError.message}`)
+        if (artError && artError.code !== '42501') {
+          console.warn('song_artists insert warning:', artError.message)
+        }
       }
 
       setUploaded(true)

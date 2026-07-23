@@ -202,7 +202,7 @@ export default function SearchPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium truncate ${currentSong?.id === song.id ? 'text-wave-400' : 'text-white'}`}>{song.title}</p>
-                  <p className="text-xs text-surface-400 truncate">{song.artist}</p>
+                  <p className="text-xs text-surface-400 truncate hover:text-wave-400 transition-colors" onClick={(e) => { e.stopPropagation(); navigate(`/search?q=${encodeURIComponent(song.artist)}`) }}>{song.artist}</p>
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); setAddPlaylistSong(song) }} className="p-1.5 rounded-lg text-surface-500 hover:text-wave-400 transition-colors opacity-0 group-hover:opacity-100">
                   <ListMusic size={14} />

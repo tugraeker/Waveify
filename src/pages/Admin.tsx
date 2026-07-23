@@ -5,7 +5,7 @@ import { Button, Input } from '@/components/ui'
 import { BADGE_DEFS } from '@/types'
 import type { User, Song, Badge } from '@/types'
 import { emitToast } from '@/hooks/useToast'
-import { Shield, Search, Trash2, Plus, X, Crown, Music, Users, Activity, Clock, TrendingUp, Disc } from 'lucide-react'
+import { Shield, Search, Trash2, Plus, X, Crown, Music, Users, Activity, Clock, TrendingUp, Disc, UserX } from 'lucide-react'
 
 type Tab = 'users' | 'songs' | 'badges' | 'stats'
 
@@ -109,6 +109,15 @@ export default function AdminPage() {
     emitToast('Badge kaldırıldı', 'success')
   }
 
+  async function deleteUser(targetUser: User) {
+    if (!confirm(`"${targetUser.username}" kullanıcısını ve tüm şarkılarını silmek istediğine emin misin?`)) return
+    const { error } = await supabase.rpc('admin_delete_user', { target_user_id: targetUser.id })
+    if (error) { emitToast('Silme hatası: ' + error.message, 'error'); return }
+    emitToast('Kullanıcı silindi', 'success')
+    loadUsers()
+    loadStats()
+  }
+
   async function getUserBadges(userId: string): Promise<Badge[]> {
     const { data } = await supabase.from('badges').select('*').eq('user_id', userId)
     return data || []
@@ -187,7 +196,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {filteredUsers.map((u) => (
-                    <UserRow key={u.id} user={u} onToggleAdmin={() => toggleAdmin(u)} onGrantBadge={(type) => grantBadge(u, type)} />
+                    <UserRow key={u.id} user={u} onToggleAdmin={() => toggleAdmin(u)} onGrantBadge={(type) => grantBadge(u, type)} onRevokeBadge={(b) => revokeBadge(b)} onDelete={() => deleteUser(u)} />
                   ))}
                 </tbody>
               </table>
@@ -317,7 +326,7 @@ export default function AdminPage() {
   )
 }
 
-function UserRow({ user, onToggleAdmin, onGrantBadge }: { user: User; onToggleAdmin: () => void; onGrantBadge: (type: string) => void }) {
+function UserRow({ user, onToggleAdmin, onGrantBadge, onRevokeBadge, onDelete }: { user: User; onToggleAdmin: () => void; onGrantBadge: (type: string) => void; onRevokeBadge: (b: Badge) => void; onDelete: () => void }) {
   const [badges, setBadges] = useState<Badge[]>([])
   const [showBadgePicker, setShowBadgePicker] = useState(false)
 
@@ -341,8 +350,11 @@ function UserRow({ user, onToggleAdmin, onGrantBadge }: { user: User; onToggleAd
             </div>
             <div className="flex gap-1 mt-0.5">
               {badges.map((b) => (
-                <span key={b.id} className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: b.color + '20', color: b.color }}>
+                <span key={b.id} className="text-[10px] px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 group/badge" style={{ backgroundColor: b.color + '20', color: b.color }}>
                   {b.label || b.badge_type}
+                  <button onClick={() => onRevokeBadge(b)} className="opacity-0 group-hover/badge:opacity-100 hover:text-red-400 transition-opacity" title="Kaldır">
+                    <X size={10} />
+                  </button>
                 </span>
               ))}
             </div>
@@ -372,12 +384,20 @@ function UserRow({ user, onToggleAdmin, onGrantBadge }: { user: User; onToggleAd
             {badges.length > 0 && <div className="border-t border-surface-800 mt-1 pt-1"><p className="text-[10px] text-surface-500 px-2 py-1">Mevcut badge'ler:</p>{badges.map((b) => (
               <div key={b.id} className="flex items-center justify-between px-2 py-1">
                 <span className="text-xs" style={{ color: b.color }}>{b.label || b.badge_type}</span>
+                <button onClick={() => onRevokeBadge(b)} className="text-surface-500 hover:text-red-400 transition-colors"><X size={12} /></button>
               </div>
             ))}</div>}
           </div>
         )}
       </td>
-      <td className="p-4 text-right text-surface-500 text-xs">{new Date(user.created_at).toLocaleDateString('tr-TR')}</td>
+      <td className="p-4 text-right">
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={onDelete} className="p-1.5 rounded-lg text-surface-500 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Kullanıcıyı Sil">
+            <Trash2 size={13} />
+          </button>
+          <span className="text-surface-500 text-xs">{new Date(user.created_at).toLocaleDateString('tr-TR')}</span>
+        </div>
+      </td>
     </tr>
   )
 }

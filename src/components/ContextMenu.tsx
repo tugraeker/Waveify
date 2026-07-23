@@ -50,7 +50,8 @@ export default function ContextMenu({ song, x, y, onClose }: Props) {
     }},
     { icon: User, label: 'Sanatçı Sayfası', action: () => { navigate(`/search?q=${encodeURIComponent(song.artist)}`); onClose() } },
     { icon: Copy, label: 'Linki Kopyala', action: () => {
-      navigator.clipboard.writeText(`${window.location.origin}/song/${song.id}`)
+      const base = import.meta.env.VITE_PUBLIC_URL || window.location.origin
+      navigator.clipboard.writeText(`${base}/song/${song.id}`)
       emitToast('Link kopyalandı', 'success')
       onClose()
     }},

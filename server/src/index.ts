@@ -73,11 +73,14 @@ app.post('/api/import', async (req, res) => {
     let finalArtist = artist || ''
     let duration = 0
 
-    // Method 1: Try youtube-dl-exec (yt-dlp) - most reliable
+    // Clean URL (remove playlist/radio params)
+    const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
+
+    // Method 1: Try youtube-dl-exec (yt-dlp) with android client (bypasses bot detection)
     try {
       const youtubedl = await import('youtube-dl-exec').then(m => m.default)
       console.log('[Import] Starting yt-dlp download...')
-      const audioProcess = youtubedl.exec(url, {
+      const audioProcess = youtubedl.exec(cleanUrl, {
         extractAudio: true,
         audioFormat: 'mp3',
         output: '-',
@@ -86,8 +89,10 @@ app.post('/api/import', async (req, res) => {
         preferFreeFormats: true,
         noPlaylist: true,
         socketTimeout: 30,
-        retries: 2,
-      })
+        retries: 3,
+        extractorArgs: 'youtube:player_client=android,web',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      } as any)
       // Timeout after 120 seconds
       const killTimer = setTimeout(() => { try { audioProcess.kill() } catch {} }, 120_000)
       // Log stderr for debugging
@@ -101,7 +106,7 @@ app.post('/api/import', async (req, res) => {
       audioBuffer = Buffer.concat(audioChunks)
       // Try to get metadata via yt-dlp
       try {
-        const metaProcess = youtubedl.exec(url, {
+        const metaProcess = youtubedl.exec(cleanUrl, {
           dumpSingleJson: true,
           noCheckCertificates: true,
           noWarnings: true,
@@ -158,7 +163,7 @@ app.post('/api/import', async (req, res) => {
         const cobaltRes = await fetch('https://api.cobalt.tools/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ url, videoQuality: '144', filenameStyle: 'basic' }),
+          body: JSON.stringify({ url: cleanUrl, videoQuality: '144', filenameStyle: 'basic' }),
         })
         if (cobaltRes.ok) {
           const cobaltData = await cobaltRes.json()
@@ -166,6 +171,37 @@ app.post('/api/import', async (req, res) => {
             const dlRes = await fetch(cobaltData.url)
             if (dlRes.ok) audioBuffer = Buffer.from(await dlRes.arrayBuffer())
           }
+        }
+      } catch {}
+    }
+
+    // Method 5: Try invidious API (privacy-friendly YouTube proxy)
+    if (!audioBuffer) {
+      try {
+        const invidiousRes = await fetch(`https://inv.nadeko.net/latest_version?id=${videoId}&itag=140&local=true`, {
+          redirect: 'manual',
+        })
+        const location = invidiousRes.headers.get('location')
+        if (location) {
+          const dlRes = await fetch(location)
+          if (dlRes.ok) audioBuffer = Buffer.from(await dlRes.arrayBuffer())
+        }
+      } catch {}
+    }
+
+    // Method 6: Try youtubei (another API fallback)
+    if (!audioBuffer) {
+      try {
+        const apiRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        })
+        const html = await apiRes.text()
+        // Parse audio URL from page
+        const match = html.match(/"audioQuality"[^}]+url":"([^"]+)"/)
+        if (match) {
+          const audioUrl = match[1].replace(/\\u0026/g, '&')
+          const dlRes = await fetch(audioUrl)
+          if (dlRes.ok) audioBuffer = Buffer.from(await dlRes.arrayBuffer())
         }
       } catch {}
     }

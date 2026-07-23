@@ -32,12 +32,20 @@ export default function Import() {
     setResult(null)
 
     try {
+      // Clean URL - remove playlist/radio params
+      let cleanUrl = url.trim()
+      const vidMatch = cleanUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+      const videoId = vidMatch ? vidMatch[1] : null
+      if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
+        if (videoId) cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
+      }
+
       // Step 1: Fetch metadata via oEmbed
       let oembedUrl = ''
-      if (url.includes('youtube.com') || url.includes('youtu.be')) {
-        oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
-      } else if (url.includes('soundcloud.com')) {
-        oembedUrl = `https://soundcloud.com/oembed?url=${encodeURIComponent(url)}&format=json`
+      if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
+        oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`
+      } else if (cleanUrl.includes('soundcloud.com')) {
+        oembedUrl = `https://soundcloud.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`
       } else {
         throw new Error('Desteklenen platformlar: YouTube, SoundCloud')
       }
@@ -51,7 +59,7 @@ export default function Import() {
 
       // Parse YouTube title
       let finalTitle = metaTitle
-      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
         if (metaTitle.includes(' - ')) {
           const parts = metaTitle.split(' - ')
           finalTitle = parts.slice(1).join(' - ').trim()
@@ -73,7 +81,7 @@ export default function Import() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url,
+          url: cleanUrl,
           userId: user.id,
           title: finalTitle,
           artist: metaArtist,

@@ -49,8 +49,16 @@ export default function UserProfile() {
         try { await supabase.from('users').insert({ id: currentUser.id, username: currentUser.username, email: currentUser.email }) } catch {}
       } else setUsername('Kullanıcı')
 
-      const { data: s } = await supabase.from('songs').select('*').eq('user_id', uid).order('created_at', { ascending: false })
-      if (s) { setUserSongs(s); setStats({ songs: s.length, likes: 0 }) }
+      const { data: owned } = await supabase.from('songs').select('*').eq('user_id', uid).order('created_at', { ascending: false })
+      const { data: collab } = await supabase.from('song_artists').select('song:song_id(*)').eq('user_id', uid)
+      let allSongs: any[] = owned || []
+      if (collab) {
+        const collabSongs = collab.map((c: any) => c.song).filter(Boolean)
+        const existingIds = new Set(allSongs.map(s => s.id))
+        collabSongs.forEach((s: any) => { if (!existingIds.has(s.id)) { allSongs.push(s); existingIds.add(s.id) } })
+      }
+      setUserSongs(allSongs)
+      setStats({ songs: allSongs.length, likes: 0 })
 
       if (currentUser) {
         const { data: likes } = await supabase.from('likes').select('song_id').eq('user_id', currentUser.id)
@@ -78,6 +86,15 @@ export default function UserProfile() {
         setUser({ ...currentUser, avatar_url: publicUrl })
       }
     } catch (e) { console.error('Avatar upload error:', e) } finally { setUploadingAvatar(false) }
+  }
+
+  async function removeAvatar() {
+    if (!currentUser) return
+    const { error } = await supabase.from('users').update({ avatar_url: '' }).eq('id', currentUser.id)
+    if (!error) {
+      setAvatarUrl('')
+      setUser({ ...currentUser, avatar_url: '' })
+    }
   }
 
   async function saveProfile() {
@@ -119,14 +136,21 @@ export default function UserProfile() {
               </div>
             )}
             {isOwn && (
-              <label className="absolute inset-0 rounded-full bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                {uploadingAvatar ? (
-                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Camera size={24} className="text-white" />
+              <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                <label className="flex items-center justify-center cursor-pointer p-2 rounded-full hover:bg-white/10">
+                  {uploadingAvatar ? (
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Camera size={24} className="text-white" />
+                  )}
+                  <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
+                </label>
+                {avatarUrl && (
+                  <button onClick={removeAvatar} className="p-2 rounded-full hover:bg-white/10 text-white" title="Fotoğrafı Kaldır">
+                    <X size={20} />
+                  </button>
                 )}
-                <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
-              </label>
+              </div>
             )}
           </div>
           <div className="flex-1 min-w-0">

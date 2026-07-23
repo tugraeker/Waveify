@@ -4,7 +4,7 @@ import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
 import { Logo } from '@/components/Logo'
-import { CheckCircle } from 'lucide-react'
+import { CheckCircle, Chrome } from 'lucide-react'
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true)
@@ -128,6 +128,18 @@ export default function AuthPage() {
             <Button type="submit" variant="primary" size="lg" className="w-full mt-1" disabled={loading}>
               {loading ? 'Lütfen bekleyin...' : isLogin ? 'Giriş Yap' : 'Kayıt Ol'}
             </Button>
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-surface-700" /></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-surface-900/60 px-3 text-surface-500">veya</span></div>
+            </div>
+            <button
+              onClick={() => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })}
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl bg-surface-800 border border-surface-700 text-sm text-white font-medium hover:bg-surface-700 transition-all"
+              type="button"
+            >
+              <Chrome size={18} />
+              Google ile Devam Et
+            </button>
           </form>
 
           <p className="text-sm text-surface-500 text-center mt-6">
