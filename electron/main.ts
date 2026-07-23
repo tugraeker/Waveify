@@ -42,7 +42,12 @@ autoUpdater.on('update-downloaded', () => {
 
 autoUpdater.on('error', (err) => {
   if (isDev) return
-  mainWindow?.webContents.send('update:error', err.message)
+  const msg = err.message || ''
+  if (msg.includes('404') || msg.includes('ENOENT') || msg.includes('latest.yml')) {
+    mainWindow?.webContents.send('update:not-available')
+    return
+  }
+  mainWindow?.webContents.send('update:error', 'Güncelleme kontrol edilemedi')
 })
 
 ipcMain.on('update:check', () => {
