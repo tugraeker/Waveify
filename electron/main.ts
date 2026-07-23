@@ -18,6 +18,8 @@ const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || process.env.VITE_DIS
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = true
 
+const isDev = !app.isPackaged
+
 autoUpdater.on('checking-for-update', () => {
   mainWindow?.webContents.send('update:checking')
 })
@@ -39,10 +41,12 @@ autoUpdater.on('update-downloaded', () => {
 })
 
 autoUpdater.on('error', (err) => {
+  if (isDev) return
   mainWindow?.webContents.send('update:error', err.message)
 })
 
 ipcMain.on('update:check', () => {
+  if (isDev) return
   autoUpdater.checkForUpdates()
 })
 
@@ -137,7 +141,7 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show()
     mainWindow?.focus()
-    mainWindow?.webContents.openDevTools()
+    if (!app.isPackaged) mainWindow?.webContents.openDevTools()
   })
 
   const devUrl = import.meta.env.VITE_DEV_SERVER_URL || process.env.VITE_DEV_SERVER_URL
