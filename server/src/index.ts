@@ -20,7 +20,13 @@ const io = new Server(httpServer, {
   },
 })
 
-app.use(cors())
+app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+}))
+app.options('*', cors())
 app.use(express.json({ limit: '50mb' }))
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://kjyjjqxqsbmrravhcuoc.supabase.co'
