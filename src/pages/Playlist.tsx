@@ -41,16 +41,43 @@ export default function PlaylistPage() {
         const ids = data.map((l: any) => l.song_id)
         const { data: likedSongs } = await supabase.from('songs').select('*').in('id', ids)
         if (likedSongs) setSongs(likedSongs)
-      } else {
-        setSongs([])
-      }
+      } else setSongs([])
       return
     }
-    let q = supabase.from('songs').select('*')
-    if (autoType === 'latest') q = q.order('created_at', { ascending: false }).limit(50)
-    else q = q.order('likes_count', { ascending: false }).limit(50)
-    const { data } = await q
-    if (data) setSongs(data)
+    if (autoType === 'latest') {
+      const { data } = await supabase.from('songs').select('*').order('created_at', { ascending: false }).limit(50)
+      if (data) setSongs(data)
+      return
+    }
+    if (autoType === 'top50' || autoType === 'weekly') {
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+      const { data: plays } = await supabase
+        .from('listen_history')
+        .select('song_id')
+        .gte('played_at', autoType === 'weekly' ? weekAgo : '1970-01-01')
+      if (!plays || plays.length === 0) { setSongs([]); return }
+      const counts: Record<string, number> = {}
+      plays.forEach((p: any) => { counts[p.song_id] = (counts[p.song_id] || 0) + 1 })
+      const ids = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 50).map(([id]) => id)
+      const { data: songs } = await supabase.from('songs').select('*').in('id', ids)
+      if (songs) setSongs(songs.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)))
+      return
+    }
+    if (autoType === 'friends_top') {
+      if (!user) return
+      const { data: friends } = await supabase.from('friends').select('friend_id').eq('user_id', user.id).eq('status', 'accepted')
+      if (!friends || friends.length === 0) { setSongs([]); return }
+      const friendIds = friends.map((f: any) => f.friend_id)
+      const { data: plays } = await supabase.from('listen_history').select('song_id').in('user_id', friendIds)
+      if (!plays || plays.length === 0) { setSongs([]); return }
+      const counts: Record<string, number> = {}
+      plays.forEach((p: any) => { counts[p.song_id] = (counts[p.song_id] || 0) + 1 })
+      const ids = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 50).map(([id]) => id)
+      const { data: songs } = await supabase.from('songs').select('*').in('id', ids)
+      if (songs) setSongs(songs.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)))
+      return
+    }
+    setSongs([])
   }
 
   async function fetchCustomPlaylist(playlistId: string) {
