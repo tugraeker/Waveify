@@ -43,11 +43,14 @@ export function useChat(socket: Socket | null) {
   const [voiceParticipants, setVoiceParticipants] = useState<VoiceParticipant[]>([])
   const [inVoice, setInVoice] = useState(false)
   const [voiceChannelId, setVoiceChannelId] = useState<string | null>(null)
+  const [isScreenSharing, setIsScreenSharing] = useState(false)
+  const [localMuted, setLocalMuted] = useState(false)
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([])
+  const [selectedMic, setSelectedMic] = useState('')
+  const [selectedSpeaker, setSelectedSpeaker] = useState('')
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map())
   const localStreamRef = useRef<MediaStream | null>(null)
   const screenStreamRef = useRef<MediaStream | null>(null)
-  const [isScreenSharing, setIsScreenSharing] = useState(false)
-  const [localMuted, setLocalMuted] = useState(false)
 
   function createPeer(targetUserId: string, stream: MediaStream) {
     const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] })
@@ -56,17 +59,42 @@ export function useChat(socket: Socket | null) {
       if (e.candidate) socket?.emit('voice:ice-candidate', { to: targetUserId, candidate: e.candidate })
     }
     pc.ontrack = e => {
+      const existing = document.getElementById(`audio-${targetUserId}`)
+      if (existing) existing.remove()
       const audioEl = document.createElement('audio')
       audioEl.srcObject = e.streams[0]
       audioEl.autoplay = true
       audioEl.id = `audio-${targetUserId}`
-      const existing = document.getElementById(`audio-${targetUserId}`)
-      if (existing) existing.remove()
+      if (selectedSpeaker) { try { (audioEl as any).setSinkId(selectedSpeaker) } catch {} }
       document.body.appendChild(audioEl)
+    }
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+        pc.close(); peersRef.current.delete(targetUserId);
+        document.getElementById(`audio-${targetUserId}`)?.remove()
+      }
     }
     peersRef.current.set(targetUserId, pc)
     return pc
   }
+
+  async function createOfferTo(uid: string) {
+    if (!localStreamRef.current) return
+    const pc = createPeer(uid, localStreamRef.current)
+    const offer = await pc.createOffer()
+    await pc.setLocalDescription(offer)
+    socket?.emit('voice:offer', { to: uid, offer })
+  }
+
+  useEffect(() => {
+    navigator.mediaDevices?.enumerateDevices().then(devices => {
+      setAudioDevices(devices)
+      const mic = devices.find(d => d.kind === 'audioinput')
+      const spk = devices.find(d => d.kind === 'audiooutput')
+      if (mic) setSelectedMic(mic.deviceId)
+      if (spk) setSelectedSpeaker(spk.deviceId)
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -80,16 +108,23 @@ export function useChat(socket: Socket | null) {
       setMessages(prev => [...prev, msg])
     })
 
+    socket.on('voice:participants', async (participants: VoiceParticipant[]) => {
+      setVoiceParticipants(participants)
+      if (!user || !localStreamRef.current) return
+      for (const p of participants) {
+        if (p.userId !== user.id && !peersRef.current.has(p.userId)) {
+          await createOfferTo(p.userId)
+        }
+      }
+    })
+
     socket.on('voice:user-joined', async ({ userId: uid, username: uname }) => {
       setVoiceParticipants(prev => {
         if (prev.find(p => p.userId === uid)) return prev
         return [...prev, { userId: uid, username: uname, muted: false, deafened: false }]
       })
       if (!user || !localStreamRef.current || uid === user.id) return
-      const pc = createPeer(uid, localStreamRef.current)
-      const offer = await pc.createOffer()
-      await pc.setLocalDescription(offer)
-      socket.emit('voice:offer', { to: uid, offer })
+      await createOfferTo(uid)
     })
 
     socket.on('voice:user-left', (uid: string) => {
@@ -97,10 +132,6 @@ export function useChat(socket: Socket | null) {
       const peer = peersRef.current.get(uid)
       if (peer) { peer.close(); peersRef.current.delete(uid) }
       document.getElementById(`audio-${uid}`)?.remove()
-    })
-
-    socket.on('voice:participants', (participants: VoiceParticipant[]) => {
-      setVoiceParticipants(participants)
     })
 
     socket.on('voice:offer', async ({ from: fromId, offer }) => {
@@ -114,7 +145,8 @@ export function useChat(socket: Socket | null) {
 
     socket.on('voice:answer', async ({ from: fromId, answer }) => {
       const pc = peersRef.current.get(fromId)
-      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer))
+      if (pc?.remoteDescription?.type !== 'offer') return
+      try { await pc.setRemoteDescription(new RTCSessionDescription(answer)) } catch {}
     })
 
     socket.on('voice:ice-candidate', async ({ from: fromId, candidate }) => {
@@ -123,15 +155,11 @@ export function useChat(socket: Socket | null) {
     })
 
     return () => {
-      socket.off('chat:message')
-      socket.off('voice:user-joined')
-      socket.off('voice:user-left')
-      socket.off('voice:participants')
-      socket.off('voice:offer')
-      socket.off('voice:answer')
+      socket.off('chat:message'); socket.off('voice:user-joined'); socket.off('voice:user-left')
+      socket.off('voice:participants'); socket.off('voice:offer'); socket.off('voice:answer')
       socket.off('voice:ice-candidate')
     }
-  }, [socket])
+  }, [socket, user])
 
   async function fetchServers() {
     const { data } = await supabase.from('chat_servers').select('*').limit(50)
@@ -154,8 +182,7 @@ export function useChat(socket: Socket | null) {
   }
 
   const selectChannel = useCallback((channelId: string) => {
-    setActiveChannel(channelId)
-    setMessages([])
+    setActiveChannel(channelId); setMessages([])
     socket?.emit('chat:join', channelId)
     fetchMessages(channelId)
   }, [socket])
@@ -169,14 +196,11 @@ export function useChat(socket: Socket | null) {
     if (!user) return
     const { data: server, error } = await supabase.from('chat_servers').insert({ name, created_by: user.id }).select().single()
     if (error || !server) { emitToast('Sunucu oluşturulamadı: ' + (error?.message || 'Bilinmeyen hata'), 'error'); return }
-    const { error: memberErr } = await supabase.from('chat_server_members').insert({ server_id: server.id, user_id: user.id })
-    if (memberErr) emitToast('Üye eklenemedi: ' + memberErr.message, 'error')
-    const defaultChannels = [
+    await supabase.from('chat_server_members').insert({ server_id: server.id, user_id: user.id })
+    await supabase.from('chat_channels').insert([
       { server_id: server.id, name: 'genel', type: 'text' },
       { server_id: server.id, name: 'Sesli 1', type: 'voice' },
-    ]
-    const { error: chErr } = await supabase.from('chat_channels').insert(defaultChannels)
-    if (chErr) emitToast('Kanal oluşturulamadı: ' + chErr.message, 'error')
+    ])
     setServers(prev => [...prev, server])
     emitToast('Sunucu oluşturuldu: ' + server.name, 'success')
     return server
@@ -184,33 +208,30 @@ export function useChat(socket: Socket | null) {
 
   const joinServer = useCallback(async (serverId: string) => {
     if (!user) return
-    await supabase.from('chat_server_members').insert({ server_id: serverId, user_id: user.id }).select()
+    await supabase.from('chat_server_members').insert({ server_id: serverId, user_id: user.id })
     fetchServers()
   }, [user])
 
   const joinVoice = useCallback(async (channelId: string) => {
     if (!socket || !user) return
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const constraints: any = { audio: true }
+      if (selectedMic) constraints.audio = { deviceId: { exact: selectedMic } }
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
       localStreamRef.current = stream
-    } catch { return }
-    setVoiceChannelId(channelId)
-    setInVoice(true)
+    } catch { emitToast('Mikrofona erişilemedi', 'error'); return }
+    setVoiceChannelId(channelId); setInVoice(true)
     socket.emit('voice:join', { channelId })
-  }, [socket, user])
+  }, [socket, user, selectedMic])
 
   const leaveVoice = useCallback(() => {
     if (!socket) return
     socket.emit('voice:leave')
-    peersRef.current.forEach(peer => peer.close())
-    peersRef.current.clear()
+    peersRef.current.forEach(peer => peer.close()); peersRef.current.clear()
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null }
     if (screenStreamRef.current) { screenStreamRef.current.getTracks().forEach(t => t.stop()); screenStreamRef.current = null }
     document.querySelectorAll('audio[id^="audio-"]').forEach(el => el.remove())
-    setInVoice(false)
-    setVoiceChannelId(null)
-    setVoiceParticipants([])
-    setIsScreenSharing(false)
+    setInVoice(false); setVoiceChannelId(null); setVoiceParticipants([]); setIsScreenSharing(false)
   }, [socket])
 
   const toggleMute = useCallback(() => {
@@ -224,6 +245,10 @@ export function useChat(socket: Socket | null) {
 
   const toggleScreenShare = useCallback(async () => {
     if (isScreenSharing) {
+      for (const [, pc] of peersRef.current) {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video')
+        if (sender) try { await sender.replaceTrack(null) } catch {}
+      }
       if (screenStreamRef.current) { screenStreamRef.current.getTracks().forEach(t => t.stop()); screenStreamRef.current = null }
       setIsScreenSharing(false)
       return
@@ -232,13 +257,37 @@ export function useChat(socket: Socket | null) {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
       screenStreamRef.current = stream
       setIsScreenSharing(true)
-      stream.getVideoTracks()[0]?.addEventListener('ended', () => { setIsScreenSharing(false); screenStreamRef.current = null })
+      for (const [, pc] of peersRef.current) {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video')
+        if (sender) await sender.replaceTrack(stream.getVideoTracks()[0])
+        else pc.addTrack(stream.getVideoTracks()[0], stream)
+      }
+      stream.getVideoTracks()[0]?.addEventListener('ended', () => { toggleScreenShare() })
     } catch {}
   }, [isScreenSharing])
+
+  const changeMic = useCallback(async (deviceId: string) => {
+    setSelectedMic(deviceId)
+    if (!inVoice) return
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } })
+      const newTrack = stream.getAudioTracks()[0]
+      if (localStreamRef.current) {
+        localStreamRef.current.getAudioTracks().forEach(t => { t.stop(); localStreamRef.current?.removeTrack(t) })
+        localStreamRef.current.addTrack(newTrack)
+      }
+      for (const [, pc] of peersRef.current) {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'audio')
+        if (sender) await sender.replaceTrack(newTrack)
+      }
+    } catch { emitToast('Mikrofon değiştirilemedi', 'error') }
+  }, [inVoice])
 
   return {
     servers, channels, messages, activeChannel, setActiveChannel, setMessages,
     voiceParticipants, inVoice, voiceChannelId, isScreenSharing, localMuted,
+    audioDevices, selectedMic, selectedSpeaker,
+    setSelectedSpeaker, changeMic,
     fetchServers, fetchChannels, selectChannel, sendMessage, createServer, joinServer,
     joinVoice, leaveVoice, toggleMute, toggleScreenShare,
   }

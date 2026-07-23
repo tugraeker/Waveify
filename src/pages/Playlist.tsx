@@ -50,17 +50,11 @@ export default function PlaylistPage() {
       return
     }
     if (autoType === 'top50' || autoType === 'weekly') {
-      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-      const { data: plays } = await supabase
-        .from('listen_history')
-        .select('song_id')
-        .gte('played_at', autoType === 'weekly' ? weekAgo : '1970-01-01')
-      if (!plays || plays.length === 0) { setSongs([]); return }
-      const counts: Record<string, number> = {}
-      plays.forEach((p: any) => { counts[p.song_id] = (counts[p.song_id] || 0) + 1 })
-      const ids = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 50).map(([id]) => id)
-      const { data: songs } = await supabase.from('songs').select('*').in('id', ids)
-      if (songs) setSongs(songs.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)))
+      const { data } = await supabase.rpc('get_top_songs', {
+        limit_count: 50,
+        since_days: autoType === 'weekly' ? 7 : 0,
+      })
+      if (data) setSongs(data)
       return
     }
     if (autoType === 'friends_top') {

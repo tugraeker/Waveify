@@ -10,6 +10,7 @@ export default function ChatPage() {
   const {
     servers, channels, messages, activeChannel, setActiveChannel, setMessages,
     voiceParticipants, inVoice, voiceChannelId, isScreenSharing, localMuted,
+    audioDevices, selectedMic, selectedSpeaker, setSelectedSpeaker, changeMic,
     fetchServers, fetchChannels, selectChannel, sendMessage, createServer, joinServer,
     joinVoice, leaveVoice, toggleMute, toggleScreenShare,
   } = useChat(socket)
@@ -140,18 +141,28 @@ export default function ChatPage() {
               </div>
             </form>
             {inVoice && (
-              <div className="flex items-center gap-2 px-4 pb-4">
-                <button onClick={toggleMute} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${localMuted ? 'bg-red-500/20 text-red-400' : 'bg-surface-800 text-surface-400 hover:text-white'}`}>
-                  {localMuted ? <MicOff size={13} /> : <Mic size={13} />}
-                  {localMuted ? 'Ses Kapalı' : 'Ses Açık'}
-                </button>
-                <button onClick={toggleScreenShare} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isScreenSharing ? 'bg-wave-500/20 text-wave-400' : 'bg-surface-800 text-surface-400 hover:text-white'}`}>
-                  {isScreenSharing ? <ScreenShare size={13} /> : <Monitor size={13} />}
-                  {isScreenSharing ? 'Paylaşılıyor' : 'Ekran Paylaş'}
-                </button>
-                <button onClick={leaveVoice} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all ml-auto">
-                  <PhoneOff size={13} /> Sesten Ayrıl
-                </button>
+              <div className="px-4 pb-4 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={toggleMute} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${localMuted ? 'bg-red-500/20 text-red-400' : 'bg-surface-800 text-surface-400 hover:text-white'}`}>
+                    {localMuted ? <MicOff size={13} /> : <Mic size={13} />}
+                    {localMuted ? 'Ses Kapalı' : 'Ses Açık'}
+                  </button>
+                  <button onClick={toggleScreenShare} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isScreenSharing ? 'bg-wave-500/20 text-wave-400' : 'bg-surface-800 text-surface-400 hover:text-white'}`}>
+                    {isScreenSharing ? <ScreenShare size={13} /> : <Monitor size={13} />}
+                    {isScreenSharing ? 'Paylaşılıyor' : 'Ekran Paylaş'}
+                  </button>
+                  <button onClick={leaveVoice} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all ml-auto">
+                    <PhoneOff size={13} /> Sesten Ayrıl
+                  </button>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <select value={selectedMic} onChange={e => changeMic(e.target.value)} className="bg-surface-800 border border-surface-700 rounded-lg px-2 py-1.5 text-xs text-surface-300 outline-none max-w-[180px]">
+                    {audioDevices.filter(d => d.kind === 'audioinput').map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || 'Mikrofon'}</option>)}
+                  </select>
+                  <select value={selectedSpeaker} onChange={e => setSelectedSpeaker(e.target.value)} className="bg-surface-800 border border-surface-700 rounded-lg px-2 py-1.5 text-xs text-surface-300 outline-none max-w-[180px]">
+                    {audioDevices.filter(d => d.kind === 'audiooutput').map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || 'Hoparlör'}</option>)}
+                  </select>
+                </div>
               </div>
             )}
           </>
