@@ -84,45 +84,75 @@ app.post('/api/import', async (req, res) => {
     const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
 
     // Method 1: Direct YouTube page scraping (bypasses yt-dlp bot detection)
-    // Fetches the player response directly from YouTube's webpage and extracts audio URL
     if (!audioBuffer) {
       try {
         console.log('[Import] Method 1: Direct YouTube page scrape...')
         const pageRes = await fetch(cleanUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Language': 'en-US,en;q=0.9',
           },
         })
         const html = await pageRes.text()
-        // Try to extract ytInitialPlayerResponse from the page
-        const ytMatch = html.match(/ytInitialPlayerResponse\s*=\s*({[^<]+?});\s*(?:var|window|<\/)/)
-        if (ytMatch) {
-          const playerResponse = JSON.parse(ytMatch[1])
-          const formats = playerResponse?.streamingData?.adaptiveFormats || []
-          const audioFormats = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
-          if (audioFormats.length > 0) {
-            // Pick the highest bitrate audio
-            audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
-            const best = audioFormats[0]
-            const audioUrl = best.url || best.signatureCipher || ''
-            let finalUrl = audioUrl
-            if (audioUrl.includes('s=') || !audioUrl.startsWith('http')) {
-              // Need to decrypt signature - skip, use next method
-            } else {
-              console.log('[Import] Got audio URL from player response')
-              const dlRes = await fetch(finalUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } })
-              if (dlRes.ok) {
-                audioBuffer = Buffer.from(await dlRes.arrayBuffer())
-                finalTitle = title || playerResponse?.videoDetails?.title || ''
-                finalArtist = artist || playerResponse?.videoDetails?.author || ''
-                duration = parseInt(playerResponse?.videoDetails?.lengthSeconds || '0')
+        // Extract ytInitialPlayerResponse JSON (find start marker, then track brace depth)
+        const marker = 'ytInitialPlayerResponse = '
+        const idx = html.indexOf(marker)
+        if (idx !== -1) {
+          const start = idx + marker.length
+          let depth = 0
+          let end = start
+          for (let i = start; i < html.length; i++) {
+            if (html[i] === '{') depth++
+            else if (html[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
+          }
+          if (end > start) {
+            const jsonStr = html.slice(start, end)
+            const playerResponse = JSON.parse(jsonStr)
+            const formats = playerResponse?.streamingData?.adaptiveFormats || []
+            const audioFormats = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
+            if (audioFormats.length > 0) {
+              audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+              const best = audioFormats[0]
+              const audioUrl = best.url || ''
+              if (audioUrl.startsWith('http')) {
+                console.log('[Import] Got audio URL from player response, bitrate:', best.bitrate)
+                const dlRes = await fetch(audioUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+                if (dlRes.ok) {
+                  audioBuffer = Buffer.from(await dlRes.arrayBuffer())
+                  finalTitle = title || playerResponse?.videoDetails?.title || ''
+                  finalArtist = artist || playerResponse?.videoDetails?.author || ''
+                  duration = parseInt(playerResponse?.videoDetails?.lengthSeconds || '0')
+                  console.log('[Import] Method 1 success:', finalTitle)
+                }
               }
             }
           }
         }
-        if (!audioBuffer) console.log('[Import] Method 1 failed: could not extract audio URL')
+        if (!audioBuffer) {
+          // Try embedded player response (older format)
+          const embedMatch = html.match(/window\["ytInitialPlayerResponse"\]\s*=\s*({.+?});\s*window/)
+          if (embedMatch) {
+            try {
+              const pr = JSON.parse(embedMatch[1])
+              const f = pr?.streamingData?.adaptiveFormats || []
+              const af = f.filter((x: any) => x.mimeType?.startsWith('audio/'))
+              if (af.length > 0) {
+                af.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+                const u = af[0].url
+                if (u?.startsWith('http')) {
+                  const r = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+                  if (r.ok) {
+                    audioBuffer = Buffer.from(await r.arrayBuffer())
+                    finalTitle = title || pr?.videoDetails?.title || ''
+                    finalArtist = artist || pr?.videoDetails?.author || ''
+                    duration = parseInt(pr?.videoDetails?.lengthSeconds || '0')
+                  }
+                }
+              }
+            } catch {}
+          }
+        }
+        if (!audioBuffer) console.log('[Import] Method 1 failed')
       } catch (e: any) { console.log('[Import] Method 1 failed:', e?.message?.slice(0, 100)) }
     }
 
@@ -141,6 +171,8 @@ app.post('/api/import', async (req, res) => {
           noPlaylist: true,
           socketTimeout: 30,
           retries: 3,
+          extractorArgs: 'youtube:player_client=android,youtube:player_client=web',
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
         // Add cookies from env if available
         if (process.env.YT_COOKIES) {
