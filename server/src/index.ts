@@ -382,12 +382,11 @@ app.post('/api/import', async (req, res) => {
     res.status(500).json({ error: e.message || 'Import başarısız' })
   }
 })
-
-// Client-side extraction endpoint: accepts direct audio URL extracted by the browser
-app.post('/api/import-direct', async (req, res) => {
+// Client-side videoId endpoint: accepts videoId, downloads via proxy methods on server
+app.post('/api/import-by-id', async (req, res) => {
   try {
-    const { audioUrl, coverUrl, userId, title, artist, accessToken } = req.body
-    if (!audioUrl || !userId) return res.status(400).json({ error: 'audioUrl ve userId gerekli' })
+    const { videoId, coverUrl, userId, title, artist, accessToken } = req.body
+    if (!videoId || !userId) return res.status(400).json({ error: 'videoId ve userId gerekli' })
 
     let supabase: ReturnType<typeof createClient>
     if (isServiceKey) {
@@ -399,23 +398,160 @@ app.post('/api/import-direct', async (req, res) => {
       })
     }
 
-    console.log('[Import-Direct] Downloading from:', audioUrl.slice(0, 80))
-    const dlRes = await fetch(audioUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.youtube.com/' } })
-    if (!dlRes.ok) return res.status(400).json({ error: `Audio indirilemedi: ${dlRes.status}` })
+    const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
+    let audioBuffer: Buffer | null = null
+    let finalTitle = title || ''
+    let finalArtist = artist || ''
+    let duration = 0
+    let finalCoverUrl = coverUrl || ''
 
-    const audioBuffer = Buffer.from(await dlRes.arrayBuffer())
+    // Method A: Invidious instances
+    const INVIDIOUS_INSTANCES = [
+      'https://inv.nadeko.net',
+      'https://yewtu.be',
+      'https://invidious.snopyta.org',
+      'https://vid.puffyan.us',
+    ]
+    for (const instance of INVIDIOUS_INSTANCES) {
+      if (audioBuffer) break
+      try {
+        console.log('[Import-ByID] Invidious', instance)
+        const invRes = await fetch(`${instance}/latest_version?id=${videoId}&itag=140&local=true`, {
+          redirect: 'manual', signal: AbortSignal.timeout(15000),
+        })
+        const location = invRes.headers.get('location')
+        if (location) {
+          const dlRes = await fetch(location, { signal: AbortSignal.timeout(60000) })
+          if (dlRes.ok) {
+            audioBuffer = Buffer.from(await dlRes.arrayBuffer())
+            console.log('[Import-ByID] Invidious success, size:', audioBuffer.length)
+          }
+        }
+      } catch (e: any) { console.log('[Import-ByID] Invidious failed:', e?.message?.slice(0, 60)) }
+    }
+
+    // Method B: vevioz
+    if (!audioBuffer) {
+      try {
+        console.log('[Import-ByID] vevioz...')
+        const apiRes = await fetch(`https://api.vevioz.com/api/button/mp3/${videoId}`, {
+          redirect: 'follow', signal: AbortSignal.timeout(60000),
+        })
+        if (apiRes.ok) {
+          audioBuffer = Buffer.from(await apiRes.arrayBuffer())
+          console.log('[Import-ByID] vevioz success, size:', audioBuffer.length)
+        }
+      } catch (e: any) { console.log('[Import-ByID] vevioz failed:', e?.message?.slice(0, 60)) }
+    }
+
+    // Method C: cobalt.tools
+    if (!audioBuffer) {
+      try {
+        console.log('[Import-ByID] cobalt.tools...')
+        const cobaltRes = await fetch('https://api.cobalt.tools/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ url: cleanUrl, videoQuality: '144', filenameStyle: 'basic' }),
+          signal: AbortSignal.timeout(30000),
+        })
+        if (cobaltRes.ok) {
+          const cobaltData = await cobaltRes.json()
+          if (cobaltData.url) {
+            const dlRes = await fetch(cobaltData.url, { signal: AbortSignal.timeout(60000) })
+            if (dlRes.ok) { audioBuffer = Buffer.from(await dlRes.arrayBuffer()); console.log('[Import-ByID] cobalt success') }
+          }
+        }
+      } catch (e: any) { console.log('[Import-ByID] cobalt failed:', e?.message?.slice(0, 60)) }
+    }
+
+    // Method D: yt-dlp with crash-safe promise
+    if (!audioBuffer) {
+      try {
+        const youtubedl = await import('youtube-dl-exec').then(m => m.default)
+        const ytArgs: any = {
+          extractAudio: true, audioFormat: 'mp3', output: '-',
+          noCheckCertificates: true, noWarnings: true, preferFreeFormats: true, noPlaylist: true,
+          socketTimeout: 30, retries: 3,
+          extractorArgs: 'youtube:player_client=android,youtube:player_client=web',
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }
+        if (process.env.YT_COOKIES) {
+          ytArgs.cookies = '/tmp/yt_cookies.txt'
+          fs.writeFileSync('/tmp/yt_cookies.txt', process.env.YT_COOKIES)
+        }
+        audioBuffer = await new Promise<Buffer | null>((resolve) => {
+          const ap = youtubedl.exec(cleanUrl, ytArgs)
+          const chunks: Buffer[] = []
+          const timer = setTimeout(() => { try { ap.kill() } catch {}; resolve(null) }, 120_000)
+          ap.on('error', () => resolve(null))
+          ap.stderr?.on('data', (d: Buffer) => console.log('[yt-dlp]', d.toString().trim()))
+          ap.stdout?.on('data', (d: Buffer) => chunks.push(d))
+          ap.stdout?.on('end', () => { clearTimeout(timer); resolve(chunks.length > 0 ? Buffer.concat(chunks) : null) })
+          ap.on('close', (code: number) => { if (code !== 0 && chunks.length === 0) resolve(null) })
+        })
+        if (audioBuffer) console.log('[Import-ByID] yt-dlp success, size:', audioBuffer.length)
+      } catch (e: any) { console.log('[Import-ByID] yt-dlp failed:', e?.message?.slice(0, 200)) }
+    }
+
+    // Method E: Try fetching YouTube page through CORS proxy to get CDN URL
+    if (!audioBuffer) {
+      for (const proxyBase of ['https://api.allorigins.win/raw?url=', 'https://corsproxy.io/?']) {
+        if (audioBuffer) break
+        try {
+          const proxyUrl = proxyBase + encodeURIComponent(cleanUrl)
+          const prRes = await fetch(proxyUrl, { signal: AbortSignal.timeout(20000) })
+          if (!prRes.ok) continue
+          const html = await prRes.text()
+          const marker = 'ytInitialPlayerResponse = '
+          const idx = html.indexOf(marker)
+          if (idx === -1) continue
+          const start = idx + marker.length
+          let depth = 0, end = start
+          for (let i = start; i < html.length; i++) {
+            if (html[i] === '{') depth++
+            else if (html[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
+          }
+          if (end <= start) continue
+          const pr = JSON.parse(html.slice(start, end))
+          finalTitle = finalTitle || pr?.videoDetails?.title || ''
+          finalArtist = finalArtist || pr?.videoDetails?.author || ''
+          duration = parseInt(pr?.videoDetails?.lengthSeconds || '0')
+          if (!finalCoverUrl) {
+            const thumbs = pr?.videoDetails?.thumbnail?.thumbnails
+            if (thumbs?.length) finalCoverUrl = thumbs[thumbs.length - 1].url
+          }
+          const formats = pr?.streamingData?.adaptiveFormats || []
+          const audioFormats = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
+          if (!audioFormats.length) continue
+          audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+          const audioUrl = audioFormats[0].url
+          if (!audioUrl?.startsWith('http')) continue
+          const dlRes = await fetch(audioUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 'Referer': 'https://www.youtube.com/' },
+          })
+          if (dlRes.ok) {
+            const buf = Buffer.from(await dlRes.arrayBuffer())
+            if (buf.length > 10240) { audioBuffer = buf; console.log('[Import-ByID] proxy CDN success, size:', buf.length) }
+          }
+        } catch (e: any) { console.log('[Import-ByID] proxy failed:', e?.message?.slice(0, 80)) }
+      }
+    }
+
+    if (!audioBuffer) return res.status(400).json({ error: 'Ses indirilemedi (tüm yöntemler başarısız)' })
+
+    // Upload to Supabase
     const audioPath = `${userId}/${Date.now()}_import.mp3`
     const { error: uploadErr } = await supabase.storage
       .from('songs')
       .upload(audioPath, audioBuffer, { contentType: 'audio/mpeg', upsert: true })
-    if (uploadErr) throw new Error(`Yükleme hatası: ${uploadErr.message}`)
+    if (uploadErr) return res.status(500).json({ error: `Yükleme hatası: ${uploadErr.message}` })
 
     const { data: { publicUrl: audioUrlFinal } } = supabase.storage.from('songs').getPublicUrl(audioPath)
 
-    let finalCoverUrl = coverUrl || ''
-    if (coverUrl && coverUrl.startsWith('http')) {
+    // Cover
+    if (finalCoverUrl && finalCoverUrl.startsWith('http')) {
       try {
-        const coverRes = await fetch(coverUrl)
+        const coverRes = await fetch(finalCoverUrl)
         if (coverRes.ok) {
           const coverBlob = await coverRes.blob()
           const coverPath = `${userId}/covers/${Date.now()}.jpg`
@@ -430,17 +566,17 @@ app.post('/api/import-direct', async (req, res) => {
 
     const { data, error: dbError } = await supabase.from('songs').insert([{
       user_id: userId,
-      title: title || 'Bilinmeyen Şarkı',
-      artist: artist || 'Bilinmeyen Sanatçı',
-      duration: 0,
+      title: finalTitle || 'Bilinmeyen Şarkı',
+      artist: finalArtist || 'Bilinmeyen Sanatçı',
+      duration,
       audio_url: audioUrlFinal,
       cover_url: finalCoverUrl || null,
     }] as any).select().single()
 
-    if (dbError) throw new Error(`Veritabanı hatası: ${dbError.message}`)
+    if (dbError) return res.status(500).json({ error: `Veritabanı hatası: ${dbError.message}` })
     res.json({ success: true, song: data })
   } catch (e: any) {
-    console.error('Import-direct error:', e)
+    console.error('Import-by-id error:', e)
     res.status(500).json({ error: e.message || 'Import başarısız' })
   }
 })

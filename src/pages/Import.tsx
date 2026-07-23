@@ -25,7 +25,7 @@ export default function Import() {
 
   const platform = PLATFORMS.find((p) => url.toLowerCase().includes(p.match))
 
-  async function extractYoutubeAudio(videoId: string): Promise<{ audioUrl: string; title: string; artist: string; coverUrl: string } | null> {
+  async function extractYoutubeMeta(videoId: string): Promise<{ title: string; artist: string; coverUrl: string } | null> {
     const proxies = [
       (id: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`,
       (id: string) => `https://corsproxy.io/?${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`,
@@ -46,12 +46,6 @@ export default function Import() {
         }
         if (end <= start) continue
         const pr = JSON.parse(html.slice(start, end))
-        const formats = pr?.streamingData?.adaptiveFormats || []
-        const audio = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
-        if (!audio.length) continue
-        audio.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
-        const url = audio[0].url
-        if (!url?.startsWith('http')) continue
         let title = pr?.videoDetails?.title || ''
         let artist = pr?.videoDetails?.author || ''
         if (title.includes(' - ')) {
@@ -60,7 +54,7 @@ export default function Import() {
           artist = parts[0].trim()
         }
         const coverUrl = pr?.videoDetails?.thumbnail?.thumbnails?.slice(-1)?.[0]?.url || ''
-        return { audioUrl: url, title, artist, coverUrl }
+        return { title, artist, coverUrl }
       } catch { continue }
     }
     return null
@@ -96,7 +90,7 @@ export default function Import() {
 
       const metaTitle = meta.title || ''
       let metaArtist = meta.author_name || ''
-      const metaCover = meta.thumbnail_url || ''
+      let metaCover = meta.thumbnail_url || ''
 
       // Parse YouTube title
       let finalTitle = metaTitle
@@ -118,47 +112,33 @@ export default function Import() {
       const accessToken = session?.access_token
       if (!accessToken) throw new Error('Oturum süresi dolmuş')
 
-      let imported = false
-
-      if (videoId && (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be'))) {
-        const extracted = await extractYoutubeAudio(videoId)
-        if (extracted) {
-          const res = await fetch(`${API_URL}/api/import-direct`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              audioUrl: extracted.audioUrl,
-              coverUrl: extracted.coverUrl,
-              userId: user.id,
-              title: extracted.title,
-              artist: extracted.artist,
-              accessToken,
-            }),
-          })
-          const data = await res.json()
-          if (res.ok && data.success) { imported = true; navigate('/library') }
-        }
+      // Try to get metadata from player response (better title parsing)
+      const metaFromPlayer = videoId ? await extractYoutubeMeta(videoId) : null
+      if (metaFromPlayer) {
+        finalTitle = metaFromPlayer.title
+        metaArtist = metaFromPlayer.artist
+        const playerCover = metaFromPlayer.coverUrl
+        if (playerCover) { metaCover = playerCover; setResult({ title: finalTitle, artist: metaArtist, cover: metaCover }) }
       }
 
-      if (!imported) {
-        // Fallback: server-side import
-        const res = await fetch(`${API_URL}/api/import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: cleanUrl,
-            userId: user.id,
-            title: finalTitle,
-            artist: metaArtist,
-            coverUrl: metaCover,
-            accessToken,
-          }),
-        })
+      // Step 2: Download via server (uses invidious/proxy, bypasses YouTube IP block)
+      if (!videoId) throw new Error('Video ID çıkarılamadı')
+      const res = await fetch(`${API_URL}/api/import-by-id`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId,
+          coverUrl: metaCover,
+          userId: user.id,
+          title: finalTitle,
+          artist: metaArtist,
+          accessToken,
+        }),
+      })
 
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Import başarısız')
-        navigate('/library')
-      }
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Import başarısız')
+      navigate('/library')
     } catch (e: any) {
       setError(e.message || 'Bir hata oluştu')
     } finally {
