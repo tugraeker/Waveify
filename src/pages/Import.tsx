@@ -25,6 +25,47 @@ export default function Import() {
 
   const platform = PLATFORMS.find((p) => url.toLowerCase().includes(p.match))
 
+  async function extractYoutubeAudio(videoId: string): Promise<{ audioUrl: string; title: string; artist: string; coverUrl: string } | null> {
+    const proxies = [
+      (id: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`,
+      (id: string) => `https://corsproxy.io/?${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`,
+    ]
+    for (const proxy of proxies) {
+      try {
+        const res = await fetch(proxy(videoId), { signal: AbortSignal.timeout(15000) })
+        if (!res.ok) continue
+        const html = await res.text()
+        const marker = 'ytInitialPlayerResponse = '
+        const idx = html.indexOf(marker)
+        if (idx === -1) continue
+        const start = idx + marker.length
+        let depth = 0, end = start
+        for (let i = start; i < html.length; i++) {
+          if (html[i] === '{') depth++
+          else if (html[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
+        }
+        if (end <= start) continue
+        const pr = JSON.parse(html.slice(start, end))
+        const formats = pr?.streamingData?.adaptiveFormats || []
+        const audio = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
+        if (!audio.length) continue
+        audio.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+        const url = audio[0].url
+        if (!url?.startsWith('http')) continue
+        let title = pr?.videoDetails?.title || ''
+        let artist = pr?.videoDetails?.author || ''
+        if (title.includes(' - ')) {
+          const parts = title.split(' - ')
+          title = parts.slice(1).join(' - ').trim()
+          artist = parts[0].trim()
+        }
+        const coverUrl = pr?.videoDetails?.thumbnail?.thumbnails?.slice(-1)?.[0]?.url || ''
+        return { audioUrl: url, title, artist, coverUrl }
+      } catch { continue }
+    }
+    return null
+  }
+
   async function handleImport() {
     if (!url.trim() || !user) return
     setLoading(true)
@@ -69,7 +110,7 @@ export default function Import() {
 
       setResult({ title: finalTitle, artist: metaArtist, cover: metaCover })
 
-      // Step 2: Download audio via server
+      // Step 2: Try client-side extraction first (bypasses Render IP block)
       setLoading(false)
       setImporting(true)
 
@@ -77,23 +118,47 @@ export default function Import() {
       const accessToken = session?.access_token
       if (!accessToken) throw new Error('Oturum süresi dolmuş')
 
-      const res = await fetch(`${API_URL}/api/import`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: cleanUrl,
-          userId: user.id,
-          title: finalTitle,
-          artist: metaArtist,
-          coverUrl: metaCover,
-          accessToken,
-        }),
-      })
+      let imported = false
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Import başarısız')
+      if (videoId && (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be'))) {
+        const extracted = await extractYoutubeAudio(videoId)
+        if (extracted) {
+          const res = await fetch(`${API_URL}/api/import-direct`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audioUrl: extracted.audioUrl,
+              coverUrl: extracted.coverUrl,
+              userId: user.id,
+              title: extracted.title,
+              artist: extracted.artist,
+              accessToken,
+            }),
+          })
+          const data = await res.json()
+          if (res.ok && data.success) { imported = true; navigate('/library') }
+        }
+      }
 
-      navigate('/library')
+      if (!imported) {
+        // Fallback: server-side import
+        const res = await fetch(`${API_URL}/api/import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: cleanUrl,
+            userId: user.id,
+            title: finalTitle,
+            artist: metaArtist,
+            coverUrl: metaCover,
+            accessToken,
+          }),
+        })
+
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Import başarısız')
+        navigate('/library')
+      }
     } catch (e: any) {
       setError(e.message || 'Bir hata oluştu')
     } finally {

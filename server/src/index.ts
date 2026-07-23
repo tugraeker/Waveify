@@ -83,7 +83,9 @@ app.post('/api/import', async (req, res) => {
     // Clean URL (remove playlist/radio params)
     const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
 
-    // Method 1: Direct YouTube page scraping (bypasses yt-dlp bot detection)
+    // Method 1: Direct YouTube page scraping from the user's browser IP
+    // (server sends a proxy URL back, the page is fetched client-side)
+    // Server-side fallback: try fetching with a rotating user-agent
     if (!audioBuffer) {
       try {
         console.log('[Import] Method 1: Direct YouTube page scrape...')
@@ -91,76 +93,143 @@ app.post('/api/import', async (req, res) => {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           },
         })
-        const html = await pageRes.text()
-        // Extract ytInitialPlayerResponse JSON (find start marker, then track brace depth)
-        const marker = 'ytInitialPlayerResponse = '
-        const idx = html.indexOf(marker)
-        if (idx !== -1) {
-          const start = idx + marker.length
-          let depth = 0
-          let end = start
-          for (let i = start; i < html.length; i++) {
-            if (html[i] === '{') depth++
-            else if (html[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
-          }
-          if (end > start) {
-            const jsonStr = html.slice(start, end)
-            const playerResponse = JSON.parse(jsonStr)
-            const formats = playerResponse?.streamingData?.adaptiveFormats || []
-            const audioFormats = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
-            if (audioFormats.length > 0) {
-              audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
-              const best = audioFormats[0]
-              const audioUrl = best.url || ''
-              if (audioUrl.startsWith('http')) {
-                console.log('[Import] Got audio URL from player response, bitrate:', best.bitrate)
-                const dlRes = await fetch(audioUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } })
-                if (dlRes.ok) {
-                  audioBuffer = Buffer.from(await dlRes.arrayBuffer())
-                  finalTitle = title || playerResponse?.videoDetails?.title || ''
-                  finalArtist = artist || playerResponse?.videoDetails?.author || ''
-                  duration = parseInt(playerResponse?.videoDetails?.lengthSeconds || '0')
-                  console.log('[Import] Method 1 success:', finalTitle)
-                }
+        if (!pageRes.ok) {
+          console.log('[Import] Method 1 HTTP', pageRes.status, pageRes.statusText)
+          const text = await pageRes.text()
+          console.log('[Import] Method 1 response preview:', text.slice(0, 300))
+        } else {
+          const html = await pageRes.text()
+          console.log('[Import] Method 1 got', html.length, 'bytes')
+          const marker = 'ytInitialPlayerResponse = '
+          const idx = html.indexOf(marker)
+          if (idx !== -1) {
+            const start = idx + marker.length
+            let depth = 0
+            let end = start
+            for (let i = start; i < html.length; i++) {
+              if (html[i] === '{') depth++
+              else if (html[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
+            }
+            if (end > start) {
+              const jsonStr = html.slice(start, end)
+              const playerResponse = JSON.parse(jsonStr)
+              const formats = playerResponse?.streamingData?.adaptiveFormats || []
+              const audioFormats = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
+              if (audioFormats.length > 0) {
+                audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+                const best = audioFormats[0]
+                const audioUrl = best.url || ''
+                if (audioUrl.startsWith('http')) {
+                  console.log('[Import] Got audio URL from player response, bitrate:', best.bitrate)
+                  const dlRes = await fetch(audioUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.youtube.com/' } })
+                  if (dlRes.ok) {
+                    audioBuffer = Buffer.from(await dlRes.arrayBuffer())
+                    finalTitle = title || playerResponse?.videoDetails?.title || ''
+                    finalArtist = artist || playerResponse?.videoDetails?.author || ''
+                    duration = parseInt(playerResponse?.videoDetails?.lengthSeconds || '0')
+                    console.log('[Import] Method 1 success:', finalTitle)
+                  } else console.log('[Import] Method 1 audio download failed:', dlRes.status)
+                } else console.log('[Import] Method 1 no audio URL found')
+              } else {
+                // Check for playability status
+                const status = playerResponse?.playabilityStatus?.status
+                console.log('[Import] Method 1 playability:', status)
               }
             }
-          }
-        }
-        if (!audioBuffer) {
-          // Try embedded player response (older format)
-          const embedMatch = html.match(/window\["ytInitialPlayerResponse"\]\s*=\s*({.+?});\s*window/)
-          if (embedMatch) {
-            try {
-              const pr = JSON.parse(embedMatch[1])
-              const f = pr?.streamingData?.adaptiveFormats || []
-              const af = f.filter((x: any) => x.mimeType?.startsWith('audio/'))
-              if (af.length > 0) {
-                af.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
-                const u = af[0].url
-                if (u?.startsWith('http')) {
-                  const r = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0' } })
-                  if (r.ok) {
-                    audioBuffer = Buffer.from(await r.arrayBuffer())
-                    finalTitle = title || pr?.videoDetails?.title || ''
-                    finalArtist = artist || pr?.videoDetails?.author || ''
-                    duration = parseInt(pr?.videoDetails?.lengthSeconds || '0')
-                  }
-                }
-              }
-            } catch {}
+          } else {
+            // Check if the page is a blocked/bot page
+            if (html.includes('captcha') || html.includes('unusual traffic'))
+              console.log('[Import] Method 1: page has captcha/bot challenge')
+            else console.log('[Import] Method 1: ytInitialPlayerResponse not found in page')
           }
         }
         if (!audioBuffer) console.log('[Import] Method 1 failed')
       } catch (e: any) { console.log('[Import] Method 1 failed:', e?.message?.slice(0, 100)) }
     }
 
-    // Method 2: Try youtube-dl-exec (yt-dlp) - fallback with cookies from env
+    // Method 1b: Fetch YouTube page through a CORS proxy (bypasses Render IP)
+    if (!audioBuffer) {
+      for (const proxyBase of ['https://api.allorigins.win/raw?url=', 'https://corsproxy.io/?']) {
+        if (audioBuffer) break
+        try {
+          console.log('[Import] Method 1b: proxy', proxyBase.slice(0, 30))
+          const proxyUrl = proxyBase + encodeURIComponent(cleanUrl)
+          const prRes = await fetch(proxyUrl, { signal: AbortSignal.timeout(20000) })
+          if (!prRes.ok) continue
+          const html = await prRes.text()
+          const marker = 'ytInitialPlayerResponse = '
+          const idx = html.indexOf(marker)
+          if (idx === -1) continue
+          const start = idx + marker.length
+          let depth = 0, end = start
+          for (let i = start; i < html.length; i++) {
+            if (html[i] === '{') depth++
+            else if (html[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
+          }
+          if (end <= start) continue
+          const playerResponse = JSON.parse(html.slice(start, end))
+          const formats = playerResponse?.streamingData?.adaptiveFormats || []
+          const audioFormats = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
+          if (!audioFormats.length) continue
+          audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+          const audioUrl = audioFormats[0].url
+          if (!audioUrl?.startsWith('http')) continue
+          console.log('[Import] Method 1b got audio URL, bitrate:', audioFormats[0].bitrate)
+          const dlRes = await fetch(audioUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.youtube.com/' } })
+          if (dlRes.ok) {
+            audioBuffer = Buffer.from(await dlRes.arrayBuffer())
+            finalTitle = title || playerResponse?.videoDetails?.title || ''
+            finalArtist = artist || playerResponse?.videoDetails?.author || ''
+            duration = parseInt(playerResponse?.videoDetails?.lengthSeconds || '0')
+            console.log('[Import] Method 1b success:', finalTitle)
+          }
+        } catch (e: any) { console.log('[Import] Method 1b failed:', e?.message?.slice(0, 80)) }
+      }
+    }
+
+    // Method 2: Try invidious instances (bypass YouTube blocks via proxy frontends)
+    const INVIDIOUS_INSTANCES = [
+      'https://inv.nadeko.net',
+      'https://yewtu.be',
+      'https://invidious.snopyta.org',
+      'https://vid.puffyan.us',
+    ]
+    for (const instance of INVIDIOUS_INSTANCES) {
+      if (audioBuffer) break
+      try {
+        console.log('[Import] Method 2: Invidious', instance)
+        const invRes = await fetch(`${instance}/latest_version?id=${videoId}&itag=140&local=true`, {
+          redirect: 'manual',
+          signal: AbortSignal.timeout(15000),
+        })
+        const location = invRes.headers.get('location')
+        if (location) {
+          const dlRes = await fetch(location, { signal: AbortSignal.timeout(60000) })
+          if (dlRes.ok) { audioBuffer = Buffer.from(await dlRes.arrayBuffer()); console.log('[Import] Method 2 success:', instance) }
+        }
+      } catch (e: any) { console.log('[Import] Method 2 failed:', instance, e?.message?.slice(0, 60)) }
+    }
+
+    // Method 3: Try vevioz API
+    if (!audioBuffer) {
+      try {
+        console.log('[Import] Method 3: vevioz...')
+        const apiRes = await fetch(`https://api.vevioz.com/api/button/mp3/${videoId}`, {
+          redirect: 'follow',
+          signal: AbortSignal.timeout(60000),
+        })
+        if (apiRes.ok) { audioBuffer = Buffer.from(await apiRes.arrayBuffer()); console.log('[Import] Method 3 success') }
+      } catch (e: any) { console.log('[Import] Method 3 failed:', e?.message?.slice(0, 60)) }
+    }
+
+    // Method 4: Try youtube-dl-exec (yt-dlp) - process-safe
     if (!audioBuffer) {
       try {
         const youtubedl = await import('youtube-dl-exec').then(m => m.default)
-        console.log('[Import] Method 2: yt-dlp...')
+        console.log('[Import] Method 4: yt-dlp...')
         const ytArgs: any = {
           extractAudio: true,
           audioFormat: 'mp3',
@@ -174,38 +243,31 @@ app.post('/api/import', async (req, res) => {
           extractorArgs: 'youtube:player_client=android,youtube:player_client=web',
           userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
-        // Add cookies from env if available
         if (process.env.YT_COOKIES) {
           ytArgs.cookies = '/tmp/yt_cookies.txt'
           fs.writeFileSync('/tmp/yt_cookies.txt', process.env.YT_COOKIES)
         }
-        const audioProcess = youtubedl.exec(cleanUrl, ytArgs)
-        const killTimer = setTimeout(() => { try { audioProcess.kill() } catch {} }, 120_000)
-        audioProcess.stderr?.on('data', (d: Buffer) => console.log('[yt-dlp]', d.toString().trim()))
-        const audioChunks: Buffer[] = []
-        for await (const chunk of audioProcess.stdout!) {
-          audioChunks.push(Buffer.from(chunk))
+        const audioBuffer2 = await new Promise<Buffer | null>((resolve) => {
+          const ap = youtubedl.exec(cleanUrl, ytArgs)
+          const chunks: Buffer[] = []
+          const timer = setTimeout(() => { try { ap.kill() } catch {}; resolve(null) }, 120_000)
+          ap.on('error', () => resolve(null))
+          ap.stderr?.on('data', (d: Buffer) => console.log('[yt-dlp]', d.toString().trim()))
+          ap.stdout?.on('data', (d: Buffer) => chunks.push(d))
+          ap.stdout?.on('end', () => { clearTimeout(timer); resolve(chunks.length > 0 ? Buffer.concat(chunks) : null) })
+          ap.on('close', (code: number) => { if (code !== 0 && chunks.length === 0) resolve(null) })
+        })
+        if (audioBuffer2) {
+          audioBuffer = audioBuffer2
+          console.log('[Import] Method 4 success')
         }
-        clearTimeout(killTimer)
-        console.log('[Import] yt-dlp downloaded', audioChunks.length, 'bytes')
-        if (audioChunks.length > 0) audioBuffer = Buffer.concat(audioChunks)
-        // Try to get metadata
-        try {
-          const metaProcess = youtubedl.exec(cleanUrl, { dumpSingleJson: true, noCheckCertificates: true, noWarnings: true, noPlaylist: true })
-          let metaOut = ''
-          for await (const chunk of metaProcess.stdout!) { metaOut += chunk.toString() }
-          const json = JSON.parse(metaOut)
-          finalTitle = title || json.title || ''
-          finalArtist = artist || json.artist || json.uploader || ''
-          duration = json.duration || 0
-        } catch {}
-      } catch (e: any) { console.log('[Import] yt-dlp failed:', e?.message?.slice(0, 200)) }
+      } catch (e: any) { console.log('[Import] Method 4 failed:', e?.message?.slice(0, 200)) }
     }
 
-    // Method 3: Try @distube/ytdl-core
+    // Method 5: Try @distube/ytdl-core
     if (!audioBuffer) {
       try {
-        console.log('[Import] Method 3: @distube/ytdl-core...')
+        console.log('[Import] Method 5: @distube/ytdl-core...')
         const ytdl = await import('@distube/ytdl-core').then(m => m.default)
         const info = await ytdl.getInfo(videoId)
         const format = ytdl.chooseFormat(info.formats, { quality: 'lowestaudio', filter: 'audioonly' })
@@ -217,31 +279,29 @@ app.post('/api/import', async (req, res) => {
           finalTitle = title || info.videoDetails.title || ''
           finalArtist = artist || info.videoDetails.author?.name || ''
           duration = info.videoDetails.lengthSeconds ? parseInt(info.videoDetails.lengthSeconds) : 0
+          console.log('[Import] Method 5 success')
         }
-      } catch (e: any) { console.log('[Import] @distube/ytdl-core failed:', e?.message?.slice(0, 100)) }
+      } catch (e: any) { console.log('[Import] Method 5 failed:', e?.message?.slice(0, 100)) }
     }
 
-    // Method 4: Try invidious instances (privacy-friendly YouTube proxies)
-    const INVIDIOUS_INSTANCES = [
-      'https://inv.nadeko.net',
-      'https://yewtu.be',
-      'https://invidious.snopyta.org',
-      'https://vid.puffyan.us',
-    ]
-    for (const instance of INVIDIOUS_INSTANCES) {
-      if (audioBuffer) break
+    // Method 6: Try cobalt.tools API
+    if (!audioBuffer) {
       try {
-        console.log('[Import] Method 4: Invidious', instance)
-        const invRes = await fetch(`${instance}/latest_version?id=${videoId}&itag=140&local=true`, {
-          redirect: 'manual',
-          signal: AbortSignal.timeout(15000),
+        console.log('[Import] Method 6: cobalt.tools...')
+        const cobaltRes = await fetch('https://api.cobalt.tools/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ url: cleanUrl, videoQuality: '144', filenameStyle: 'basic' }),
+          signal: AbortSignal.timeout(30000),
         })
-        const location = invRes.headers.get('location')
-        if (location) {
-          const dlRes = await fetch(location, { signal: AbortSignal.timeout(60000) })
-          if (dlRes.ok) audioBuffer = Buffer.from(await dlRes.arrayBuffer())
+        if (cobaltRes.ok) {
+          const cobaltData = await cobaltRes.json()
+          if (cobaltData.url) {
+            const dlRes = await fetch(cobaltData.url, { signal: AbortSignal.timeout(60000) })
+            if (dlRes.ok) { audioBuffer = Buffer.from(await dlRes.arrayBuffer()); console.log('[Import] Method 6 success') }
+          }
         }
-      } catch (e: any) { console.log('[Import] Invidious failed:', instance, e?.message?.slice(0, 60)) }
+      } catch (e: any) { console.log('[Import] Method 6 failed:', e?.message?.slice(0, 60)) }
     }
 
     // Method 5: Try vevioz API
@@ -319,6 +379,68 @@ app.post('/api/import', async (req, res) => {
     res.json({ success: true, song: data })
   } catch (e: any) {
     console.error('Import error:', e)
+    res.status(500).json({ error: e.message || 'Import başarısız' })
+  }
+})
+
+// Client-side extraction endpoint: accepts direct audio URL extracted by the browser
+app.post('/api/import-direct', async (req, res) => {
+  try {
+    const { audioUrl, coverUrl, userId, title, artist, accessToken } = req.body
+    if (!audioUrl || !userId) return res.status(400).json({ error: 'audioUrl ve userId gerekli' })
+
+    let supabase: ReturnType<typeof createClient>
+    if (isServiceKey) {
+      supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+    } else {
+      if (!accessToken) return res.status(400).json({ error: 'Oturum tokeni gerekli' })
+      supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+        global: { headers: { Authorization: `Bearer ${accessToken}` } },
+      })
+    }
+
+    console.log('[Import-Direct] Downloading from:', audioUrl.slice(0, 80))
+    const dlRes = await fetch(audioUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.youtube.com/' } })
+    if (!dlRes.ok) return res.status(400).json({ error: `Audio indirilemedi: ${dlRes.status}` })
+
+    const audioBuffer = Buffer.from(await dlRes.arrayBuffer())
+    const audioPath = `${userId}/${Date.now()}_import.mp3`
+    const { error: uploadErr } = await supabase.storage
+      .from('songs')
+      .upload(audioPath, audioBuffer, { contentType: 'audio/mpeg', upsert: true })
+    if (uploadErr) throw new Error(`Yükleme hatası: ${uploadErr.message}`)
+
+    const { data: { publicUrl: audioUrlFinal } } = supabase.storage.from('songs').getPublicUrl(audioPath)
+
+    let finalCoverUrl = coverUrl || ''
+    if (coverUrl && coverUrl.startsWith('http')) {
+      try {
+        const coverRes = await fetch(coverUrl)
+        if (coverRes.ok) {
+          const coverBlob = await coverRes.blob()
+          const coverPath = `${userId}/covers/${Date.now()}.jpg`
+          const { error: coverErr } = await supabase.storage.from('covers').upload(coverPath, coverBlob, { contentType: 'image/jpeg', upsert: true })
+          if (!coverErr) {
+            const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(coverPath)
+            finalCoverUrl = publicUrl
+          }
+        }
+      } catch {}
+    }
+
+    const { data, error: dbError } = await supabase.from('songs').insert([{
+      user_id: userId,
+      title: title || 'Bilinmeyen Şarkı',
+      artist: artist || 'Bilinmeyen Sanatçı',
+      duration: 0,
+      audio_url: audioUrlFinal,
+      cover_url: finalCoverUrl || null,
+    }] as any).select().single()
+
+    if (dbError) throw new Error(`Veritabanı hatası: ${dbError.message}`)
+    res.json({ success: true, song: data })
+  } catch (e: any) {
+    console.error('Import-direct error:', e)
     res.status(500).json({ error: e.message || 'Import başarısız' })
   }
 })
