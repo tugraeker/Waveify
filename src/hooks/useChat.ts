@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
+import { emitToast } from '@/hooks/useToast'
 import type { Socket } from 'socket.io-client'
 
 interface ChatMessage {
@@ -166,15 +167,18 @@ export function useChat(socket: Socket | null) {
 
   const createServer = useCallback(async (name: string) => {
     if (!user) return
-    const { data: server } = await supabase.from('chat_servers').insert({ name, created_by: user.id }).select().single()
-    if (!server) return
-    await supabase.from('chat_server_members').insert({ server_id: server.id, user_id: user.id })
+    const { data: server, error } = await supabase.from('chat_servers').insert({ name, created_by: user.id }).select().single()
+    if (error || !server) { emitToast('Sunucu oluşturulamadı: ' + (error?.message || 'Bilinmeyen hata'), 'error'); return }
+    const { error: memberErr } = await supabase.from('chat_server_members').insert({ server_id: server.id, user_id: user.id })
+    if (memberErr) emitToast('Üye eklenemedi: ' + memberErr.message, 'error')
     const defaultChannels = [
       { server_id: server.id, name: 'genel', type: 'text' },
       { server_id: server.id, name: 'Sesli 1', type: 'voice' },
     ]
-    await supabase.from('chat_channels').insert(defaultChannels)
+    const { error: chErr } = await supabase.from('chat_channels').insert(defaultChannels)
+    if (chErr) emitToast('Kanal oluşturulamadı: ' + chErr.message, 'error')
     setServers(prev => [...prev, server])
+    emitToast('Sunucu oluşturuldu: ' + server.name, 'success')
     return server
   }, [user])
 
