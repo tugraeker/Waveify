@@ -7,14 +7,6 @@ import { Link2, Music2, Check, Globe, Loader2, AlertCircle } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 
-const PLATFORMS: { match: string; label: string; color: string }[] = [
-  { match: 'youtube.com', label: 'YouTube', color: 'text-red-400' },
-  { match: 'youtu.be', label: 'YouTube', color: 'text-red-400' },
-  { match: 'soundcloud.com', label: 'SoundCloud', color: 'text-orange-400' },
-]
-
-const INV_INSTANCES = ['https://inv.nadeko.net', 'https://yewtu.be', 'https://invidious.snopyta.org']
-
 export default function Import() {
   const navigate = useNavigate()
   const { user } = useStore()
@@ -23,8 +15,6 @@ export default function Import() {
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ title: string; artist: string; cover?: string } | null>(null)
-
-  const platform = PLATFORMS.find((p) => url.toLowerCase().includes(p.match))
 
   async function downloadAndUpload() {
     if (!user) return
@@ -37,125 +27,76 @@ export default function Import() {
     setResult(null)
 
     try {
-      // Step 1: Get metadata from oEmbed (works with CORS)
-      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`
-      const oembedRes = await fetch(oembedUrl)
-      const oembed = oembedRes.ok ? await oembedRes.json() : {}
-      let songTitle = oembed.title || ''
-      let songArtist = oembed.author_name || ''
-      let songCover = oembed.thumbnail_url || ''
+      // Step 1: Get audio URL + metadata from server (server fetches invidious API, bypasses CORS)
+      const infoRes = await fetch(`${API_URL}/api/get-audio-url?videoId=${videoId}`)
+      const info = await infoRes.json()
+      if (!infoRes.ok) throw new Error(info.error || 'Ses URLi alınamadı')
 
-      if (songTitle.includes(' - ')) {
-        const parts = songTitle.split(' - ')
-        songTitle = parts.slice(1).join(' - ').trim()
-        songArtist = parts[0].trim()
-      }
+      let { audioUrl, title, artist, coverUrl, duration } = info
 
-      setResult({ title: songTitle, artist: songArtist, cover: songCover })
-      setLoading(false)
-      setImporting(true)
-
-      // Step 2: Get audio URL from invidious API (CORS-enabled)
-      let audioUrl = ''
-      let duration = 0
-
-      for (const instance of INV_INSTANCES) {
-        if (audioUrl) break
+      // Fallback to oEmbed for metadata if server didn't return it
+      if (!title) {
         try {
-          const apiRes = await fetch(`${instance}/api/v1/videos/${videoId}`, { signal: AbortSignal.timeout(10000) })
-          if (!apiRes.ok) continue
-          const data = await apiRes.json()
-          const formats = data?.adaptiveFormats || []
-          const audioFormats = formats.filter((f: any) => f.type?.startsWith('audio/mp4') || f.type?.startsWith('audio/webm'))
-          if (audioFormats.length > 0) {
-            audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
-            audioUrl = audioFormats[0].url
-            duration = data?.lengthSeconds ? parseInt(data.lengthSeconds) : 0
-            // Get high quality cover from invidious if oembed didn't have it
-            if (!songCover && data?.authorThumbnails?.length) {
-              songCover = data.authorThumbnails[data.authorThumbnails.length - 1]?.url || ''
-            }
-            if (!songCover && data?.thumbnailUrl) songCover = data.thumbnailUrl
+          const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`)
+          const oembed = oembedRes.ok ? await oembedRes.json() : {}
+          title = oembed.title || ''
+          artist = oembed.author_name || ''
+          if (!coverUrl) coverUrl = oembed.thumbnail_url || ''
+          if (title.includes(' - ')) {
+            const parts = title.split(' - ')
+            title = parts.slice(1).join(' - ').trim()
+            artist = parts[0].trim()
           }
         } catch {}
       }
 
-      // Fallback: try fetching YouTube page through CORS proxy
-      if (!audioUrl) {
-        const proxyUrls = [
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`,
-          `https://corsproxy.io/?${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`,
-        ]
-        for (const proxyUrl of proxyUrls) {
-          if (audioUrl) break
-          try {
-            const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(20000) })
-            if (!res.ok) continue
-            const html = await res.text()
-            const marker = 'ytInitialPlayerResponse = '
-            const idx = html.indexOf(marker)
-            if (idx === -1) continue
-            const start = idx + marker.length
-            let depth = 0, end = start
-            for (let i = start; i < html.length; i++) {
-              if (html[i] === '{') depth++
-              else if (html[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
-            }
-            if (end <= start) continue
-            const pr = JSON.parse(html.slice(start, end))
-            const formats = pr?.streamingData?.adaptiveFormats || []
-            const af = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
-            if (af.length > 0) {
-              af.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
-              audioUrl = af[0].url || ''
-              duration = parseInt(pr?.videoDetails?.lengthSeconds || '0')
-              if (!songCover) {
-                const thumbs = pr?.videoDetails?.thumbnail?.thumbnails
-                if (thumbs?.length) songCover = thumbs[thumbs.length - 1].url
-              }
-            }
-          } catch {}
-        }
-      }
+      setResult({ title: title || 'Bilinmeyen', artist: artist || 'Bilinmeyen', cover: coverUrl })
+      setLoading(false)
+      setImporting(true)
 
-      if (!audioUrl) throw new Error('Ses URL\'i alınamadı')
-
-      // Step 3: Download audio in browser (CDN URLs are CORS-enabled)
-      const audioRes = await fetch(audioUrl, {
-        headers: { 'Referer': 'https://www.youtube.com/' },
-      })
+      // Step 2: Download audio in browser (CDN URLs have CORS)
+      const audioRes = await fetch(audioUrl, { headers: { 'Referer': 'https://www.youtube.com/' } })
       if (!audioRes.ok) throw new Error(`Ses indirilemedi: ${audioRes.status}`)
       const audioBlob = await audioRes.blob()
       if (audioBlob.size < 10240) throw new Error('İndirilen ses dosyası çok küçük')
 
-      // Step 4: Convert to base64 and upload to server
-      const buffer = await audioBlob.arrayBuffer()
-      const bytes = new Uint8Array(buffer)
-      let binary = ''
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-      const audioBase64 = btoa(binary)
+      // Step 3: Upload directly to Supabase from client
+      const audioPath = `${user.id}/${Date.now()}_import.mp3`
+      const { error: uploadErr } = await supabase.storage
+        .from('songs')
+        .upload(audioPath, audioBlob, { contentType: 'audio/mpeg', upsert: true })
+      if (uploadErr) throw new Error(`Yükleme hatası: ${uploadErr.message}`)
 
-      const { data: { session } } = await supabase.auth.getSession()
-      const accessToken = session?.access_token || ''
-      if (!accessToken) throw new Error('Oturum süresi dolmuş')
+      const { data: { publicUrl: audioUrlFinal } } = supabase.storage.from('songs').getPublicUrl(audioPath)
 
-      // Try to update metadata from player response if we got it
-      const uploadRes = await fetch(`${API_URL}/api/upload-song`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          audioBase64,
-          title: songTitle,
-          artist: songArtist,
-          coverUrl: songCover,
-          duration,
-          userId: user.id,
-          accessToken,
-        }),
-      })
+      // Upload cover
+      let finalCoverUrl = coverUrl || ''
+      if (coverUrl && coverUrl.startsWith('http')) {
+        try {
+          const coverRes = await fetch(coverUrl)
+          if (coverRes.ok) {
+            const coverBlob = await coverRes.blob()
+            const coverPath = `${user.id}/covers/${Date.now()}.jpg`
+            const { error: coverErr } = await supabase.storage.from('covers').upload(coverPath, coverBlob, { contentType: 'image/jpeg', upsert: true })
+            if (!coverErr) {
+              const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(coverPath)
+              finalCoverUrl = publicUrl
+            }
+          }
+        } catch {}
+      }
 
-      const uploadData = await uploadRes.json()
-      if (!uploadRes.ok) throw new Error(uploadData.error || 'Yükleme başarısız')
+      // Create song record
+      const { error: dbError } = await supabase.from('songs').insert([{
+        user_id: user.id,
+        title: title || 'Bilinmeyen Şarkı',
+        artist: artist || 'Bilinmeyen Sanatçı',
+        duration: duration || 0,
+        audio_url: audioUrlFinal,
+        cover_url: finalCoverUrl || null,
+      }] as any)
+
+      if (dbError) throw new Error(`Veritabanı hatası: ${dbError.message}`)
       navigate('/library')
     } catch (e: any) {
       setError(e.message || 'Bir hata oluştu')
@@ -191,13 +132,6 @@ export default function Import() {
               {loading ? 'Bilgiler alınıyor...' : importing ? 'İndiriliyor...' : 'Aktar'}
             </Button>
           </div>
-
-          {platform && (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-surface-500">Tespit edilen platform:</span>
-              <span className={`font-semibold ${platform.color}`}>{platform.label}</span>
-            </div>
-          )}
 
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400">

@@ -592,63 +592,93 @@ app.post('/api/import-by-id', async (req, res) => {
   }
 })
 
-// Client-uploaded song endpoint (audio downloaded in browser, uploaded here)
-app.post('/api/upload-song', async (req, res) => {
+// Get audio CDN URL via invidious (server-side to bypass CORS), client downloads & uploads to Supabase
+app.get('/api/get-audio-url', async (req, res) => {
   try {
-    const { audioBase64, title, artist, coverUrl, duration: dur, userId, accessToken } = req.body
-    if (!audioBase64 || !userId || !title) return res.status(400).json({ error: 'audioBase64, userId ve title gerekli' })
+    const { videoId } = req.query
+    if (!videoId || typeof videoId !== 'string' || videoId.length !== 11)
+      return res.status(400).json({ error: 'Geçersiz video ID' })
 
-    let supabase: ReturnType<typeof createClient>
-    if (isServiceKey) {
-      supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
-    } else {
-      if (!accessToken) return res.status(400).json({ error: 'Oturum tokeni gerekli' })
-      supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-        global: { headers: { Authorization: `Bearer ${accessToken}` } },
-      })
-    }
+    const INV_INSTANCES = ['https://inv.nadeko.net', 'https://yewtu.be', 'https://invidious.snopyta.org']
+    const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
 
-    const audioBuffer = Buffer.from(audioBase64, 'base64')
-    if (audioBuffer.length < 10240) return res.status(400).json({ error: 'Ses dosyası çok küçük' })
-
-    const audioPath = `${userId}/${Date.now()}_import.mp3`
-    const { error: uploadErr } = await supabase.storage
-      .from('songs')
-      .upload(audioPath, audioBuffer, { contentType: 'audio/mpeg', upsert: true })
-    if (uploadErr) return res.status(500).json({ error: `Yükleme hatası: ${uploadErr.message}` })
-
-    const { data: { publicUrl: audioUrl } } = supabase.storage.from('songs').getPublicUrl(audioPath)
-
-    let finalCoverUrl = coverUrl || ''
-    if (coverUrl && coverUrl.startsWith('http')) {
+    // Try invidious API for format URLs
+    for (const instance of INV_INSTANCES) {
       try {
-        const coverRes = await fetch(coverUrl)
-        if (coverRes.ok) {
-          const coverBlob = await coverRes.blob()
-          const coverPath = `${userId}/covers/${Date.now()}.jpg`
-          const { error: coverErr } = await supabase.storage.from('covers').upload(coverPath, coverBlob, { contentType: 'image/jpeg', upsert: true })
-          if (!coverErr) {
-            const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(coverPath)
-            finalCoverUrl = publicUrl
+        const apiRes = await fetch(`${instance}/api/v1/videos/${videoId}`, { signal: AbortSignal.timeout(10000) })
+        if (!apiRes.ok) continue
+        const data = await apiRes.json()
+        const formats = data?.adaptiveFormats || []
+        const audioFormats = formats.filter((f: any) =>
+          f.type?.startsWith('audio/mp4') || f.type?.startsWith('audio/webm') || f.type?.startsWith('audio/opus')
+        )
+        if (audioFormats.length > 0) {
+          audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+          const best = audioFormats[0]
+          let title = data.title || ''
+          let artist = data.author || ''
+          if (title.includes(' - ')) {
+            const parts = title.split(' - ')
+            title = parts.slice(1).join(' - ').trim()
+            artist = parts[0].trim()
           }
+          const thumbs = data?.thumbnailUrl || (data?.videoThumbnails?.length ? data.videoThumbnails[data.videoThumbnails.length - 1]?.url : '')
+          return res.json({
+            audioUrl: best.url,
+            title,
+            artist,
+            coverUrl: thumbs || '',
+            duration: data.lengthSeconds || 0,
+          })
         }
       } catch {}
     }
 
-    const { data, error: dbError } = await supabase.from('songs').insert([{
-      user_id: userId,
-      title: title || 'Bilinmeyen Şarkı',
-      artist: artist || 'Bilinmeyen Sanatçı',
-      duration: dur || 0,
-      audio_url: audioUrl,
-      cover_url: finalCoverUrl || null,
-    }] as any).select().single()
+    // Fallback: try YouTube page through CORS proxy
+    for (const proxyBase of ['https://api.allorigins.win/raw?url=', 'https://corsproxy.io/?']) {
+      try {
+        const proxyUrl = proxyBase + encodeURIComponent(cleanUrl)
+        const prRes = await fetch(proxyUrl, { signal: AbortSignal.timeout(20000) })
+        if (!prRes.ok) continue
+        const html = await prRes.text()
+        const marker = 'ytInitialPlayerResponse = '
+        const idx = html.indexOf(marker)
+        if (idx === -1) continue
+        const start = idx + marker.length
+        let depth = 0, end = start
+        for (let i = start; i < html.length; i++) {
+          if (html[i] === '{') depth++
+          else if (html[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
+        }
+        if (end <= start) continue
+        const pr = JSON.parse(html.slice(start, end))
+        const formats = pr?.streamingData?.adaptiveFormats || []
+        const af = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
+        if (af.length > 0) {
+          af.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+          let title = pr?.videoDetails?.title || ''
+          let artist = pr?.videoDetails?.author || ''
+          if (title.includes(' - ')) {
+            const parts = title.split(' - ')
+            title = parts.slice(1).join(' - ').trim()
+            artist = parts[0].trim()
+          }
+          const thumbs = pr?.videoDetails?.thumbnail?.thumbnails
+          const coverUrl = thumbs?.length ? thumbs[thumbs.length - 1].url : ''
+          return res.json({
+            audioUrl: af[0].url,
+            title,
+            artist,
+            coverUrl,
+            duration: parseInt(pr?.videoDetails?.lengthSeconds || '0'),
+          })
+        }
+      } catch {}
+    }
 
-    if (dbError) return res.status(500).json({ error: `Veritabanı hatası: ${dbError.message}` })
-    res.json({ success: true, song: data })
+    res.status(400).json({ error: 'Ses URLi alınamadı' })
   } catch (e: any) {
-    console.error('Upload-song error:', e)
-    res.status(500).json({ error: e.message || 'Yükleme başarısız' })
+    res.status(500).json({ error: e.message || 'Hata' })
   }
 })
 
