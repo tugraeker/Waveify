@@ -1,5 +1,7 @@
 -- Waveify v11 - Fix get_top_songs return types (match songs table exactly)
 
+DROP FUNCTION IF EXISTS public.get_top_songs(INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION public.get_top_songs(limit_count INTEGER DEFAULT 50, since_days INTEGER DEFAULT 0)
 RETURNS SETOF public.songs
 LANGUAGE plpgsql SECURITY DEFINER
