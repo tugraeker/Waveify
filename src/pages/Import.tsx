@@ -29,7 +29,14 @@ export default function Import() {
     try {
       // Step 1: Get audio URL + metadata from server (server fetches invidious API, bypasses CORS)
       const infoRes = await fetch(`${API_URL}/api/get-audio-url?videoId=${videoId}`)
-      const info = await infoRes.json()
+      let info: any
+      const ct = infoRes.headers.get('content-type') || ''
+      if (ct.includes('application/json')) {
+        info = await infoRes.json()
+      } else {
+        const text = await infoRes.text()
+        throw new Error(text?.includes('<!DOCTYPE') ? 'Server hazır değil, Render deployu bekleniyor...' : text.slice(0, 200))
+      }
       if (!infoRes.ok) throw new Error(info.error || 'Ses URLi alınamadı')
 
       let { audioUrl, title, artist, coverUrl, duration } = info
