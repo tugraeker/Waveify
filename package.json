@@ -22,6 +22,9 @@
       "dist/**/*",
       "dist-electron/**/*"
     ],
+    "extraResources": [
+      "app-update.yml"
+    ],
     "win": {
       "target": [
         {
