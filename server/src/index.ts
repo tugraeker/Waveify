@@ -197,20 +197,27 @@ app.post('/api/import', async (req, res) => {
       'https://invidious.snopyta.org',
       'https://vid.puffyan.us',
     ]
+    const INV_ITAGS = ['140', '251', '250', '139']
     for (const instance of INVIDIOUS_INSTANCES) {
       if (audioBuffer) break
-      try {
-        console.log('[Import] Method 2: Invidious', instance)
-        const invRes = await fetch(`${instance}/latest_version?id=${videoId}&itag=140&local=true`, {
-          redirect: 'manual',
-          signal: AbortSignal.timeout(15000),
-        })
-        const location = invRes.headers.get('location')
-        if (location) {
-          const dlRes = await fetch(location, { signal: AbortSignal.timeout(60000) })
-          if (dlRes.ok) { audioBuffer = Buffer.from(await dlRes.arrayBuffer()); console.log('[Import] Method 2 success:', instance) }
-        }
-      } catch (e: any) { console.log('[Import] Method 2 failed:', instance, e?.message?.slice(0, 60)) }
+      for (const itag of INV_ITAGS) {
+        if (audioBuffer) break
+        try {
+          console.log('[Import] Method 2: Invidious', instance, 'itag', itag)
+          const invRes = await fetch(`${instance}/latest_version?id=${videoId}&itag=${itag}&local=true`, {
+            redirect: 'follow',
+            signal: AbortSignal.timeout(15000),
+          })
+          if (!invRes.ok) continue
+          const ct = invRes.headers.get('content-type') || ''
+          if (!ct.includes('audio') && !ct.includes('octet-stream') && !ct.includes('binary')) continue
+          const buf = Buffer.from(await invRes.arrayBuffer())
+          if (buf.length > 50000) {
+            audioBuffer = buf
+            console.log('[Import] Method 2 success:', instance, 'itag', itag, 'size:', buf.length)
+          }
+        } catch (e: any) { console.log('[Import] Method 2 failed:', instance, 'itag', itag, e?.message?.slice(0, 50)) }
+      }
     }
 
     // Method 3: Try vevioz API
@@ -405,29 +412,33 @@ app.post('/api/import-by-id', async (req, res) => {
     let duration = 0
     let finalCoverUrl = coverUrl || ''
 
-    // Method A: Invidious instances
+    // Method A: Invidious instances (try multiple audio formats)
     const INVIDIOUS_INSTANCES = [
       'https://inv.nadeko.net',
       'https://yewtu.be',
       'https://invidious.snopyta.org',
       'https://vid.puffyan.us',
     ]
+    const INV_ITAGS = ['251', '140', '250', '139']
     for (const instance of INVIDIOUS_INSTANCES) {
       if (audioBuffer) break
-      try {
-        console.log('[Import-ByID] Invidious', instance)
-        const invRes = await fetch(`${instance}/latest_version?id=${videoId}&itag=140&local=true`, {
-          redirect: 'manual', signal: AbortSignal.timeout(15000),
-        })
-        const location = invRes.headers.get('location')
-        if (location) {
-          const dlRes = await fetch(location, { signal: AbortSignal.timeout(60000) })
-          if (dlRes.ok) {
-            audioBuffer = Buffer.from(await dlRes.arrayBuffer())
-            console.log('[Import-ByID] Invidious success, size:', audioBuffer.length)
+      for (const itag of INV_ITAGS) {
+        if (audioBuffer) break
+        try {
+          console.log('[Import-ByID] Invidious', instance, 'itag', itag)
+          const invRes = await fetch(`${instance}/latest_version?id=${videoId}&itag=${itag}&local=true`, {
+            redirect: 'follow', signal: AbortSignal.timeout(20000),
+          })
+          if (!invRes.ok) continue
+          const ct = invRes.headers.get('content-type') || ''
+          if (!ct.includes('audio') && !ct.includes('octet-stream') && !ct.includes('binary') && !ct.includes('media')) continue
+          const buf = Buffer.from(await invRes.arrayBuffer())
+          if (buf.length > 50000) {
+            audioBuffer = buf
+            console.log('[Import-ByID] Invidious success:', instance, 'itag', itag, 'size:', buf.length)
           }
-        }
-      } catch (e: any) { console.log('[Import-ByID] Invidious failed:', e?.message?.slice(0, 60)) }
+        } catch (e: any) { console.log('[Import-ByID] Invidious failed:', instance, 'itag', itag, e?.message?.slice(0, 50)) }
+      }
     }
 
     // Method B: vevioz
