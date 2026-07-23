@@ -50,11 +50,14 @@ export default function PlaylistPage() {
       return
     }
     if (autoType === 'top50' || autoType === 'weekly') {
-      const { data } = await supabase.rpc('get_top_songs', {
+      const { data, error } = await supabase.rpc('get_top_songs', {
         limit_count: 50,
         since_days: autoType === 'weekly' ? 7 : 0,
       })
-      if (data) setSongs(data)
+      if (data) { setSongs(data); return }
+      if (error) console.error('RPC error, falling back:', error)
+      const { data: fallback } = await supabase.from('songs').select('*').order('likes_count', { ascending: false }).limit(50)
+      if (fallback) setSongs(fallback)
       return
     }
     if (autoType === 'friends_top') {

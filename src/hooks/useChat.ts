@@ -108,23 +108,23 @@ export function useChat(socket: Socket | null) {
       setMessages(prev => [...prev, msg])
     })
 
-    socket.on('voice:participants', async (participants: VoiceParticipant[]) => {
+    socket.on('voice:participants', (participants: VoiceParticipant[]) => {
       setVoiceParticipants(participants)
       if (!user || !localStreamRef.current) return
       for (const p of participants) {
         if (p.userId !== user.id && !peersRef.current.has(p.userId)) {
-          await createOfferTo(p.userId)
+          createOfferTo(p.userId).catch(() => {})
         }
       }
     })
 
-    socket.on('voice:user-joined', async ({ userId: uid, username: uname }) => {
+    socket.on('voice:user-joined', ({ userId: uid, username: uname }) => {
       setVoiceParticipants(prev => {
         if (prev.find(p => p.userId === uid)) return prev
         return [...prev, { userId: uid, username: uname, muted: false, deafened: false }]
       })
       if (!user || !localStreamRef.current || uid === user.id) return
-      await createOfferTo(uid)
+      createOfferTo(uid).catch(() => {})
     })
 
     socket.on('voice:user-left', (uid: string) => {
@@ -134,24 +134,28 @@ export function useChat(socket: Socket | null) {
       document.getElementById(`audio-${uid}`)?.remove()
     })
 
-    socket.on('voice:offer', async ({ from: fromId, offer }) => {
+    socket.on('voice:offer', ({ from: fromId, offer }) => {
       if (!user || !localStreamRef.current) return
-      const pc = createPeer(fromId, localStreamRef.current)
-      await pc.setRemoteDescription(new RTCSessionDescription(offer))
-      const answer = await pc.createAnswer()
-      await pc.setLocalDescription(answer)
-      socket.emit('voice:answer', { to: fromId, answer })
+      ;(async () => {
+        try {
+          const pc = createPeer(fromId, localStreamRef.current!)
+          await pc.setRemoteDescription(new RTCSessionDescription(offer))
+          const answer = await pc.createAnswer()
+          await pc.setLocalDescription(answer)
+          socket.emit('voice:answer', { to: fromId, answer })
+        } catch {}
+      })()
     })
 
-    socket.on('voice:answer', async ({ from: fromId, answer }) => {
+    socket.on('voice:answer', ({ from: fromId, answer }) => {
       const pc = peersRef.current.get(fromId)
-      if (pc?.remoteDescription?.type !== 'offer') return
-      try { await pc.setRemoteDescription(new RTCSessionDescription(answer)) } catch {}
+      if (!pc || pc.remoteDescription?.type !== 'offer') return
+      try { pc.setRemoteDescription(new RTCSessionDescription(answer)).catch(() => {}) } catch {}
     })
 
-    socket.on('voice:ice-candidate', async ({ from: fromId, candidate }) => {
+    socket.on('voice:ice-candidate', ({ from: fromId, candidate }) => {
       const pc = peersRef.current.get(fromId)
-      if (pc) try { await pc.addIceCandidate(new RTCIceCandidate(candidate)) } catch {}
+      if (pc) try { pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {}) } catch {}
     })
 
     return () => {
