@@ -592,6 +592,66 @@ app.post('/api/import-by-id', async (req, res) => {
   }
 })
 
+// Client-uploaded song endpoint (audio downloaded in browser, uploaded here)
+app.post('/api/upload-song', async (req, res) => {
+  try {
+    const { audioBase64, title, artist, coverUrl, duration: dur, userId, accessToken } = req.body
+    if (!audioBase64 || !userId || !title) return res.status(400).json({ error: 'audioBase64, userId ve title gerekli' })
+
+    let supabase: ReturnType<typeof createClient>
+    if (isServiceKey) {
+      supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+    } else {
+      if (!accessToken) return res.status(400).json({ error: 'Oturum tokeni gerekli' })
+      supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+        global: { headers: { Authorization: `Bearer ${accessToken}` } },
+      })
+    }
+
+    const audioBuffer = Buffer.from(audioBase64, 'base64')
+    if (audioBuffer.length < 10240) return res.status(400).json({ error: 'Ses dosyası çok küçük' })
+
+    const audioPath = `${userId}/${Date.now()}_import.mp3`
+    const { error: uploadErr } = await supabase.storage
+      .from('songs')
+      .upload(audioPath, audioBuffer, { contentType: 'audio/mpeg', upsert: true })
+    if (uploadErr) return res.status(500).json({ error: `Yükleme hatası: ${uploadErr.message}` })
+
+    const { data: { publicUrl: audioUrl } } = supabase.storage.from('songs').getPublicUrl(audioPath)
+
+    let finalCoverUrl = coverUrl || ''
+    if (coverUrl && coverUrl.startsWith('http')) {
+      try {
+        const coverRes = await fetch(coverUrl)
+        if (coverRes.ok) {
+          const coverBlob = await coverRes.blob()
+          const coverPath = `${userId}/covers/${Date.now()}.jpg`
+          const { error: coverErr } = await supabase.storage.from('covers').upload(coverPath, coverBlob, { contentType: 'image/jpeg', upsert: true })
+          if (!coverErr) {
+            const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(coverPath)
+            finalCoverUrl = publicUrl
+          }
+        }
+      } catch {}
+    }
+
+    const { data, error: dbError } = await supabase.from('songs').insert([{
+      user_id: userId,
+      title: title || 'Bilinmeyen Şarkı',
+      artist: artist || 'Bilinmeyen Sanatçı',
+      duration: dur || 0,
+      audio_url: audioUrl,
+      cover_url: finalCoverUrl || null,
+    }] as any).select().single()
+
+    if (dbError) return res.status(500).json({ error: `Veritabanı hatası: ${dbError.message}` })
+    res.json({ success: true, song: data })
+  } catch (e: any) {
+    console.error('Upload-song error:', e)
+    res.status(500).json({ error: e.message || 'Yükleme başarısız' })
+  }
+})
+
 setupSocketHandlers(io)
 
 const PORT = process.env.PORT || 3001

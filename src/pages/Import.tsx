@@ -11,8 +11,9 @@ const PLATFORMS: { match: string; label: string; color: string }[] = [
   { match: 'youtube.com', label: 'YouTube', color: 'text-red-400' },
   { match: 'youtu.be', label: 'YouTube', color: 'text-red-400' },
   { match: 'soundcloud.com', label: 'SoundCloud', color: 'text-orange-400' },
-  { match: 'spotify.com', label: 'Spotify', color: 'text-green-400' },
 ]
+
+const INV_INSTANCES = ['https://inv.nadeko.net', 'https://yewtu.be', 'https://invidious.snopyta.org']
 
 export default function Import() {
   const navigate = useNavigate()
@@ -25,162 +26,138 @@ export default function Import() {
 
   const platform = PLATFORMS.find((p) => url.toLowerCase().includes(p.match))
 
-  async function extractYoutubeMeta(videoId: string): Promise<{ title: string; artist: string; coverUrl: string } | null> {
-    const proxies = [
-      (id: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`,
-      (id: string) => `https://corsproxy.io/?${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`,
-    ]
-    for (const proxy of proxies) {
-      try {
-        const res = await fetch(proxy(videoId), { signal: AbortSignal.timeout(15000) })
-        if (!res.ok) continue
-        const html = await res.text()
-        const marker = 'ytInitialPlayerResponse = '
-        const idx = html.indexOf(marker)
-        if (idx === -1) continue
-        const start = idx + marker.length
-        let depth = 0, end = start
-        for (let i = start; i < html.length; i++) {
-          if (html[i] === '{') depth++
-          else if (html[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
-        }
-        if (end <= start) continue
-        const pr = JSON.parse(html.slice(start, end))
-        let title = pr?.videoDetails?.title || ''
-        let artist = pr?.videoDetails?.author || ''
-        if (title.includes(' - ')) {
-          const parts = title.split(' - ')
-          title = parts.slice(1).join(' - ').trim()
-          artist = parts[0].trim()
-        }
-        const coverUrl = pr?.videoDetails?.thumbnail?.thumbnails?.slice(-1)?.[0]?.url || ''
-        return { title, artist, coverUrl }
-      } catch { continue }
-    }
-    return null
-  }
+  async function downloadAndUpload() {
+    if (!user) return
+    const vidMatch = url.trim().match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+    const videoId = vidMatch ? vidMatch[1] : null
+    if (!videoId) { setError('Geçersiz YouTube URL'); return }
 
-  async function handleImport() {
-    if (!url.trim() || !user) return
     setLoading(true)
     setError('')
     setResult(null)
 
-    let videoId: string | null = null
-    let finalTitle = ''
-    let metaArtist = ''
-    let metaCover = ''
-    let accessToken = ''
-
     try {
-      // Clean URL - remove playlist/radio params
-      let cleanUrl = url.trim()
-      const vidMatch = cleanUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-      videoId = vidMatch ? vidMatch[1] : null
-      if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
-        if (videoId) cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
+      // Step 1: Get metadata from oEmbed (works with CORS)
+      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`
+      const oembedRes = await fetch(oembedUrl)
+      const oembed = oembedRes.ok ? await oembedRes.json() : {}
+      let songTitle = oembed.title || ''
+      let songArtist = oembed.author_name || ''
+      let songCover = oembed.thumbnail_url || ''
+
+      if (songTitle.includes(' - ')) {
+        const parts = songTitle.split(' - ')
+        songTitle = parts.slice(1).join(' - ').trim()
+        songArtist = parts[0].trim()
       }
 
-      // Step 1: Fetch metadata via oEmbed
-      let oembedUrl = ''
-      if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
-        oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`
-      } else if (cleanUrl.includes('soundcloud.com')) {
-        oembedUrl = `https://soundcloud.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`
-      } else {
-        throw new Error('Desteklenen platformlar: YouTube, SoundCloud')
-      }
-
-      const metaRes = await fetch(oembedUrl)
-      const meta = metaRes.ok ? await metaRes.json() : {}
-
-      const metaTitle = meta.title || ''
-      metaArtist = meta.author_name || ''
-      metaCover = meta.thumbnail_url || ''
-
-      // Parse YouTube title
-      finalTitle = metaTitle
-      if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
-        if (metaTitle.includes(' - ')) {
-          const parts = metaTitle.split(' - ')
-          finalTitle = parts.slice(1).join(' - ').trim()
-          metaArtist = parts[0].trim()
-        }
-      }
-
-      setResult({ title: finalTitle, artist: metaArtist, cover: metaCover })
-
-      // Step 2: Try client-side extraction first (bypasses Render IP block)
+      setResult({ title: songTitle, artist: songArtist, cover: songCover })
       setLoading(false)
       setImporting(true)
 
-      const { data: { session } } = await supabase.auth.getSession()
-      accessToken = session?.access_token || ''
-      if (!accessToken) throw new Error('Oturum süresi dolmuş')
+      // Step 2: Get audio URL from invidious API (CORS-enabled)
+      let audioUrl = ''
+      let duration = 0
 
-      // Try to get metadata from player response (better title parsing)
-      const metaFromPlayer = videoId ? await extractYoutubeMeta(videoId) : null
-      if (metaFromPlayer) {
-        finalTitle = metaFromPlayer.title
-        metaArtist = metaFromPlayer.artist
-        const playerCover = metaFromPlayer.coverUrl
-        if (playerCover) { metaCover = playerCover; setResult({ title: finalTitle, artist: metaArtist, cover: metaCover }) }
+      for (const instance of INV_INSTANCES) {
+        if (audioUrl) break
+        try {
+          const apiRes = await fetch(`${instance}/api/v1/videos/${videoId}`, { signal: AbortSignal.timeout(10000) })
+          if (!apiRes.ok) continue
+          const data = await apiRes.json()
+          const formats = data?.adaptiveFormats || []
+          const audioFormats = formats.filter((f: any) => f.type?.startsWith('audio/mp4') || f.type?.startsWith('audio/webm'))
+          if (audioFormats.length > 0) {
+            audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+            audioUrl = audioFormats[0].url
+            duration = data?.lengthSeconds ? parseInt(data.lengthSeconds) : 0
+            // Get high quality cover from invidious if oembed didn't have it
+            if (!songCover && data?.authorThumbnails?.length) {
+              songCover = data.authorThumbnails[data.authorThumbnails.length - 1]?.url || ''
+            }
+            if (!songCover && data?.thumbnailUrl) songCover = data.thumbnailUrl
+          }
+        } catch {}
       }
 
-      // Step 2: Download via server (uses invidious/proxy, bypasses YouTube IP block)
-      if (!videoId) throw new Error('Video ID çıkarılamadı')
-      const res = await fetch(`${API_URL}/api/import-by-id`, {
+      // Fallback: try fetching YouTube page through CORS proxy
+      if (!audioUrl) {
+        const proxyUrls = [
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`,
+          `https://corsproxy.io/?${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`,
+        ]
+        for (const proxyUrl of proxyUrls) {
+          if (audioUrl) break
+          try {
+            const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(20000) })
+            if (!res.ok) continue
+            const html = await res.text()
+            const marker = 'ytInitialPlayerResponse = '
+            const idx = html.indexOf(marker)
+            if (idx === -1) continue
+            const start = idx + marker.length
+            let depth = 0, end = start
+            for (let i = start; i < html.length; i++) {
+              if (html[i] === '{') depth++
+              else if (html[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
+            }
+            if (end <= start) continue
+            const pr = JSON.parse(html.slice(start, end))
+            const formats = pr?.streamingData?.adaptiveFormats || []
+            const af = formats.filter((f: any) => f.mimeType?.startsWith('audio/'))
+            if (af.length > 0) {
+              af.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+              audioUrl = af[0].url || ''
+              duration = parseInt(pr?.videoDetails?.lengthSeconds || '0')
+              if (!songCover) {
+                const thumbs = pr?.videoDetails?.thumbnail?.thumbnails
+                if (thumbs?.length) songCover = thumbs[thumbs.length - 1].url
+              }
+            }
+          } catch {}
+        }
+      }
+
+      if (!audioUrl) throw new Error('Ses URL\'i alınamadı')
+
+      // Step 3: Download audio in browser (CDN URLs are CORS-enabled)
+      const audioRes = await fetch(audioUrl, {
+        headers: { 'Referer': 'https://www.youtube.com/' },
+      })
+      if (!audioRes.ok) throw new Error(`Ses indirilemedi: ${audioRes.status}`)
+      const audioBlob = await audioRes.blob()
+      if (audioBlob.size < 10240) throw new Error('İndirilen ses dosyası çok küçük')
+
+      // Step 4: Convert to base64 and upload to server
+      const buffer = await audioBlob.arrayBuffer()
+      const bytes = new Uint8Array(buffer)
+      let binary = ''
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+      const audioBase64 = btoa(binary)
+
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token || ''
+      if (!accessToken) throw new Error('Oturum süresi dolmuş')
+
+      // Try to update metadata from player response if we got it
+      const uploadRes = await fetch(`${API_URL}/api/upload-song`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          videoId,
-          coverUrl: metaCover,
+          audioBase64,
+          title: songTitle,
+          artist: songArtist,
+          coverUrl: songCover,
+          duration,
           userId: user.id,
-          title: finalTitle,
-          artist: metaArtist,
           accessToken,
         }),
       })
 
-      let data: any
-      const contentType = res.headers.get('content-type') || ''
-      if (contentType.includes('application/json')) {
-        data = await res.json()
-      } else {
-        const text = await res.text()
-        throw new Error(text?.slice(0, 200) || `Server hatası (${res.status})`)
-      }
-      if (!res.ok) throw new Error(data.error || 'Import başarısız')
+      const uploadData = await uploadRes.json()
+      if (!uploadRes.ok) throw new Error(uploadData.error || 'Yükleme başarısız')
       navigate('/library')
     } catch (e: any) {
-      // Fallback: try original /api/import
-      try {
-        if (videoId) {
-          const fallbackRes = await fetch(`${API_URL}/api/import`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              url: `https://www.youtube.com/watch?v=${videoId}`,
-              userId: user.id,
-              title: finalTitle,
-              artist: metaArtist,
-              coverUrl: metaCover,
-              accessToken,
-            }),
-          })
-          const fbContentType = fallbackRes.headers.get('content-type') || ''
-          if (fbContentType.includes('application/json')) {
-            const fallbackData = await fallbackRes.json()
-            if (fallbackRes.ok) { navigate('/library'); return }
-            throw new Error(fallbackData.error || 'Import başarısız')
-          } else {
-            throw new Error('Server yanıt vermiyor (CORS veya deploy bekleniyor)')
-          }
-        }
-      } catch (fallbackErr: any) {
-        setError(fallbackErr.message || e.message || 'Bir hata oluştu')
-        return
-      }
       setError(e.message || 'Bir hata oluştu')
     } finally {
       setLoading(false)
@@ -197,7 +174,7 @@ export default function Import() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">İçe Aktar</h1>
-            <p className="text-sm text-surface-400">YouTube veya SoundCloud'dan otomatik içe aktar</p>
+            <p className="text-sm text-surface-400">YouTube'dan otomatik içe aktar</p>
           </div>
         </div>
 
@@ -207,11 +184,11 @@ export default function Import() {
               placeholder="https://youtube.com/watch?v=..."
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleImport()}
+              onKeyDown={(e) => e.key === 'Enter' && downloadAndUpload()}
             />
-            <Button variant="primary" onClick={handleImport} disabled={loading || importing || !url.trim() || !user}>
+            <Button variant="primary" onClick={downloadAndUpload} disabled={loading || importing || !url.trim() || !user}>
               {loading ? <Loader2 size={16} className="animate-spin" /> : importing ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
-              {loading ? 'Bilgiler alınıyor...' : importing ? 'Aktarılıyor...' : 'Aktar'}
+              {loading ? 'Bilgiler alınıyor...' : importing ? 'İndiriliyor...' : 'Aktar'}
             </Button>
           </div>
 
