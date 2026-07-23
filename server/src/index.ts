@@ -594,6 +594,7 @@ app.post('/api/import-by-id', async (req, res) => {
 
 // Get audio CDN URL via invidious (server-side to bypass CORS), client downloads & uploads to Supabase
 app.get('/api/get-audio-url', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*')
   try {
     const { videoId } = req.query
     if (!videoId || typeof videoId !== 'string' || videoId.length !== 11)
