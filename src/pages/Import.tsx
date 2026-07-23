@@ -66,11 +66,17 @@ export default function Import() {
     setError('')
     setResult(null)
 
+    let videoId: string | null = null
+    let finalTitle = ''
+    let metaArtist = ''
+    let metaCover = ''
+    let accessToken = ''
+
     try {
       // Clean URL - remove playlist/radio params
       let cleanUrl = url.trim()
       const vidMatch = cleanUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-      const videoId = vidMatch ? vidMatch[1] : null
+      videoId = vidMatch ? vidMatch[1] : null
       if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
         if (videoId) cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
       }
@@ -89,11 +95,11 @@ export default function Import() {
       const meta = metaRes.ok ? await metaRes.json() : {}
 
       const metaTitle = meta.title || ''
-      let metaArtist = meta.author_name || ''
-      let metaCover = meta.thumbnail_url || ''
+      metaArtist = meta.author_name || ''
+      metaCover = meta.thumbnail_url || ''
 
       // Parse YouTube title
-      let finalTitle = metaTitle
+      finalTitle = metaTitle
       if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
         if (metaTitle.includes(' - ')) {
           const parts = metaTitle.split(' - ')
@@ -109,7 +115,7 @@ export default function Import() {
       setImporting(true)
 
       const { data: { session } } = await supabase.auth.getSession()
-      const accessToken = session?.access_token
+      accessToken = session?.access_token || ''
       if (!accessToken) throw new Error('Oturum süresi dolmuş')
 
       // Try to get metadata from player response (better title parsing)
@@ -136,10 +142,45 @@ export default function Import() {
         }),
       })
 
-      const data = await res.json()
+      let data: any
+      const contentType = res.headers.get('content-type') || ''
+      if (contentType.includes('application/json')) {
+        data = await res.json()
+      } else {
+        const text = await res.text()
+        throw new Error(text?.slice(0, 200) || `Server hatası (${res.status})`)
+      }
       if (!res.ok) throw new Error(data.error || 'Import başarısız')
       navigate('/library')
     } catch (e: any) {
+      // Fallback: try original /api/import
+      try {
+        if (videoId) {
+          const fallbackRes = await fetch(`${API_URL}/api/import`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: `https://www.youtube.com/watch?v=${videoId}`,
+              userId: user.id,
+              title: finalTitle,
+              artist: metaArtist,
+              coverUrl: metaCover,
+              accessToken,
+            }),
+          })
+          const fbContentType = fallbackRes.headers.get('content-type') || ''
+          if (fbContentType.includes('application/json')) {
+            const fallbackData = await fallbackRes.json()
+            if (fallbackRes.ok) { navigate('/library'); return }
+            throw new Error(fallbackData.error || 'Import başarısız')
+          } else {
+            throw new Error('Server yanıt vermiyor (CORS veya deploy bekleniyor)')
+          }
+        }
+      } catch (fallbackErr: any) {
+        setError(fallbackErr.message || e.message || 'Bir hata oluştu')
+        return
+      }
       setError(e.message || 'Bir hata oluştu')
     } finally {
       setLoading(false)
