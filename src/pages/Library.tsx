@@ -148,7 +148,7 @@ export default function Library() {
         <span>Sağ tık ile daha fazla seçenek</span>
       </div>
 
-      {ctxMenu && <ContextMenu song={ctxMenu.song} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} />}
+      {ctxMenu && <ContextMenu song={ctxMenu.song} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} onAddToPlaylist={() => setShowPlaylistModal(ctxMenu.song)} />}
       {showPlaylistModal && <AddToPlaylistModal song={showPlaylistModal} onClose={() => setShowPlaylistModal(null)} />}
     </div>
   )

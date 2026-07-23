@@ -1,17 +1,27 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { formatDuration } from '@/lib/utils'
 import type { Song } from '@/types'
-import { Button } from '@/components/ui'
-import { Play, Pause, Music, Clock, Flame, Heart, TrendingUp, AudioWaveform, Trash2, X, Users } from 'lucide-react'
+import { Button, Input } from '@/components/ui'
+import ContextMenu from '@/components/ContextMenu'
+import AddToPlaylistModal from '@/components/AddToPlaylistModal'
+import { Play, Pause, Music, Clock, Flame, Heart, TrendingUp, AudioWaveform, Trash2, X, Users, Search, Plus, ListMusic } from 'lucide-react'
+import { emitToast } from '@/hooks/useToast'
 
 export default function PlaylistPage() {
+  const navigate = useNavigate()
   const { activePlaylist, setQueue, setCurrentSong, currentSong, isPlaying, user } = useStore()
   const [songs, setSongs] = useState<Song[]>([])
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [isCollab, setIsCollab] = useState(false)
   const [collaborators, setCollaborators] = useState<any[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Song[]>([])
+  const [showAddSong, setShowAddSong] = useState(false)
+  const [ctxMenu, setCtxMenu] = useState<{ song: Song; x: number; y: number } | null>(null)
+  const [addPlaylistSong, setAddPlaylistSong] = useState<Song | null>(null)
 
   useEffect(() => {
     if (!activePlaylist) return
@@ -90,6 +100,27 @@ export default function PlaylistPage() {
     setIsCollab(newVal)
   }
 
+  async function searchSongs(q: string) {
+    setSearchQuery(q)
+    if (!q.trim()) { setSearchResults([]); return }
+    const { data } = await supabase.from('songs').select('*').or(`title.ilike.%${q}%,artist.ilike.%${q}%`).limit(20)
+    if (data) setSearchResults(data)
+  }
+
+  async function addSongToPlaylist(song: Song) {
+    if (!activePlaylist || activePlaylist.type !== 'custom') return
+    const { data: posData } = await supabase.from('playlist_songs').select('position').eq('playlist_id', activePlaylist.id).order('position', { ascending: false }).limit(1)
+    const position = (posData && posData.length > 0) ? posData[0].position + 1 : 0
+    const { error } = await supabase.from('playlist_songs').insert({ playlist_id: activePlaylist.id, song_id: song.id, position })
+    if (error) {
+      if (error.code === '23505') emitToast('Zaten listede', 'info')
+      else emitToast('Hata: ' + error.message, 'error')
+    } else {
+      emitToast('Listeye eklendi', 'success')
+      setSongs(prev => [...prev, song])
+    }
+  }
+
   const playAll = () => { if (songs.length === 0) return; setQueue(songs); setCurrentSong(songs[0]) }
   const playSong = (song: Song) => { setQueue(songs); setCurrentSong(song) }
 
@@ -142,12 +173,44 @@ export default function PlaylistPage() {
         </div>
       </div>
       <div className="px-8 pb-8">
+        {isCustom && activePlaylist.user_id === user?.id && (
+          <div className="mb-4">
+            {!showAddSong ? (
+              <button onClick={() => setShowAddSong(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-wave-500/10 text-wave-400 border border-wave-500/20 hover:bg-wave-500/20 transition-all">
+                <Plus size={15} /> Şarkı Ekle
+              </button>
+            ) : (
+              <div className="glass rounded-2xl p-4 animate-fade-in">
+                <div className="flex gap-2 mb-3">
+                  <Input
+                    placeholder="Şarkı veya sanatçı ara..."
+                    value={searchQuery}
+                    onChange={(e) => searchSongs(e.target.value)}
+                    className="flex-1"
+                  />
+                  <button onClick={() => { setShowAddSong(false); setSearchQuery(''); setSearchResults([]) }} className="px-3 py-2 text-sm text-surface-400 hover:text-white">Kapat</button>
+                </div>
+                {searchResults.length > 0 && (
+                  <div className="flex flex-col gap-1 max-h-60 overflow-y-auto scrollbar-thin">
+                    {searchResults.map((s) => (
+                      <div key={s.id} className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${songs.find(x => x.id === s.id) ? 'opacity-40' : 'hover:bg-white/5 cursor-pointer'}`} onClick={() => !songs.find(x => x.id === s.id) && addSongToPlaylist(s)}>
+                        {s.cover_url ? <img src={s.cover_url} className="w-9 h-9 rounded-lg object-cover" /> : <div className="w-9 h-9 rounded-lg bg-surface-800 flex items-center justify-center"><Music size={14} className="text-surface-500" /></div>}
+                        <div className="flex-1 min-w-0"><p className="text-sm truncate">{s.title}</p><p className="text-xs text-surface-400 truncate">{s.artist}</p></div>
+                        {songs.find(x => x.id === s.id) ? <span className="text-xs text-surface-500">Zaten var</span> : <Plus size={14} className="text-wave-400" />}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {songs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-surface-500"><p className="text-sm">Bu listede şarkı yok</p></div>
         ) : (
           <div className="flex flex-col gap-1">
             {songs.map((song, i) => (
-              <div key={song.id} className="group flex items-center gap-3.5 p-2.5 rounded-xl transition-all duration-200 card-hover">
+              <div key={song.id} className="group flex items-center gap-3.5 p-2.5 rounded-xl transition-all duration-200 card-hover" onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ song, x: e.clientX, y: e.clientY }) }}>
                 <div className="flex items-center gap-3.5 flex-1 min-w-0 cursor-pointer" onClick={() => playSong(song)}>
                   <span className="w-6 text-xs text-surface-500 text-right tabular-nums group-hover:hidden">{i + 1}</span>
                   <button className="hidden group-hover:flex w-6 text-wave-400 items-center justify-center">{currentSong?.id === song.id && isPlaying ? <Pause size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}</button>
@@ -156,6 +219,9 @@ export default function PlaylistPage() {
                   <span className="text-xs text-surface-500 tabular-nums">{formatDuration(song.duration)}</span>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={(e) => { e.stopPropagation(); setAddPlaylistSong(song) }} className="p-1.5 rounded-lg text-surface-500 hover:text-wave-400 transition-colors" title="Listeye Ekle">
+                    <ListMusic size={14} />
+                  </button>
                   <button onClick={(e) => { e.stopPropagation(); toggleLike(song) }} className={`p-1.5 rounded-lg transition-colors ${likedIds.has(song.id) ? 'text-red-400' : 'text-surface-500 hover:text-red-400'}`}>
                     <Heart size={14} fill={likedIds.has(song.id) ? 'currentColor' : 'none'} />
                   </button>
@@ -170,6 +236,8 @@ export default function PlaylistPage() {
           </div>
         )}
       </div>
+      {ctxMenu && <ContextMenu song={ctxMenu.song} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} onAddToPlaylist={() => setAddPlaylistSong(ctxMenu.song)} />}
+      {addPlaylistSong && <AddToPlaylistModal song={addPlaylistSong} onClose={() => setAddPlaylistSong(null)} />}
     </div>
   )
 }

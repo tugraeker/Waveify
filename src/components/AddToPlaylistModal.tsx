@@ -18,7 +18,10 @@ export default function AddToPlaylistModal({ song, onClose }: Props) {
 
   async function addToPlaylist(playlistId: string) {
     setAdding(playlistId)
-    const { error } = await supabase.from('playlist_songs').insert({ playlist_id: playlistId, song_id: song.id })
+    // Get max position
+    const { data: posData } = await supabase.from('playlist_songs').select('position').eq('playlist_id', playlistId).order('position', { ascending: false }).limit(1)
+    const position = (posData && posData.length > 0) ? posData[0].position + 1 : 0
+    const { error } = await supabase.from('playlist_songs').insert({ playlist_id: playlistId, song_id: song.id, position })
     if (error) {
       if (error.code === '23505') emitToast('Zaten listede', 'info')
       else emitToast('Hata: ' + error.message, 'error')

@@ -11,9 +11,10 @@ interface Props {
   x: number
   y: number
   onClose: () => void
+  onAddToPlaylist?: () => void
 }
 
-export default function ContextMenu({ song, x, y, onClose }: Props) {
+export default function ContextMenu({ song, x, y, onClose, onAddToPlaylist }: Props) {
   const navigate = useNavigate()
   const { user, setCurrentSong, setQueue, queue, addToQueue, songs } = useStore()
   const [liked, setLiked] = useState(false)
@@ -35,6 +36,7 @@ export default function ContextMenu({ song, x, y, onClose }: Props) {
   const menuItems = [
     { icon: Play, label: 'Oynat', action: () => { setCurrentSong(song); onClose() } },
     { icon: ListPlus, label: 'Sıraya Ekle', action: () => { addToQueue(song); emitToast('Sıraya eklendi', 'success'); onClose() } },
+    ...(onAddToPlaylist ? [{ icon: ListPlus, label: 'Listeye Ekle', action: () => { onAddToPlaylist(); onClose() } }] : []),
     { icon: Heart, label: liked ? 'Beğeniyi Kaldır' : 'Beğen', action: async () => {
       if (!user) return
       if (liked) {

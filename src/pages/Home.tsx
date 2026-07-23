@@ -5,8 +5,9 @@ import { supabase } from '@/lib/supabase'
 import { formatDuration } from '@/lib/utils'
 import { SongSkeleton, CardSkeleton } from '@/components/Skeleton'
 import ContextMenu from '@/components/ContextMenu'
+import AddToPlaylistModal from '@/components/AddToPlaylistModal'
 import type { Song } from '@/types'
-import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform } from 'lucide-react'
+import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic } from 'lucide-react'
 
 const autoPlaylistDefs = [
   { name: 'En Çok Dinlenenler', icon: Flame, auto_type: 'top50', gradient: 'from-rose-600 to-orange-600' },
@@ -23,6 +24,7 @@ export default function Home() {
   const [greeting, setGreeting] = useState('')
   const [loading, setLoading] = useState(true)
   const [ctxMenu, setCtxMenu] = useState<{ song: Song; x: number; y: number } | null>(null)
+  const [addPlaylistSong, setAddPlaylistSong] = useState<Song | null>(null)
 
   useEffect(() => {
     const h = new Date().getHours()
@@ -124,7 +126,8 @@ export default function Home() {
         )}
       </section>
 
-      {ctxMenu && <ContextMenu song={ctxMenu.song} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} />}
+      {ctxMenu && <ContextMenu song={ctxMenu.song} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} onAddToPlaylist={() => setAddPlaylistSong(ctxMenu.song)} />}
+      {addPlaylistSong && <AddToPlaylistModal song={addPlaylistSong} onClose={() => setAddPlaylistSong(null)} />}
     </div>
   )
 }
