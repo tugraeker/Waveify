@@ -26,6 +26,7 @@ import Import from '@/pages/Import'
 import Settings from '@/pages/Settings'
 import Activity from '@/pages/Activity'
 import ToastContainer from '@/components/ToastContainer'
+import UpdateBanner from '@/components/UpdateBanner'
 import Stats from '@/pages/Stats'
 import Admin from '@/pages/Admin'
 import type { AccentColor } from '@/types'
@@ -156,6 +157,7 @@ export default function App() {
       </div>
       <Player />
       <ToastContainer />
+      <UpdateBanner />
     </div>
   )
 }
