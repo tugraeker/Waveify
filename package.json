@@ -13,8 +13,8 @@
     "preview": "vite preview"
   },
   "build": {
-    "appId": "com.sesli.app",
-    "productName": "Sesli",
+    "appId": "com.waveify.app",
+    "productName": "Waveify",
     "directories": {
       "output": "release"
     },
@@ -38,15 +38,15 @@
         }
       ],
       "icon": null,
-      "artifactName": "Sesli-${version}-${arch}.${ext}"
+      "artifactName": "Waveify-${version}-${arch}.${ext}"
     },
     "nsis": {
-      "artifactName": "Sesli-${version}-Setup-${arch}.${ext}",
+      "artifactName": "Waveify-${version}-Setup-${arch}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
     "portable": {
-      "artifactName": "Sesli-${version}-portable.exe",
+      "artifactName": "Waveify-${version}-portable.exe",
       "splashImage": null
     },
     "publish": [
