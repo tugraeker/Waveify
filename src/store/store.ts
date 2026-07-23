@@ -31,8 +31,8 @@ interface AppState {
   setPlaylists: (playlists: Playlist[]) => void
   activePlaylist: Playlist | null
   setActivePlaylist: (playlist: Playlist | null) => void
-  sidebarView: 'home' | 'search' | 'library' | 'upload' | 'friends'
-  setSidebarView: (view: 'home' | 'search' | 'library' | 'upload' | 'friends') => void
+  sidebarView: 'home' | 'search' | 'library' | 'upload' | 'friends' | 'chat'
+  setSidebarView: (view: 'home' | 'search' | 'library' | 'upload' | 'friends' | 'chat') => void
   syncRoom: SyncRoom | null
   setSyncRoom: (room: SyncRoom | null) => void
   searchQuery: string

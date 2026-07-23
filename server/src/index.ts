@@ -5,6 +5,7 @@ import { Server } from 'socket.io'
 import dotenv from 'dotenv'
 import fs from 'fs'
 import { setupSocketHandlers } from './socket/syncHandler.js'
+import { setupChatHandlers } from './socket/chatHandler.js'
 import { createClient } from '@supabase/supabase-js'
 
 dotenv.config()
@@ -684,6 +685,7 @@ app.get('/api/get-audio-url', async (req, res) => {
 })
 
 setupSocketHandlers(io)
+setupChatHandlers(io)
 
 const PORT = process.env.PORT || 3001
 httpServer.listen(PORT, () => {

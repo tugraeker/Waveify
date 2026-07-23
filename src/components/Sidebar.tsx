@@ -9,7 +9,7 @@ import {
   Music, Flame, Clock, Heart, TrendingUp,
   Plus, List, Disc3, User, Radio,
   History, Sun, Moon, Globe, Settings as SettingsIcon,
-  Activity, BarChart3, Shield,
+  Activity, BarChart3, Shield, MessageSquare,
 } from 'lucide-react'
 
 const navItems = [
@@ -18,6 +18,7 @@ const navItems = [
   { view: 'library' as const, label: 'Kitaplık', icon: Library, path: '/library' },
   { view: 'upload' as const, label: 'Yükle', icon: Upload, path: '/upload' },
   { view: 'friends' as const, label: 'Arkadaşlar', icon: Users, path: '/friends' },
+  { view: 'chat' as const, label: 'Sohbet', icon: MessageSquare, path: '/chat' },
 ]
 
 const autoPlaylists = [

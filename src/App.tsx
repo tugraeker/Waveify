@@ -29,6 +29,7 @@ import ToastContainer from '@/components/ToastContainer'
 import UpdateBanner from '@/components/UpdateBanner'
 import Stats from '@/pages/Stats'
 import Admin from '@/pages/Admin'
+import ChatPage from '@/pages/Chat'
 import type { AccentColor } from '@/types'
 
 const accentPalettes: Record<AccentColor, Record<string, string>> = {
@@ -151,6 +152,7 @@ export default function App() {
             <Route path="/activity" element={<Activity />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/chat" element={<ChatPage />} />
             <Route path="/auth" element={<Auth />} />
           </Routes>
         </main>
