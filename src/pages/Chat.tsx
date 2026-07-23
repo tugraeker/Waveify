@@ -154,14 +154,14 @@ export default function ChatPage() {
                     const inThisVoice = voiceChannelId === ch.id
                     return (
                       <div key={ch.id} className="flex flex-col">
-                        <button onClick={() => selectChannel(ch.id)} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-100 group ${activeChannel === ch.id ? 'bg-[#404249] text-white' : 'text-surface-400 hover:text-surface-200 hover:bg-[#35373c]'}`}>
+                        <div onClick={() => selectChannel(ch.id)} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-100 cursor-pointer group ${activeChannel === ch.id ? 'bg-[#404249] text-white' : 'text-surface-400 hover:text-surface-200 hover:bg-[#35373c]'}`}>
                           <Volume2 size={16} className={`${activeChannel === ch.id ? 'text-white' : 'text-surface-500'}`} />
                           <span className="truncate flex-1 text-left">{ch.name}</span>
-                          <button onClick={e => { e.stopPropagation(); inThisVoice ? leaveVoice() : (selectChannel(ch.id), joinVoice(ch.id)) }} className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all opacity-0 group-hover:opacity-100 ${inThisVoice ? 'bg-green-500/20 text-green-400' : 'bg-surface-800 text-surface-400 hover:text-white'}`}>
+                          <button onClick={e => { e.stopPropagation(); inThisVoice ? leaveVoice() : (joinVoice(ch.id), selectChannel(ch.id)) }} className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all opacity-0 group-hover:opacity-100 ${inThisVoice ? 'bg-green-500/20 text-green-400' : 'bg-surface-800 text-surface-400 hover:text-white'}`}>
                             {inThisVoice ? <LogOut size={10} /> : <Radio size={10} />}
                             {inThisVoice ? 'Ayrıl' : 'Katıl'}
                           </button>
-                        </button>
+                        </div>
                         {inThisVoice && voiceParticipants.length > 0 && (
                           <div className="ml-7 mt-0.5 flex flex-col gap-0.5">
                             {voiceParticipants.map(p => (
