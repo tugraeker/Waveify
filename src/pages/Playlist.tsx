@@ -70,6 +70,14 @@ export default function PlaylistPage() {
     setSongs((prev) => prev.filter((s) => s.id !== songId))
   }
 
+  async function deletePlaylist() {
+    if (!activePlaylist || activePlaylist.type !== 'custom' || activePlaylist.user_id !== user?.id) return
+    if (!confirm('Bu çalma listesini silmek istediğine emin misin?')) return
+    await supabase.from('playlists').delete().eq('id', activePlaylist.id)
+    emitToast('Liste silindi', 'info')
+    navigate('/library')
+  }
+
   async function toggleLike(song: Song) {
     if (!user) return
     const isLiked = likedIds.has(song.id)
@@ -154,9 +162,14 @@ export default function PlaylistPage() {
             <div className="flex items-center gap-3 mt-4">
               <Button variant="primary" size="lg" onClick={playAll} disabled={songs.length === 0}><Play size={18} fill="white" /> Tümünü Oynat</Button>
               {isCustom && activePlaylist.user_id === user?.id && (
-                <button onClick={toggleCollaborative} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${isCollab ? 'bg-wave-500/10 text-wave-400 border-wave-500/20' : 'bg-surface-800 text-surface-400 border-surface-700 hover:text-white'}`}>
-                  <Users size={15} /> {isCollab ? 'İşbirlikçi' : 'Sadece Ben'}
-                </button>
+                <>
+                  <button onClick={toggleCollaborative} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${isCollab ? 'bg-wave-500/10 text-wave-400 border-wave-500/20' : 'bg-surface-800 text-surface-400 border-surface-700 hover:text-white'}`}>
+                    <Users size={15} /> {isCollab ? 'İşbirlikçi' : 'Sadece Ben'}
+                  </button>
+                  <button onClick={deletePlaylist} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-surface-800 text-red-400 border-surface-700 hover:bg-red-500/20 hover:border-red-500/30">
+                    <Trash2 size={15} /> Listeyi Sil
+                  </button>
+                </>
               )}
             </div>
             {collaborators.length > 0 && (
