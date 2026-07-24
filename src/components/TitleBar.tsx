@@ -89,7 +89,7 @@ export default function TitleBar() {
             )}
           </button>
           {showNotif && (
-            <div className="absolute top-full right-0 mt-1 bg-surface-900 border border-surface-700 rounded-xl shadow-2xl w-72 animate-fade-in overflow-hidden" onMouseLeave={() => setShowNotif(false)}>
+            <div className="absolute top-full right-0 mt-1 glass border border-surface-700 rounded-xl shadow-2xl w-72 animate-fade-in overflow-hidden" onMouseLeave={() => setShowNotif(false)}>
               <div className="p-3 border-b border-surface-800">
                 <p className="text-xs font-semibold text-surface-300 uppercase tracking-wider">Bildirimler</p>
               </div>

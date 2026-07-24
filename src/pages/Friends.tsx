@@ -113,7 +113,7 @@ export default function FriendsPage() {
           <h2 className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-3">Arkadaşların ({friends.length})</h2>
           <div className="flex flex-col gap-2">
             {friends.length === 0 ? (
-              <div className="flex flex-col items-center py-12 text-surface-500"><Users size={36} className="mb-3 opacity-30" /><p className="text-sm">Henüz arkadaşın yok</p><p className="text-xs mt-1 text-surface-600">İsim veya e-posta ile arkadaşlarını bul</p></div>
+              <div className="flex flex-col items-center py-12 text-surface-500 glass rounded-2xl border-dashed"><Users size={36} className="mb-3 opacity-30" /><p className="text-sm">Henüz arkadaşın yok</p><p className="text-xs mt-1 text-surface-600">İsim veya e-posta ile arkadaşlarını bul</p></div>
             ) : friends.map((f) => (
               <div key={f.id} className="glass rounded-xl p-3.5 flex items-center gap-3 hover:bg-surface-800/60 transition-colors group">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-wave-500/30 to-wave-400/30 flex items-center justify-center text-sm font-bold text-wave-400 cursor-pointer" onClick={() => navigate(`/profile/${f.id}`)}>{f.username?.[0]?.toUpperCase() || '?'}</div>

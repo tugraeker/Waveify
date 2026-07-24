@@ -39,7 +39,7 @@ export default function Visualizer({ analyserData, isPlaying, className = '' }: 
       })
     } else ctx.clearRect(0, 0, canvas.width, canvas.height)
     return () => cancelAnimationFrame(animRef.current)
-  }, [isPlaying, analyserData, mode])
+  }, [isPlaying, mode])
 
   return <canvas ref={canvasRef} className={className} width={400} height={64} />
 }
@@ -57,7 +57,10 @@ function drawBars(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data
     grad.addColorStop(0.5, `rgba(34,199,192,${0.3 + v * 0.5})`)
     grad.addColorStop(1, `rgba(15,171,166,${0.4 + v * 0.6})`)
     ctx.fillStyle = grad
+    ctx.shadowColor = `rgba(15,171,166,${0.1 + v * 0.3})`
+    ctx.shadowBlur = 8
     ctx.fillRect(x, canvas.height / 2 - h / 2, w - 1, h)
+    ctx.shadowBlur = 0
   }
 }
 

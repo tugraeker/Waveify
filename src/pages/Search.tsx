@@ -179,7 +179,7 @@ export default function SearchPage() {
       )}
 
       {songResults.length === 0 && hasQuery && !loading && (
-        <div className="flex flex-col items-center justify-center py-16 text-surface-500"><SearchIcon size={40} className="mb-4 opacity-30" /><p className="text-sm">Sonuç bulunamadı</p></div>
+        <div className="flex flex-col items-center justify-center py-16 text-surface-500 glass rounded-2xl border-dashed"><SearchIcon size={40} className="mb-4 opacity-30" /><p className="text-sm">Sonuç bulunamadı</p></div>
       )}
 
       {songResults.length > 0 && !(tab === 'artists' || tab === 'playlists') && (

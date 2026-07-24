@@ -63,7 +63,7 @@ export default function Sidebar() {
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 no-drag',
                 sidebarView === view
-                  ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20'
+                  ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20 shadow-sm shadow-wave-500/10'
                   : 'text-surface-400 hover:text-white hover:bg-white/5 border border-transparent'
               )}
             >
@@ -123,7 +123,9 @@ export default function Sidebar() {
           ))}
           <div className="border-t border-surface-800/50 my-2" />
           {playlists.filter((p) => p.type === 'custom').length === 0 ? (
-            <p className="px-3 py-2 text-xs text-surface-500 italic">Henüz liste yok</p>
+            <div className="px-3 py-3 bg-surface-900/40 border border-surface-800/30 rounded-xl text-center">
+            <p className="text-xs text-surface-500 italic">Henüz liste yok</p>
+          </div>
           ) : (
             playlists.filter((p) => p.type === 'custom').map((pl) => (
               <button

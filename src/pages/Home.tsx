@@ -52,7 +52,7 @@ export default function Home() {
 
   return (
     <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
-      <h1 className="text-3xl font-bold mb-8">{greeting}</h1>
+      <h1 className="text-3xl font-bold mb-8 text-gradient">{greeting}</h1>
 
       <section className="mb-10">
         <h2 className="text-lg font-semibold mb-5 text-surface-200">Otomatik Listeler</h2>
@@ -89,10 +89,10 @@ export default function Home() {
         {loading ? (
           <div className="flex flex-col gap-1">{Array.from({ length: 5 }).map((_, i) => <SongSkeleton key={i} />)}</div>
         ) : recentSongs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-surface-500">
+          <div className="flex flex-col items-center justify-center py-16 text-surface-500 glass rounded-2xl border-dashed">
             <AudioWaveform size={48} className="mb-4 opacity-30" />
             <p className="text-sm font-medium">Henüz şarkı yok</p>
-            <button onClick={() => navigate('/upload')} className="text-wave-400 hover:underline text-xs mt-2">İlk şarkını yükle</button>
+            <button onClick={() => navigate('/upload')} className="text-wave-400 hover:text-wave-300 text-xs mt-2 transition-colors font-medium">İlk şarkını yükle</button>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-1.5">

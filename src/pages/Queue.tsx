@@ -48,7 +48,7 @@ export default function QueuePage() {
       </div>
 
       {queue.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 text-surface-500">
+        <div className="flex flex-col items-center justify-center h-64 text-surface-500 glass rounded-2xl border-dashed">
           <Music2 size={48} className="mb-3 opacity-50" />
           <p className="text-sm">Sırada şarkı yok</p>
           <p className="text-xs mt-1">Kitaplıktan şarkı seçip sıraya ekleyin</p>
@@ -64,8 +64,8 @@ export default function QueuePage() {
               onDrop={handleDrop}
               onDragEnd={() => setDragIdx(null)}
               className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all group ${
-                currentSong?.id === song.id ? 'bg-wave-500/10 border border-wave-500/20' : 'hover:bg-white/5 border border-transparent'
-              } ${dragIdx === i ? 'opacity-50' : ''}`}
+                currentSong?.id === song.id ? 'bg-wave-500/10 border border-wave-500/20 shadow-sm shadow-wave-500/10' : 'hover:bg-white/5 border border-transparent'
+              } ${dragIdx === i ? 'opacity-50 scale-[0.98]' : ''}`}
             >
               <div className="text-surface-500 hover:text-surface-300 cursor-grab active:cursor-grabbing">
                 <GripVertical size={15} />

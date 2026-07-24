@@ -66,9 +66,11 @@ export default function NowPlaying() {
 
   if (!currentSong) return (
     <div className="p-8 flex flex-col items-center justify-center h-full text-surface-500">
-      <Music2 size={64} className="mb-4 opacity-30" />
-      <p className="text-lg">Şarkı seçilmedi</p>
-      <button onClick={() => navigate('/')} className="text-wave-400 hover:underline mt-2 text-sm">Ana sayfaya dön</button>
+      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-800/50 flex items-center justify-center mb-6 shadow-lg">
+        <Music2 size={40} className="opacity-30" />
+      </div>
+      <p className="text-lg font-medium">Şarkı seçilmedi</p>
+      <button onClick={() => navigate('/')} className="text-wave-400 hover:text-wave-300 transition-colors mt-2 text-sm">Ana sayfaya dön</button>
     </div>
   )
 
@@ -77,10 +79,10 @@ export default function NowPlaying() {
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-surface-900 to-surface-950 overflow-hidden">
       <div className="flex items-center p-5 flex-shrink-0">
-        <button onClick={() => navigate(-1)} className="text-surface-400 hover:text-white transition-colors">
+        <button onClick={() => navigate(-1)} className="text-surface-400 hover:text-white transition-colors p-1">
           <ChevronDown size={22} />
         </button>
-        <span className="flex-1 text-center text-[11px] font-semibold text-surface-500 uppercase tracking-[0.15em]">Şimdi Çalıyor</span>
+        <span className="flex-1 text-center text-[11px] font-semibold text-gradient uppercase tracking-[0.15em]">Şimdi Çalıyor</span>
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin px-4">
@@ -244,8 +246,9 @@ export default function NowPlaying() {
                       <span className="text-[10px] text-surface-500 font-medium uppercase">
                         {key === 'bass' ? 'Bas' : key === 'mid' ? 'Mid' : 'Tiz'}
                       </span>
-                      <span className="text-[10px] text-surface-500 font-mono">
-                        {equalizer[key] > 0 ? `+${equalizer[key]}` : equalizer[key]}
+                        <span className="text-[10px] font-mono tabular-nums"
+                          style={{ color: equalizer[key] > 0 ? '#22c7c0' : equalizer[key] < 0 ? '#ef4444' : '#6b7280' }}>
+                          {equalizer[key] > 0 ? `+${equalizer[key]}` : equalizer[key]}
                       </span>
                     </div>
                   ))}
@@ -262,10 +265,10 @@ export default function NowPlaying() {
               </div>
               <div className="flex flex-col gap-1">
                 {relatedSongs.slice(0, 5).map((rs) => (
-                  <div key={rs.id} onClick={() => { setQueue([currentSong!, ...relatedSongs]); setCurrentSong(rs) }} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-all">
-                    {rs.cover_url ? <img src={rs.cover_url} alt="" className="w-9 h-9 rounded-lg object-cover" /> : <div className="w-9 h-9 rounded-lg bg-surface-800 flex items-center justify-center"><Music2 size={14} className="text-surface-500" /></div>}
+                  <div key={rs.id} onClick={() => { setQueue([currentSong!, ...relatedSongs]); setCurrentSong(rs) }} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-all group">
+                    {rs.cover_url ? <img src={rs.cover_url} alt="" className="w-9 h-9 rounded-lg object-cover shadow-sm" /> : <div className="w-9 h-9 rounded-lg bg-surface-800 border border-surface-700/50 flex items-center justify-center"><Music2 size={14} className="text-surface-500" /></div>}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">{rs.title}</p>
+                      <p className="text-sm text-white truncate group-hover:text-wave-400 transition-colors">{rs.title}</p>
                       <p className="text-xs text-surface-400 truncate">{rs.artist}</p>
                     </div>
                   </div>

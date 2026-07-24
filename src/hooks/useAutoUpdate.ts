@@ -24,9 +24,7 @@ export default function useAutoUpdate() {
     api.onUpdateDownloaded(() => { setDownloading(false); setDownloaded(true) })
     api.onUpdateError((msg: string) => { setChecking(false); setDownloading(false); setError(msg) })
 
-    // Check on mount
     api.checkForUpdates()
-    // Check every hour
     const interval = setInterval(() => api.checkForUpdates(), 3600000)
     return () => clearInterval(interval)
   }, [])

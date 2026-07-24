@@ -168,7 +168,7 @@ export default function PlaylistPage() {
 
   if (!activePlaylist) return (
     <div className="p-8 flex items-center justify-center h-full text-surface-500 animate-fade-in">
-      <div className="text-center"><AudioWaveform size={48} className="mx-auto mb-4 opacity-30" /><p>Liste seçilmedi</p></div>
+      <div className="text-center glass rounded-2xl p-8 border-dashed"><AudioWaveform size={48} className="mx-auto mb-4 opacity-30" /><p>Liste seçilmedi</p></div>
     </div>
   )
 
@@ -243,15 +243,15 @@ export default function PlaylistPage() {
           </div>
         )}
         {songs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-surface-500"><p className="text-sm">Bu listede şarkı yok</p></div>
+          <div className="flex flex-col items-center justify-center h-40 text-surface-500 glass rounded-2xl border-dashed py-12"><p className="text-sm">Bu listede şarkı yok</p></div>
         ) : (
           <div className="flex flex-col gap-1">
             {songs.map((song, i) => (
-              <div key={song.id} className="group flex items-center gap-3.5 p-2.5 rounded-xl transition-all duration-200 card-hover" onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ song, x: e.clientX, y: e.clientY }) }}>
+              <div key={song.id} className={`group flex items-center gap-3.5 p-2.5 rounded-xl transition-all duration-200 card-hover ${currentSong?.id === song.id ? 'bg-wave-500/5 border border-wave-500/10' : ''}`} onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ song, x: e.clientX, y: e.clientY }) }}>
                 <div className="flex items-center gap-3.5 flex-1 min-w-0 cursor-pointer" onClick={() => playSong(song)}>
                   <span className="w-6 text-xs text-surface-500 text-right tabular-nums group-hover:hidden">{i + 1}</span>
                   <button className="hidden group-hover:flex w-6 text-wave-400 items-center justify-center">{currentSong?.id === song.id && isPlaying ? <Pause size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}</button>
-                  {song.cover_url ? <img src={song.cover_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" /> : <div className="w-10 h-10 rounded-lg bg-surface-800 border border-surface-700 flex items-center justify-center flex-shrink-0"><Music size={16} className="text-surface-500" /></div>}
+                  {song.cover_url ? <img src={song.cover_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 shadow-sm" /> : <div className="w-10 h-10 rounded-lg bg-surface-800 border border-surface-700/50 flex items-center justify-center flex-shrink-0"><Music size={16} className="text-surface-500" /></div>}
                   <div className="flex-1 min-w-0"><p className={`text-sm truncate ${currentSong?.id === song.id ? 'text-wave-400' : 'text-white'}`}>{song.title}</p><p className="text-xs text-surface-400 truncate">{song.artist}</p></div>
                   <span className="text-xs text-surface-500 tabular-nums">{formatDuration(song.duration)}</span>
                 </div>

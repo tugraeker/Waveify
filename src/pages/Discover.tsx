@@ -72,11 +72,11 @@ export default function Discover() {
         </div>
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
           {songs.map((song) => (
-            <div key={song.id} onClick={() => playSong(song, songs)} className="flex-shrink-0 w-44 bg-surface-900/60 rounded-2xl p-3 border border-surface-800/50 hover:bg-surface-800/60 cursor-pointer transition-all group">
+            <div key={song.id} onClick={() => playSong(song, songs)} className="flex-shrink-0 w-44 glass rounded-2xl p-3 hover:border-wave-400/20 hover:shadow-lg hover:shadow-wave-500/5 cursor-pointer transition-all duration-200 group">
               {song.cover_url ? (
                 <img src={song.cover_url} alt="" className="w-full aspect-square rounded-xl object-cover mb-3 shadow-lg" />
               ) : (
-                <div className="w-full aspect-square rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 flex items-center justify-center mb-3">
+                <div className="w-full aspect-square rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700/50 flex items-center justify-center mb-3">
                   <Music2 size={28} className="text-surface-500" />
                 </div>
               )}
@@ -85,7 +85,7 @@ export default function Discover() {
                   <p className="text-sm font-medium text-white truncate">{song.title}</p>
                   <p className="text-xs text-surface-400 truncate">{song.artist}</p>
                 </div>
-                <button className="ml-2 opacity-0 group-hover:opacity-100 bg-wave-500 text-white rounded-full p-1.5 shadow-lg transition-all">
+                <button className="ml-2 opacity-0 group-hover:opacity-100 bg-wave-500 text-white rounded-full p-1.5 shadow-lg shadow-wave-500/20 transition-all hover:scale-110">
                   {currentSong?.id === song.id && isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
                 </button>
               </div>
@@ -109,13 +109,14 @@ export default function Discover() {
           <h2 className="text-lg font-bold">Radyo İstasyonları</h2>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {moodStations.map((station) => (
+          {moodStations.map((station, i) => (
             <button
               key={station.id}
               onClick={() => playStation(station)}
-              className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-4 hover:bg-surface-800/60 hover:border-wave-400/20 transition-all text-center group"
+              className="glass rounded-2xl p-4 hover:border-wave-400/30 hover:shadow-lg hover:shadow-wave-500/5 transition-all text-center group animate-slide-up"
+              style={{ animationDelay: `${i * 0.05}s` }}
             >
-              <span className="text-3xl block mb-2 group-hover:scale-110 transition-transform">{station.icon}</span>
+              <span className="text-3xl block mb-2 group-hover:scale-125 group-hover:drop-shadow-lg transition-all duration-300">{station.icon}</span>
               <span className="text-sm font-medium text-white">{station.label}</span>
             </button>
           ))}

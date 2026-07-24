@@ -101,12 +101,12 @@ export default function Library() {
       {loading ? (
         <div className="flex flex-col gap-1"><SongSkeleton /><SongSkeleton /><SongSkeleton /><SongSkeleton /><SongSkeleton /></div>
       ) : filteredSongs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-80 text-surface-500">
-          <AudioWaveform size={56} className="mb-5 opacity-30" />
-          <p className="text-base font-medium text-surface-400">Henüz şarkı yok</p>
-          <p className="text-sm mt-1 text-surface-500">Şarkı yüklemek için "Yükle" bölümüne gidin</p>
-          <button onClick={() => navigate('/upload')} className="mt-4 text-sm text-wave-400 hover:text-wave-300 font-medium transition-colors">Şarkı Yükle</button>
-        </div>
+          <div className="flex flex-col items-center justify-center h-80 text-surface-500 glass rounded-2xl border-dashed">
+            <AudioWaveform size={56} className="mb-5 opacity-30" />
+            <p className="text-base font-medium text-surface-400">Henüz şarkı yok</p>
+            <p className="text-sm mt-1 text-surface-500">Şarkı yüklemek için "Yükle" bölümüne gidin</p>
+            <button onClick={() => navigate('/upload')} className="mt-4 text-sm text-wave-400 hover:text-wave-300 font-medium transition-colors">Şarkı Yükle</button>
+          </div>
       ) : (
         <div className="flex flex-col gap-1">
           {filteredSongs.map((song) => (

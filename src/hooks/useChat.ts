@@ -32,6 +32,7 @@ interface VoiceParticipant {
   username: string
   muted: boolean
   deafened: boolean
+  speaking: boolean
 }
 
 export function useChat(socket: Socket | null) {
@@ -48,9 +49,44 @@ export function useChat(socket: Socket | null) {
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedMic, setSelectedMic] = useState('')
   const [selectedSpeaker, setSelectedSpeaker] = useState('')
+  const [pushToTalk, setPushToTalk] = useState(false)
+  const [pttHeld, setPttHeld] = useState(false)
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map())
   const localStreamRef = useRef<MediaStream | null>(null)
   const screenStreamRef = useRef<MediaStream | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const speakingIntervalRef = useRef<number | null>(null)
+
+  const voiceChannelIdRef = useRef<string | null>(null)
+
+  function startSpeakingDetection(channelId: string, stream: MediaStream) {
+    voiceChannelIdRef.current = channelId
+    try {
+      const ctx = new AudioContext()
+      audioContextRef.current = ctx
+      const src = ctx.createMediaStreamSource(stream)
+      const analyser = ctx.createAnalyser()
+      analyser.fftSize = 256
+      src.connect(analyser)
+      analyserRef.current = analyser
+      const data = new Uint8Array(analyser.frequencyBinCount)
+      speakingIntervalRef.current = window.setInterval(() => {
+        analyser.getByteFrequencyData(data)
+        const avg = data.reduce((a, b) => a + b, 0) / data.length
+        const speaking = avg > 20
+        if (socket && voiceChannelIdRef.current) {
+          socket.emit('voice:speaking', { channelId: voiceChannelIdRef.current, speaking })
+        }
+      }, 150)
+    } catch {}
+  }
+
+  function stopSpeakingDetection() {
+    if (speakingIntervalRef.current) { clearInterval(speakingIntervalRef.current); speakingIntervalRef.current = null }
+    if (audioContextRef.current) { audioContextRef.current.close(); audioContextRef.current = null }
+    analyserRef.current = null
+  }
 
   function createPeer(targetUserId: string, stream: MediaStream) {
     const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] })
@@ -87,6 +123,13 @@ export function useChat(socket: Socket | null) {
   }
 
   useEffect(() => {
+    if (!selectedSpeaker) return
+    document.querySelectorAll('audio[id^="audio-"]').forEach(el => {
+      try { (el as any).setSinkId(selectedSpeaker) } catch {}
+    })
+  }, [selectedSpeaker])
+
+  useEffect(() => {
     navigator.mediaDevices?.enumerateDevices().then(devices => {
       setAudioDevices(devices)
       const mic = devices.find(d => d.kind === 'audioinput')
@@ -109,9 +152,13 @@ export function useChat(socket: Socket | null) {
     })
 
     socket.on('voice:participants', (participants: VoiceParticipant[]) => {
-      setVoiceParticipants(participants)
+      const withSpeaking = participants.map(p => ({
+        ...p,
+        speaking: (p as any).speaking ?? false
+      }))
+      setVoiceParticipants(withSpeaking)
       if (!user || !localStreamRef.current) return
-      for (const p of participants) {
+      for (const p of withSpeaking) {
         if (p.userId !== user.id && !peersRef.current.has(p.userId)) {
           createOfferTo(p.userId).catch(() => {})
         }
@@ -121,7 +168,7 @@ export function useChat(socket: Socket | null) {
     socket.on('voice:user-joined', ({ userId: uid, username: uname }) => {
       setVoiceParticipants(prev => {
         if (prev.find(p => p.userId === uid)) return prev
-        return [...prev, { userId: uid, username: uname, muted: false, deafened: false }]
+        return [...prev, { userId: uid, username: uname, muted: false, deafened: false, speaking: false }]
       })
       if (!user || !localStreamRef.current || uid === user.id) return
       createOfferTo(uid).catch(() => {})
@@ -158,10 +205,14 @@ export function useChat(socket: Socket | null) {
       if (pc) try { pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {}) } catch {}
     })
 
+    socket.on('voice:speaking', ({ userId: uid, speaking }) => {
+      setVoiceParticipants(prev => prev.map(p => p.userId === uid ? { ...p, speaking } : p))
+    })
+
     return () => {
       socket.off('chat:message'); socket.off('voice:user-joined'); socket.off('voice:user-left')
       socket.off('voice:participants'); socket.off('voice:offer'); socket.off('voice:answer')
-      socket.off('voice:ice-candidate')
+      socket.off('voice:ice-candidate'); socket.off('voice:speaking')
     }
   }, [socket, user])
 
@@ -223,7 +274,9 @@ export function useChat(socket: Socket | null) {
       if (selectedMic) constraints.audio = { deviceId: { exact: selectedMic } }
       const stream = await navigator.mediaDevices.getUserMedia(constraints)
       localStreamRef.current = stream
+      startSpeakingDetection(channelId, stream)
     } catch { emitToast('Mikrofona erişilemedi', 'error'); return }
+    voiceChannelIdRef.current = channelId
     setVoiceChannelId(channelId); setInVoice(true)
     socket.emit('voice:join', { channelId })
   }, [socket, user, selectedMic])
@@ -235,6 +288,8 @@ export function useChat(socket: Socket | null) {
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null }
     if (screenStreamRef.current) { screenStreamRef.current.getTracks().forEach(t => t.stop()); screenStreamRef.current = null }
     document.querySelectorAll('audio[id^="audio-"]').forEach(el => el.remove())
+    stopSpeakingDetection()
+    voiceChannelIdRef.current = null
     setInVoice(false); setVoiceChannelId(null); setVoiceParticipants([]); setIsScreenSharing(false)
   }, [socket])
 
@@ -287,6 +342,22 @@ export function useChat(socket: Socket | null) {
     } catch { emitToast('Mikrofon değiştirilemedi', 'error') }
   }, [inVoice])
 
+  const togglePushToTalk = useCallback(() => {
+    setPushToTalk(prev => {
+      if (prev) {
+        if (localStreamRef.current) localStreamRef.current.getAudioTracks().forEach(t => t.enabled = true)
+        setPttHeld(false)
+      }
+      return !prev
+    })
+  }, [])
+
+  const handlePttKey = useCallback((pressed: boolean) => {
+    if (!pushToTalk || !localStreamRef.current) return
+    localStreamRef.current.getAudioTracks().forEach(t => t.enabled = pressed)
+    setPttHeld(pressed)
+  }, [pushToTalk])
+
   return {
     servers, channels, messages, activeChannel, setActiveChannel, setMessages,
     voiceParticipants, inVoice, voiceChannelId, isScreenSharing, localMuted,
@@ -294,5 +365,6 @@ export function useChat(socket: Socket | null) {
     setSelectedSpeaker, changeMic,
     fetchServers, fetchChannels, selectChannel, sendMessage, createServer, joinServer,
     joinVoice, leaveVoice, toggleMute, toggleScreenShare,
+    pushToTalk, togglePushToTalk, pttHeld, handlePttKey,
   }
 }

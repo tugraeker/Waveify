@@ -71,7 +71,7 @@ export default function Player() {
     return (
       <div className="h-22 bg-surface-950 border-t border-surface-800/30 flex items-center px-5">
         <div className="flex items-center gap-4 text-surface-500">
-          <div className="w-12 h-12 rounded-xl bg-surface-900 border border-surface-800 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-800/50 flex items-center justify-center shadow-sm">
             <Music2 size={22} className="opacity-40" />
           </div>
           <div>

@@ -224,7 +224,7 @@ export default function UploadPage() {
                 {selectedUsers.length > 0 ? `${selectedUsers.length} kullanıcı seçili` : 'Kullanıcı seç...'}
               </button>
               {showUserPicker && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-surface-900 border border-surface-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in">
+                <div className="absolute top-full left-0 right-0 mt-1 glass border border-surface-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in">
                   <div className="p-2 border-b border-surface-800">
                     <div className="relative">
                       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
