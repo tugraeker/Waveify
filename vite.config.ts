@@ -17,9 +17,7 @@ export default defineConfig({
               formats: ['cjs'],
               fileName: () => 'main.cjs',
             },
-            rollupOptions: {
-              external: [/node_modules/],
-            },
+            rollupOptions: {},
           },
         },
       },
