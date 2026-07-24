@@ -239,7 +239,7 @@ ipcMain.handle('cache:clear', async () => {
 })
 
 ipcMain.handle('youtube:get-audio', async (_e, videoId: string) => {
-  const ytdl = await import('@distube/ytdl-core')
+  const ytdl = require('@distube/ytdl-core')
   const info = await ytdl.getInfo(videoId, { requestOptions: { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } } })
   const format = ytdl.chooseFormat(info.formats, { quality: 'lowestaudio', filter: 'audioonly' })
   if (!format) throw new Error('Ses formatı bulunamadı')
