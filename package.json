@@ -1,15 +1,16 @@
 {
   "name": "waveify",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "private": true,
   "type": "module",
   "description": "Waveify - Özel müzik paylaşım platformu",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "dist": "vite build && electron-builder",
-    "dist:portable": "vite build && electron-builder --win portable",
+    "dist:portable": "vite build && electron-builder --win portable && node scripts/generate-latest-yml.mjs",
+    "dist:all": "vite build && electron-builder --win --x64",
     "preview": "vite preview"
   },
   "build": {

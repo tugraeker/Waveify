@@ -142,7 +142,7 @@ function createWindow() {
     titleBarStyle: 'hiddenInset',
     frame: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       backgroundThrottling: false,

@@ -15,6 +15,7 @@ export default defineConfig({
             outDir: 'dist-electron',
             lib: {
               formats: ['cjs'],
+              fileName: () => 'main.cjs',
             },
           },
         },
@@ -27,6 +28,10 @@ export default defineConfig({
         vite: {
           build: {
             outDir: 'dist-electron',
+            lib: {
+              formats: ['cjs'],
+              fileName: () => 'preload.cjs',
+            },
           },
         },
       },
