@@ -244,7 +244,7 @@ export default function SyncRoom() {
               <Users size={14} /> Dinleyiciler ({syncRoom.listeners?.length || 1})
             </h3>
             <div className="flex flex-col gap-2">
-              {syncRoom.listeners?.map((listener) => (
+              {syncRoom.listeners?.map((listener: { id: string; username: string }) => (
                 <div key={listener.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-800/40 border border-surface-800/30">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-wave-500 to-emerald-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                     {listener.username?.[0]?.toUpperCase() || '?'}

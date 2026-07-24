@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useSocket } from '@/hooks/useSocket'
 import { useChat } from '@/hooks/useChat'
 import { useStore } from '@/store/store'
+import { emitToast } from '@/hooks/useToast'
 import {
   Hash, Volume2, Plus, Send, LogIn, LogOut, Mic, MicOff, Monitor,
   Users, MessageSquare, ScreenShare, PhoneOff, Headphones, Settings,
-  ChevronDown, Circle, Radio
+  ChevronDown, Circle, Radio, Copy, Trash2, ExternalLink, Info
 } from 'lucide-react'
 
 const AVATAR_COLORS = ['#5865F2', '#ED4245', '#57F287', '#FEE75C', '#EB459E', '#FF73FA', '#00B0F4', '#00E6B2', '#9B59B6', '#1ABC9C']
@@ -16,11 +17,11 @@ function colorFromName(name: string) {
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]
 }
 
-function ServerIcon({ name, active, onClick }: { name: string; active: boolean; onClick: () => void }) {
+function ServerIcon({ name, active, onClick, onContext }: { name: string; active: boolean; onClick: () => void; onContext?: () => void }) {
   return (
     <div className="relative flex items-center justify-center">
       {active && <div className="absolute -left-2.5 w-1 h-9 rounded-r-full bg-white" />}
-      <button onClick={onClick} className={`w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold text-white transition-all duration-150 ${active ? 'rounded-xl' : 'hover:rounded-xl'}`}
+      <button onClick={onClick} onContextMenu={e => { e.preventDefault(); onContext?.() }} className={`w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold text-white transition-all duration-150 ${active ? 'rounded-xl' : 'hover:rounded-xl'}`}
         style={{ background: `linear-gradient(135deg, ${colorFromName(name)}, ${colorFromName(name + 'x')})` }} title={name}>
         {name[0]?.toUpperCase()}
       </button>
@@ -34,6 +35,25 @@ function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg'
     <div className={`${dims[size]} rounded-full flex items-center justify-center font-bold text-white flex-shrink-0`}
       style={{ background: `linear-gradient(135deg, ${colorFromName(name)}, ${colorFromName(name + 'x')})` }}>
       {name[0]?.toUpperCase()}
+    </div>
+  )
+}
+
+function DropdownMenu({ items, onClose }: { items: { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }[]; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) onClose() }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [onClose])
+  return (
+    <div ref={ref} className="absolute z-50 top-full left-2 mt-1 w-56 bg-[#111214] border border-[#1e1f22] rounded-xl py-1.5 shadow-2xl shadow-black/60" onClick={e => e.stopPropagation()}>
+      {items.map((item, i) => (
+        <button key={i} onClick={() => { item.onClick(); onClose() }} className={`flex items-center gap-3 w-full px-3 py-2 text-sm transition-colors ${item.danger ? 'text-red-400 hover:bg-red-500/10' : 'text-surface-300 hover:bg-white/5 hover:text-white'}`}>
+          <span className="w-4 h-4 flex items-center justify-center">{item.icon}</span>
+          {item.label}
+        </button>
+      ))}
     </div>
   )
 }
@@ -56,22 +76,65 @@ export default function ChatPage() {
   const [showJoin, setShowJoin] = useState(false)
   const [joinId, setJoinId] = useState('')
   const [deafened, setDeafened] = useState(false)
+  const [panelMuted, setPanelMuted] = useState(false)
+  const [showServerMenu, setShowServerMenu] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showServerCtx, setShowServerCtx] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const serverMenuRef = useRef<HTMLDivElement>(null)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (serverMenuRef.current && !serverMenuRef.current.contains(e.target as Node)) setShowServerMenu(false)
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setShowUserMenu(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
 
   const activeCh = channels.find(c => c.id === activeChannel)
   const selectedServerName = servers.find(s => s.id === selectedServer)?.name
 
-  function toggleDeafen() {
+  function handlePanelMute() {
+    setPanelMuted(!panelMuted)
+    if (inVoice) toggleMute()
+  }
+
+  function handlePanelDeafen() {
     if (deafened) {
       document.querySelectorAll('audio').forEach(el => el.muted = false)
       setDeafened(false)
     } else {
       document.querySelectorAll('audio').forEach(el => el.muted = true)
-      if (!localMuted) toggleMute()
       setDeafened(true)
+      if (inVoice && !localMuted) toggleMute()
     }
+  }
+
+  async function handleServerLeave(serverId: string) {
+    if (!user) return
+    const { error } = await (await import('@/lib/supabase')).supabase.from('chat_server_members').delete().eq('server_id', serverId).eq('user_id', user.id)
+    if (error) { emitToast('Sunucudan ayrılamadı: ' + error.message, 'error'); return }
+    if (selectedServer === serverId) { setSelectedServer(null); setActiveChannel(null); setMessages([]) }
+    fetchServers()
+    emitToast('Sunucudan ayrıldın', 'success')
+  }
+
+  async function handleServerDelete(serverId: string) {
+    if (!user) return
+    const { error } = await (await import('@/lib/supabase')).supabase.from('chat_servers').delete().eq('id', serverId).eq('created_by', user.id)
+    if (error) { emitToast('Sunucu silinemedi: ' + error.message, 'error'); return }
+    if (selectedServer === serverId) { setSelectedServer(null); setActiveChannel(null); setMessages([]) }
+    fetchServers()
+    emitToast('Sunucu silindi', 'success')
+  }
+
+  function copyServerId(serverId: string) {
+    navigator.clipboard.writeText(serverId)
+    emitToast('Sunucu ID kopyalandı', 'success')
   }
 
   async function handleCreate() {
@@ -90,6 +153,7 @@ export default function ChatPage() {
     setActiveChannel(null)
     setMessages([])
     fetchChannels(serverId)
+    setShowServerCtx(null)
   }
 
   function handleSend(e: React.FormEvent) {
@@ -100,13 +164,23 @@ export default function ChatPage() {
 
   const textChannels = channels.filter(c => c.type === 'text')
   const voiceChannels = channels.filter(c => c.type === 'voice')
+  const isServerOwner = selectedServer ? servers.find(s => s.id === selectedServer)?.created_by === user?.id : false
 
   return (
     <div className="flex h-full animate-fade-in">
       {/* ===== SERVER LIST ===== */}
       <div className="w-[72px] bg-[#1e1f22] flex flex-col items-center gap-2 py-3 flex-shrink-0 overflow-y-auto scrollbar-thin">
-        {servers.map((s, i) => (
-          <ServerIcon key={s.id} name={s.name} active={selectedServer === s.id} onClick={() => handleSelectServer(s.id)} />
+        {servers.map(s => (
+          <div key={s.id} className="relative">
+            <ServerIcon name={s.name} active={selectedServer === s.id} onClick={() => handleSelectServer(s.id)} onContext={() => setShowServerCtx(showServerCtx === s.id ? null : s.id)} />
+            {showServerCtx === s.id && (
+              <DropdownMenu items={[
+                { label: 'Sunucu ID', icon: <Info size={14} />, onClick: () => copyServerId(s.id) },
+                { label: 'Sunucudan Ayrıl', icon: <LogOut size={14} />, onClick: () => handleServerLeave(s.id), danger: true },
+                ...(s.created_by === user?.id ? [{ label: 'Sunucuyu Sil', icon: <Trash2 size={14} />, onClick: () => handleServerDelete(s.id), danger: true } as const] : []),
+              ]} onClose={() => setShowServerCtx(null)} />
+            )}
+          </div>
         ))}
         {servers.length > 0 && <div className="w-8 h-[2px] bg-surface-700/50 rounded-full my-1" />}
         <button onClick={() => setShowCreate(true)} className="w-12 h-12 rounded-2xl border-2 border-dashed border-green-500/50 text-green-400 hover:bg-green-500/15 hover:rounded-xl transition-all flex items-center justify-center" title="Sunucu Oluştur">
@@ -120,10 +194,27 @@ export default function ChatPage() {
       {/* ===== CHANNEL SIDEBAR ===== */}
       {selectedServer ? (
         <div className="w-60 bg-[#2b2d31] flex flex-col flex-shrink-0">
-          {/* Server name header */}
-          <div className="h-12 flex items-center px-4 border-b border-[#1e1f22] flex-shrink-0 cursor-pointer hover:bg-black/10 transition-colors">
-            <h2 className="text-base font-semibold text-white truncate flex-1">{selectedServerName}</h2>
-            <ChevronDown size={16} className="text-surface-400" />
+          {/* Server name header with dropdown */}
+          <div className="relative h-12 flex-shrink-0" ref={serverMenuRef}>
+            <div onClick={() => setShowServerMenu(!showServerMenu)} className="h-full flex items-center px-4 border-b border-[#1e1f22] cursor-pointer hover:bg-black/10 transition-colors">
+              <h2 className="text-base font-semibold text-white truncate flex-1">{selectedServerName}</h2>
+              <ChevronDown size={16} className={`text-surface-400 transition-transform ${showServerMenu ? 'rotate-180' : ''}`} />
+            </div>
+            {showServerMenu && (
+              <div className="absolute z-50 top-full left-0 right-0 mx-2 mt-1 w-[calc(100%-16px)] bg-[#111214] border border-[#1e1f22] rounded-xl py-1.5 shadow-2xl shadow-black/60">
+                <button onClick={() => { copyServerId(selectedServer!); setShowServerMenu(false) }} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-surface-300 hover:bg-white/5 hover:text-white transition-colors">
+                  <Copy size={14} /> Sunucu ID'sini Kopyala
+                </button>
+                <button onClick={() => { handleServerLeave(selectedServer!); setShowServerMenu(false) }} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors">
+                  <LogOut size={14} /> Sunucudan Ayrıl
+                </button>
+                {isServerOwner && (
+                  <button onClick={() => { handleServerDelete(selectedServer!); setShowServerMenu(false) }} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors">
+                    <Trash2 size={14} /> Sunucuyu Sil
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Channel list */}
@@ -194,7 +285,7 @@ export default function ChatPage() {
                   <button onClick={e => { e.stopPropagation(); toggleMute() }} className={`p-1.5 rounded-md transition-colors ${localMuted ? 'bg-red-500/20 text-red-400' : 'text-surface-400 hover:text-white hover:bg-[#35373c]'}`}>
                     {localMuted ? <MicOff size={14} /> : <Mic size={14} />}
                   </button>
-                  <button onClick={e => { e.stopPropagation(); toggleDeafen() }} className={`p-1.5 rounded-md transition-colors ${deafened ? 'bg-red-500/20 text-red-400' : 'text-surface-400 hover:text-white hover:bg-[#35373c]'}`}>
+                  <button onClick={e => { e.stopPropagation(); handlePanelDeafen() }} className={`p-1.5 rounded-md transition-colors ${deafened ? 'bg-red-500/20 text-red-400' : 'text-surface-400 hover:text-white hover:bg-[#35373c]'}`}>
                     {deafened ? <Headphones size={14} className="line-through" /> : <Headphones size={14} />}
                   </button>
                 </div>
@@ -215,15 +306,34 @@ export default function ChatPage() {
               <div className="text-[10px] text-green-400 font-medium">Çevrimiçi</div>
             </div>
             <div className="flex items-center gap-0.5">
-              <button onClick={toggleMute} className={`p-1.5 rounded-md transition-colors ${localMuted ? 'bg-red-500/20 text-red-400' : 'text-surface-400 hover:text-white hover:bg-[#35373c]'}`} title={localMuted ? 'Sesi Aç' : 'Sesini Kapat'}>
-                {localMuted ? <MicOff size={16} /> : <Mic size={16} />}
+              <button onClick={handlePanelMute} className={`p-1.5 rounded-md transition-colors ${panelMuted || localMuted ? 'bg-red-500/20 text-red-400' : 'text-surface-400 hover:text-white hover:bg-[#35373c]'}`} title={panelMuted || localMuted ? 'Sesi Aç' : 'Sesini Kapat'}>
+                {panelMuted || localMuted ? <MicOff size={16} /> : <Mic size={16} />}
               </button>
-              <button onClick={toggleDeafen} className={`p-1.5 rounded-md transition-colors ${deafened ? 'bg-red-500/20 text-red-400' : 'text-surface-400 hover:text-white hover:bg-[#35373c]'}`} title={deafened ? 'Sesi Aç' : 'Sağırlaştır'}>
+              <button onClick={handlePanelDeafen} className={`p-1.5 rounded-md transition-colors ${deafened ? 'bg-red-500/20 text-red-400' : 'text-surface-400 hover:text-white hover:bg-[#35373c]'}`} title={deafened ? 'Sesi Aç' : 'Sağırlaştır'}>
                 {deafened ? <Headphones size={16} className="line-through" /> : <Headphones size={16} />}
               </button>
-              <button className="p-1.5 rounded-md text-surface-400 hover:text-white hover:bg-[#35373c] transition-colors" title="Kullanıcı Ayarları">
-                <Settings size={16} />
-              </button>
+              <div className="relative">
+                <button onClick={() => setShowUserMenu(!showUserMenu)} className="p-1.5 rounded-md text-surface-400 hover:text-white hover:bg-[#35373c] transition-colors" title="Kullanıcı Ayarları">
+                  <Settings size={16} />
+                </button>
+                {showUserMenu && (
+                  <div ref={userMenuRef} className="absolute z-50 bottom-full right-0 mb-2 w-48 bg-[#111214] border border-[#1e1f22] rounded-xl py-1.5 shadow-2xl shadow-black/60">
+                    <div className="px-3 py-2 border-b border-[#1e1f22] mb-1">
+                      <div className="text-sm font-semibold text-white">{user?.username}</div>
+                      <div className="text-[10px] text-green-400">Çevrimiçi</div>
+                    </div>
+                    <button onClick={() => { copyServerId(selectedServer!); setShowUserMenu(false) }} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-surface-300 hover:bg-white/5 hover:text-white transition-colors">
+                      <Info size={14} /> Hesap ID
+                    </button>
+                    <button onClick={() => { emitToast('Yakında', 'info'); setShowUserMenu(false) }} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-surface-300 hover:bg-white/5 hover:text-white transition-colors">
+                      <ExternalLink size={14} /> Ayarlar
+                    </button>
+                    <button onClick={() => { emitToast('Yakında', 'info'); setShowUserMenu(false) }} className="flex items-center gap-3 w-full px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors">
+                      <LogOut size={14} /> Çıkış Yap
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -283,7 +393,7 @@ export default function ChatPage() {
                     {localMuted ? <MicOff size={18} /> : <Mic size={18} />}
                     {localMuted ? 'Ses Kapalı' : 'Ses Açık'}
                   </button>
-                  <button onClick={toggleDeafen} className={`flex items-center gap-2.5 px-5 py-3 rounded-lg text-sm font-semibold transition-all ${deafened ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-[#2b2d31] text-surface-300 hover:text-white border border-[#1e1f22] hover:border-surface-600'}`}>
+                  <button onClick={handlePanelDeafen} className={`flex items-center gap-2.5 px-5 py-3 rounded-lg text-sm font-semibold transition-all ${deafened ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-[#2b2d31] text-surface-300 hover:text-white border border-[#1e1f22] hover:border-surface-600'}`}>
                     {deafened ? <Headphones size={18} className="line-through" /> : <Headphones size={18} />}
                     {deafened ? 'Ses Kapalı' : 'Sağırlaştır'}
                   </button>
@@ -333,7 +443,7 @@ export default function ChatPage() {
                   <Avatar name={msg.user?.username || '?'} size="md" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white hover:underline cursor-pointer" style={{ color: colorFromName(msg.user?.username || '?') }}>{msg.user?.username || 'Bilinmeyen'}</span>
+                      <span className="text-sm font-semibold hover:underline cursor-pointer" style={{ color: colorFromName(msg.user?.username || '?') }}>{msg.user?.username || 'Bilinmeyen'}</span>
                       <span className="text-[11px] text-surface-500">{new Date(msg.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} {new Date(msg.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <p className="text-sm text-surface-200 leading-relaxed break-words">{msg.content}</p>

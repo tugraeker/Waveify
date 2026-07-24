@@ -187,3 +187,21 @@ ipcMain.on('window:close', () => mainWindow?.close())
 ipcMain.on('discord:update', (_e, data: { title?: string; artist?: string; coverUrl?: string; isPlaying?: boolean; currentTime?: number; duration?: number }) => {
   updateDiscordPresence(data)
 })
+
+ipcMain.handle('youtube:get-audio', async (_e, videoId: string) => {
+  const ytdl = await import('@distube/ytdl-core')
+  const info = await ytdl.getInfo(videoId, { requestOptions: { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } } })
+  const format = ytdl.chooseFormat(info.formats, { quality: 'lowestaudio', filter: 'audioonly' })
+  if (!format) throw new Error('Ses formatı bulunamadı')
+  const audioUrl = format.url
+  const title = info.videoDetails.title
+  const artist = info.videoDetails.author?.name || 'Bilinmeyen Sanatçı'
+  const duration = parseInt(info.videoDetails.lengthSeconds) || 0
+  const coverUrl = info.videoDetails.thumbnails?.[info.videoDetails.thumbnails.length - 1]?.url || ''
+
+  const response = await fetch(audioUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+  if (!response.ok) throw new Error(`Ses indirilemedi: ${response.status}`)
+  const buffer = await response.arrayBuffer()
+
+  return { buffer, title, artist, duration, coverUrl, videoId }
+})

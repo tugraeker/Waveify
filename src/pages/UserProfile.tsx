@@ -23,6 +23,7 @@ export default function UserProfile() {
   const [stats, setStats] = useState({ songs: 0, likes: 0 })
   const [avatarUrl, setAvatarUrl] = useState('')
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [avatarInputKey, setAvatarInputKey] = useState(0)
   const [editSong, setEditSong] = useState<Song | null>(null)
   const [likedSongIds, setLikedSongIds] = useState<Set<string>>(new Set())
   const [badges, setBadges] = useState<Badge[]>([])
@@ -84,6 +85,7 @@ export default function UserProfile() {
       if (!updateError) {
         setAvatarUrl(publicUrl)
         setUser({ ...currentUser, avatar_url: publicUrl })
+        setAvatarInputKey(prev => prev + 1)
       }
     } catch (e) { console.error('Avatar upload error:', e) } finally { setUploadingAvatar(false) }
   }
@@ -94,6 +96,7 @@ export default function UserProfile() {
     if (!error) {
       setAvatarUrl('')
       setUser({ ...currentUser, avatar_url: '' })
+      setAvatarInputKey(prev => prev + 1)
     }
   }
 
@@ -143,7 +146,7 @@ export default function UserProfile() {
                   ) : (
                     <Camera size={24} className="text-white" />
                   )}
-                  <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
+                  <input key={avatarInputKey} type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
                 </label>
                 {avatarUrl && (
                   <button onClick={removeAvatar} className="p-2 rounded-full hover:bg-white/10 text-white" title="Fotoğrafı Kaldır">

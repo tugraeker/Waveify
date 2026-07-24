@@ -5,8 +5,6 @@ import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
 import { Link2, Music2, Check, Globe, Loader2, AlertCircle } from 'lucide-react'
 
-const API_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
-
 export default function Import() {
   const navigate = useNavigate()
   const { user } = useStore()
@@ -22,52 +20,24 @@ export default function Import() {
     const videoId = vidMatch ? vidMatch[1] : null
     if (!videoId) { setError('Geçersiz YouTube URL'); return }
 
+    // Check if running in Electron with the API
+    const ea = (window as any).electronAPI
+    if (!ea?.getYouTubeAudio) { setError('Bu özellik yalnızca Waveify uygulamasında çalışır'); return }
+
     setLoading(true)
     setError('')
     setResult(null)
 
     try {
-      // Step 1: Get audio URL + metadata from server (server fetches invidious API, bypasses CORS)
-      const infoRes = await fetch(`${API_URL}/api/get-audio-url?videoId=${videoId}`)
-      let info: any
-      const ct = infoRes.headers.get('content-type') || ''
-      if (ct.includes('application/json')) {
-        info = await infoRes.json()
-      } else {
-        const text = await infoRes.text()
-        throw new Error(text?.includes('<!DOCTYPE') ? 'Server hazır değil, Render deployu bekleniyor...' : text.slice(0, 200))
-      }
-      if (!infoRes.ok) throw new Error(info.error || 'Ses URLi alınamadı')
-
-      let { audioUrl, title, artist, coverUrl, duration } = info
-
-      // Fallback to oEmbed for metadata if server didn't return it
-      if (!title) {
-        try {
-          const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`)
-          const oembed = oembedRes.ok ? await oembedRes.json() : {}
-          title = oembed.title || ''
-          artist = oembed.author_name || ''
-          if (!coverUrl) coverUrl = oembed.thumbnail_url || ''
-          if (title.includes(' - ')) {
-            const parts = title.split(' - ')
-            title = parts.slice(1).join(' - ').trim()
-            artist = parts[0].trim()
-          }
-        } catch {}
-      }
+      const { buffer, title, artist, duration, coverUrl } = await (window as any).electronAPI.getYouTubeAudio(videoId)
 
       setResult({ title: title || 'Bilinmeyen', artist: artist || 'Bilinmeyen', cover: coverUrl })
       setLoading(false)
       setImporting(true)
 
-      // Step 2: Download audio in browser (CDN URLs have CORS)
-      const audioRes = await fetch(audioUrl, { headers: { 'Referer': 'https://www.youtube.com/' } })
-      if (!audioRes.ok) throw new Error(`Ses indirilemedi: ${audioRes.status}`)
-      const audioBlob = await audioRes.blob()
+      const audioBlob = new Blob([buffer], { type: 'audio/mpeg' })
       if (audioBlob.size < 10240) throw new Error('İndirilen ses dosyası çok küçük')
 
-      // Step 3: Upload directly to Supabase from client
       const audioPath = `${user.id}/${Date.now()}_import.mp3`
       const { error: uploadErr } = await supabase.storage
         .from('songs')
@@ -93,7 +63,6 @@ export default function Import() {
         } catch {}
       }
 
-      // Create song record
       const { error: dbError } = await supabase.from('songs').insert([{
         user_id: user.id,
         title: title || 'Bilinmeyen Şarkı',

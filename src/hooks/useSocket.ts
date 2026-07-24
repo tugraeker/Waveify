@@ -1,60 +1,61 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useStore } from '@/store/store'
 import type { Song } from '@/types'
 
 const SOCKET_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 
+let _socket: Socket | null = null
+let _connected = false
+let _initUserId: string | null = null
+
 export function useSocket() {
-  const [socket, setSocket] = useState<Socket | null>(null)
-  const [connected, setConnected] = useState(false)
+  const [socket, setSocket] = useState<Socket | null>(_socket)
+  const [connected, setConnected] = useState(_connected)
   const { user, setSyncRoom, syncRoom } = useStore()
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
     if (!user) return
+
+    // Same user, socket already exists — just use it
+    if (_initUserId === user.id) {
+      if (_socket && !_socket.connected) _socket.connect()
+      setSocket(_socket)
+      setConnected(_socket?.connected || false)
+      return
+    }
+
+    // Different user — close old socket
+    if (_socket) { _socket.close(); _socket = null; _initUserId = null }
+
     const currentUser = user
 
-    function connect() {
-      const s = io(SOCKET_URL, {
-        auth: { userId: currentUser.id, username: currentUser.username },
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 2000,
-      })
+    const s = io(SOCKET_URL, {
+      auth: { userId: currentUser.id, username: currentUser.username },
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+    })
 
-      s.on('connect', () => {
-        console.log('[Socket] Connected')
-        setConnected(true)
-        if (reconnectTimerRef.current) {
-          clearTimeout(reconnectTimerRef.current)
-          reconnectTimerRef.current = undefined
-        }
-      })
+    s.on('connect', () => {
+      _connected = true; setConnected(true)
+    })
 
-      s.on('disconnect', (reason) => {
-        console.log('[Socket] Disconnected:', reason)
-        setConnected(false)
-      })
+    s.on('disconnect', () => {
+      _connected = false; setConnected(false)
+    })
 
-      s.on('connect_error', (err) => {
-        console.log('[Socket] Connection error:', err.message)
-      })
+    s.on('connect_error', (err) => {
+      console.log('[Socket] Connection error:', err.message)
+    })
 
-      s.on('room:updated', (room) => setSyncRoom(room))
-      s.on('room:closed', () => setSyncRoom(null))
-      s.on('error', (msg) => console.error('[Socket] Server error:', msg))
+    s.on('room:updated', (room) => setSyncRoom(room))
+    s.on('room:closed', () => setSyncRoom(null))
+    s.on('error', (msg) => console.error('[Socket] Server error:', msg))
 
-      setSocket(s)
-      return s
-    }
-
-    const s = connect()
-
-    return () => {
-      s.close()
-      setSyncRoom(null)
-    }
+    _socket = s
+    _initUserId = currentUser.id
+    setSocket(s)
   }, [user?.id])
 
   const createRoom = useCallback((name: string) => {
