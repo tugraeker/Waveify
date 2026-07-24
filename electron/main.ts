@@ -239,8 +239,13 @@ ipcMain.handle('cache:clear', async () => {
 })
 
 ipcMain.handle('youtube:get-audio', async (_e, videoId: string) => {
+  const { createAgent } = require('@distube/ytdl-core/lib/agent')
+  const agent = createAgent([], { connect: { secureProtocol: 'TLSv1_2_method' } })
   const ytdl = require('@distube/ytdl-core')
-  const info = await ytdl.getInfo(videoId, { requestOptions: { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } } })
+  const info = await ytdl.getInfo(videoId, {
+    agent,
+    requestOptions: { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } },
+  })
   const format = ytdl.chooseFormat(info.formats, { quality: 'lowestaudio', filter: 'audioonly' })
   if (!format) throw new Error('Ses formatı bulunamadı')
   const audioUrl = format.url
@@ -249,9 +254,12 @@ ipcMain.handle('youtube:get-audio', async (_e, videoId: string) => {
   const duration = parseInt(info.videoDetails.lengthSeconds) || 0
   const coverUrl = info.videoDetails.thumbnails?.[info.videoDetails.thumbnails.length - 1]?.url || ''
 
-  const response = await fetch(audioUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } })
-  if (!response.ok) throw new Error(`Ses indirilemedi: ${response.status}`)
-  const buffer = await response.arrayBuffer()
+  const { request } = require('undici')
+  const resp = await request(audioUrl, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+    dispatcher: agent.dispatcher,
+  })
+  const buf = await resp.body.arrayBuffer()
 
-  return { buffer, title, artist, duration, coverUrl, videoId }
+  return { buffer: buf, title, artist, duration, coverUrl, videoId }
 })
