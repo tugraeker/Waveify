@@ -79,24 +79,30 @@ export default function UserProfile() {
       const ext = file.name.split('.').pop()
       const fileName = `${currentUser.id}.${ext}`
       let publicUrl = ''
+      let lastError = ''
 
-      // Try multiple bucket/path combos
       const attempts = [
         { bucket: 'covers', path: `avatars/${fileName}` },
-        { bucket: 'avatars', path: fileName },
         { bucket: 'covers', path: fileName },
       ]
 
       for (const { bucket, path } of attempts) {
-        const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
+        const { error: upErr } = await supabase.storage
+          .from(bucket)
+          .upload(path, file, { upsert: true })
         if (!upErr) {
           const { data: { publicUrl: url } } = supabase.storage.from(bucket).getPublicUrl(path)
           publicUrl = url
           break
         }
+        lastError = upErr.message || ''
       }
 
-      if (!publicUrl) throw new Error('Tüm yükleme denemeleri başarısız')
+      if (!publicUrl) {
+        if (lastError.includes('policy') || lastError.includes('security') || lastError.includes('RLS'))
+          throw new Error('Supabase Storage RLS engelliyor. migration_v13_storage_rls.sql dosyasını Supabase SQL Editor\'da çalıştır.')
+        throw new Error(`Yüklenemedi: ${lastError}`)
+      }
       const { error: updateError } = await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', currentUser.id)
       if (!updateError) {
         setAvatarUrl(publicUrl)
