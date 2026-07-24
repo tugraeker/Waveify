@@ -3,6 +3,7 @@ import { app, BrowserWindow, ipcMain, net } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import path from 'path'
 import fs from 'fs'
+import { spawn } from 'child_process'
 import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -238,28 +239,61 @@ ipcMain.handle('cache:clear', async () => {
   return { success: true, cleared: files.length }
 })
 
+function getYtDlpPath(): string {
+  if (!app.isPackaged) {
+    return path.join(app.getAppPath(), 'bin', 'yt-dlp.exe')
+  }
+  return path.join(process.resourcesPath, 'bin', 'yt-dlp.exe')
+}
+
+function ytDlpJson(args: string[]): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(getYtDlpPath(), args, { timeout: 30000 })
+    let stdout = ''
+    let stderr = ''
+    proc.stdout.on('data', (d: Buffer) => (stdout += d.toString()))
+    proc.stderr.on('data', (d: Buffer) => (stderr += d.toString()))
+    proc.on('error', reject)
+    proc.on('close', (code) => {
+      if (code === 0) try { resolve(JSON.parse(stdout)) } catch { reject(new Error('JSON ayrıştırma hatası')) }
+      else reject(new Error(stderr.trim() || `yt-dlp çıkış kodu: ${code}`))
+    })
+  })
+}
+
+function ytDlpBinary(args: string[]): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(getYtDlpPath(), args, { timeout: 120000 })
+    const chunks: Buffer[] = []
+    let stderr = ''
+    proc.stdout.on('data', (d: Buffer) => chunks.push(d))
+    proc.stderr.on('data', (d: Buffer) => (stderr += d.toString()))
+    proc.on('error', reject)
+    proc.on('close', (code) => {
+      if (code === 0) resolve(Buffer.concat(chunks))
+      else reject(new Error(stderr.trim() || `yt-dlp çıkış kodu: ${code}`))
+    })
+  })
+}
+
 ipcMain.handle('youtube:get-audio', async (_e, videoId: string) => {
-  const { createAgent } = require('@distube/ytdl-core/lib/agent')
-  const agent = createAgent([], { connect: { secureProtocol: 'TLSv1_2_method' } })
-  const ytdl = require('@distube/ytdl-core')
-  const info = await ytdl.getInfo(videoId, {
-    agent,
-    requestOptions: { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } },
-  })
-  const format = ytdl.chooseFormat(info.formats, { quality: 'lowestaudio', filter: 'audioonly' })
-  if (!format) throw new Error('Ses formatı bulunamadı')
-  const audioUrl = format.url
-  const title = info.videoDetails.title
-  const artist = info.videoDetails.author?.name || 'Bilinmeyen Sanatçı'
-  const duration = parseInt(info.videoDetails.lengthSeconds) || 0
-  const coverUrl = info.videoDetails.thumbnails?.[info.videoDetails.thumbnails.length - 1]?.url || ''
+  const url = `https://www.youtube.com/watch?v=${videoId}`
+  const info = await ytDlpJson(['--dump-json', '--no-warnings', '--no-playlist', url])
+  const buffer = await ytDlpBinary([
+    '-f', 'bestaudio',
+    '--no-warnings',
+    '--no-playlist',
+    '--no-check-certificate',
+    '-o', '-',
+    url,
+  ])
 
-  const { request } = require('undici')
-  const resp = await request(audioUrl, {
-    headers: { 'User-Agent': 'Mozilla/5.0' },
-    dispatcher: agent.dispatcher,
-  })
-  const buf = await resp.body.arrayBuffer()
-
-  return { buffer: buf, title, artist, duration, coverUrl, videoId }
+  return {
+    buffer,
+    title: info.title || 'Bilinmeyen Başlık',
+    artist: info.uploader || info.channel || 'Bilinmeyen Sanatçı',
+    duration: parseInt(info.duration) || 0,
+    coverUrl: info.thumbnail || '',
+    videoId,
+  }
 })

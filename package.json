@@ -1,6 +1,6 @@
 {
   "name": "waveify",
-  "version": "2.5.3",
+  "version": "2.5.4",
   "private": true,
   "type": "module",
   "description": "Waveify - Özel müzik paylaşım platformu",
@@ -8,9 +8,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "dist": "vite build && electron-builder",
-    "dist:portable": "vite build && electron-builder --win portable && node scripts/generate-latest-yml.mjs",
-    "dist:all": "vite build && electron-builder --win --x64",
+    "postinstall": "node scripts/download-ytdlp.mjs",
+    "dist": "node scripts/download-ytdlp.mjs && vite build && electron-builder",
+    "dist:portable": "node scripts/download-ytdlp.mjs && vite build && electron-builder --win portable && node scripts/generate-latest-yml.mjs",
+    "dist:all": "node scripts/download-ytdlp.mjs && vite build && electron-builder --win --x64",
     "preview": "vite preview"
   },
   "build": {
@@ -24,7 +25,8 @@
       "dist-electron/**/*"
     ],
     "extraResources": [
-      "app-update.yml"
+      "app-update.yml",
+      { "from": "bin", "to": "bin", "filter": ["**/*"] }
     ],
     "win": {
       "target": [
