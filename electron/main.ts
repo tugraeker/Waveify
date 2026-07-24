@@ -18,6 +18,12 @@ const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || process.env.VITE_DIS
 
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = true
+autoUpdater.setFeedURL({
+  provider: 'github',
+  owner: 'tugraeker',
+  repo: 'Waveify',
+  releaseType: 'release',
+})
 
 const isDev = !app.isPackaged
 
@@ -44,11 +50,12 @@ autoUpdater.on('update-downloaded', () => {
 autoUpdater.on('error', (err) => {
   if (isDev) return
   const msg = err.message || ''
+  console.log('[AutoUpdate] Error:', msg)
   if (msg.includes('404') || msg.includes('ENOENT') || msg.includes('latest.yml')) {
     mainWindow?.webContents.send('update:not-available')
     return
   }
-  mainWindow?.webContents.send('update:error', 'Güncelleme kontrol edilemedi')
+  mainWindow?.webContents.send('update:error', msg.includes('Cannot') || msg.includes('connect') ? 'Sunucuya bağlanılamadı' : msg.slice(0, 100))
 })
 
 ipcMain.on('update:check', () => {
