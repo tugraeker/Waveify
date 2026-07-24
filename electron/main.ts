@@ -19,10 +19,9 @@ const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || process.env.VITE_DIS
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = true
 autoUpdater.setFeedURL({
-  provider: 'github',
-  owner: 'tugraeker',
-  repo: 'Waveify',
-  releaseType: 'release',
+  provider: 'generic',
+  url: 'https://github.com/tugraeker/Waveify/releases/latest/download',
+  channel: 'latest',
 })
 
 const isDev = !app.isPackaged
