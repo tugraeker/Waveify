@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { Slider } from '@/components/ui'
 import { useAudio } from '@/hooks/useAudio'
 import ShortcutsModal from '@/components/ShortcutsModal'
+import CrossfadeControls from '@/components/CrossfadeControls'
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
   Volume2, Music2, List, Maximize2, Heart,
@@ -16,7 +17,9 @@ import {
 export default function Player() {
   const navigate = useNavigate()
   const { currentSong, user, volume, shuffle, repeat, queue, sleepTimer, playbackRate, miniPlayer,
-    setVolume, setShuffle, setRepeat, setSleepTimer, setPlaybackRate, setMiniPlayer } = useStore()
+    crossfade, crossfadeDuration,
+    setVolume, setShuffle, setRepeat, setSleepTimer, setPlaybackRate, setMiniPlayer,
+    setCrossfade, setCrossfadeDuration } = useStore()
   const { isPlaying, currentTime, duration, togglePlay, seek, nextSong, prevSong } = useAudio()
   const [showVol, setShowVol] = useState(false)
   const [audioData, setAudioData] = useState<Uint8Array>(new Uint8Array(128))
@@ -207,6 +210,12 @@ export default function Player() {
       </div>
 
       <div className="w-[260px] flex items-center justify-end gap-2.5">
+        <CrossfadeControls
+          crossfade={crossfade}
+          crossfadeDuration={crossfadeDuration}
+          onToggle={() => setCrossfade(!crossfade)}
+          onDurationChange={setCrossfadeDuration}
+        />
         <button
           onClick={() => {
             const rates = [0.5, 0.75, 1, 1.25, 1.5, 2]

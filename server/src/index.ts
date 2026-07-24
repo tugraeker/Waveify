@@ -38,6 +38,31 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
+app.get('/api/notifications/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+    const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50)
+    res.json(data || [])
+  } catch (e: any) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.post('/api/notifications/read', async (req, res) => {
+  try {
+    const { userId, notifId } = req.body
+    if (!userId) return res.status(400).json({ error: 'userId gerekli' })
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+    const query = supabase.from('notifications').update({ read: true }).eq('user_id', userId)
+    if (notifId) query.eq('id', notifId)
+    await query
+    res.json({ success: true })
+  } catch (e: any) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 app.get('/api/rooms', (_req, res) => {
   const rooms = Array.from(io.sockets.adapter.rooms.entries())
     .filter(([key]) => key.startsWith('room:'))

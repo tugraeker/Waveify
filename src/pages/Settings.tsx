@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
-import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity } from 'lucide-react'
+import OfflineMode from '@/components/OfflineMode'
+import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity, PaintBucket } from 'lucide-react'
 import type { AccentColor } from '@/types'
 
 const accentColors: { key: AccentColor; label: string; color: string }[] = [
@@ -17,7 +18,7 @@ const accentColors: { key: AccentColor; label: string; color: string }[] = [
 ]
 
 export default function Settings() {
-  const { user, theme, accentColor, setTheme, setAccentColor, setUser } = useStore()
+  const { user, theme, accentColor, customAccentColor, setTheme, setAccentColor, setCustomAccentColor, setUser } = useStore()
   const navigate = useNavigate()
   const [username, setUsername] = useState(user?.username || '')
   const [bio, setBio] = useState('')
@@ -27,6 +28,8 @@ export default function Settings() {
   const [savingPassword, setSavingPassword] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [bgColor, setBgColor] = useState(localStorage.getItem('waveify_bg_color') || '')
+  const [customAccentInput, setCustomAccentInput] = useState(customAccentColor || '')
 
   async function saveProfile() {
     if (!user) return
@@ -141,16 +144,41 @@ export default function Settings() {
                   {accentColors.map((ac) => (
                     <button
                       key={ac.key}
-                      onClick={() => setAccentColor(ac.key)}
-                      className={`w-9 h-9 rounded-xl transition-all border-2 ${accentColor === ac.key ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
+                      onClick={() => { setAccentColor(ac.key); setCustomAccentInput('') }}
+                      className={`w-9 h-9 rounded-xl transition-all border-2 ${accentColor === ac.key && !customAccentColor ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
                       style={{ backgroundColor: ac.color }}
                       title={ac.label}
                     />
                   ))}
                 </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <label className="text-xs text-surface-400">Özel renk (hex):</label>
+                  <input
+                    type="color"
+                    value={customAccentInput || '#22c7c0'}
+                    onChange={(e) => { setCustomAccentInput(e.target.value); setCustomAccentColor(e.target.value); setAccentColor('wave') }}
+                    className="w-9 h-9 rounded-lg cursor-pointer bg-transparent border border-surface-700"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-surface-400 font-medium mb-2 block">Arkaplan Rengi</label>
+                <input
+                  type="color"
+                  value={bgColor || (theme === 'dark' ? '#020617' : '#ffffff')}
+                  onChange={(e) => { setBgColor(e.target.value); localStorage.setItem('waveify_bg_color', e.target.value); document.documentElement.style.setProperty('--custom-bg', e.target.value) }}
+                  className="w-10 h-10 rounded-xl cursor-pointer bg-transparent border border-surface-700"
+                />
+                {bgColor && (
+                  <button onClick={() => { setBgColor(''); localStorage.removeItem('waveify_bg_color'); document.documentElement.style.removeProperty('--custom-bg') }} className="ml-2 text-xs text-surface-500 hover:text-white">
+                    Sıfırla
+                  </button>
+                )}
               </div>
             </div>
           </div>
+
+          <OfflineMode />
 
           <div className="bg-surface-900/60 border border-red-500/10 rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-4">

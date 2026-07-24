@@ -119,6 +119,36 @@ class AudioEngine {
     })
   }
 
+  crossfade(url: string, duration = 3) {
+    if (!url || !this.audio || !this.gainNode) { this.play(url); return }
+    this.cancelFade()
+    const oldAudio = this.audio
+    const oldGain = this.gainNode.gain.value
+    const oldSource = this.source
+    this.fadeTo(0, duration * 0.4, () => {
+      if (oldAudio) { oldAudio.pause(); oldAudio.src = '' }
+      if (oldSource) { try { oldSource.disconnect() } catch {} }
+      this.audio = null
+      this.source = null
+      this._currentUrl = ''
+      this._intendedToPlay = false
+      this._isPlaying = false
+      this.initAudio()
+      this.ensureGraph()
+      this._currentUrl = url
+      this._intendedToPlay = true
+      this.gainNode!.gain.value = 0
+      this.audio!.src = url
+      this.audio!.load()
+      this.audio!.addEventListener('canplay', () => {
+        this.audio!.play().then(() => {
+          this._isPlaying = true
+          this.fadeTo(this._volume, duration * 0.6)
+        }).catch(() => {})
+      }, { once: true })
+    })
+  }
+
   play(url: string, startTime = 0) {
     if (!url) return
     if (this._currentUrl === url && this._isPlaying && !startTime) return

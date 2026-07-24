@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { User, Song, Playlist, EqualizerSettings, SyncRoom, VisualizerMode, SleepTimer, AccentColor, Activity, Badge } from '@/types'
+import type { User, Song, Playlist, EqualizerSettings, SyncRoom, VisualizerMode, SleepTimer, AccentColor, Activity, Badge, EqPreset } from '@/types'
 
 interface AppState {
   user: User | null
@@ -25,6 +25,15 @@ interface AppState {
   equalizer: EqualizerSettings
   setEqualizer: (eq: EqualizerSettings) => void
   resetEqualizer: () => void
+  eqPresets: EqPreset[]
+  setEqPresets: (presets: EqPreset[]) => void
+  saveEqPreset: (name: string) => void
+  deleteEqPreset: (name: string) => void
+  loadEqPreset: (preset: EqPreset) => void
+  crossfade: boolean
+  setCrossfade: (v: boolean) => void
+  crossfadeDuration: number
+  setCrossfadeDuration: (v: number) => void
   songs: Song[]
   setSongs: (songs: Song[]) => void
   playlists: Playlist[]
@@ -49,10 +58,21 @@ interface AppState {
   setTheme: (theme: 'dark' | 'light') => void
   accentColor: AccentColor
   setAccentColor: (color: AccentColor) => void
+  customAccentColor: string | null
+  setCustomAccentColor: (color: string | null) => void
   activities: Activity[]
   setActivities: (activities: Activity[]) => void
   badges: Badge[]
   setBadges: (badges: Badge[]) => void
+  unreadNotifCount: number
+  setUnreadNotifCount: (n: number) => void
+}
+
+function loadJson<T>(key: string, fallback: T): T {
+  try {
+    const v = localStorage.getItem(key)
+    return v ? JSON.parse(v) : fallback
+  } catch { return fallback }
 }
 
 const defaultEqualizer: EqualizerSettings = { bass: 0, mid: 0, treble: 0 }
@@ -81,6 +101,27 @@ export const useStore = create<AppState>((set) => ({
   equalizer: { bass: 0, mid: 0, treble: 0 },
   setEqualizer: (eq) => set({ equalizer: eq }),
   resetEqualizer: () => set({ equalizer: { bass: 0, mid: 0, treble: 0 } }),
+  eqPresets: loadJson<EqPreset[]>('waveify_eq_presets', []),
+  setEqPresets: (presets) => { localStorage.setItem('waveify_eq_presets', JSON.stringify(presets)); set({ eqPresets: presets }) },
+  saveEqPreset: (name) => set((state) => {
+    const existing = state.eqPresets.findIndex(p => p.name === name)
+    let presets = [...state.eqPresets]
+    const newPreset: EqPreset = { name, ...state.equalizer }
+    if (existing >= 0) presets[existing] = newPreset
+    else presets = [...presets, newPreset]
+    localStorage.setItem('waveify_eq_presets', JSON.stringify(presets))
+    return { eqPresets: presets }
+  }),
+  deleteEqPreset: (name) => set((state) => {
+    const presets = state.eqPresets.filter(p => p.name !== name)
+    localStorage.setItem('waveify_eq_presets', JSON.stringify(presets))
+    return { eqPresets: presets }
+  }),
+  loadEqPreset: (preset) => set({ equalizer: { bass: preset.bass, mid: preset.mid, treble: preset.treble } }),
+  crossfade: loadJson<boolean>('waveify_crossfade', false),
+  setCrossfade: (v) => { localStorage.setItem('waveify_crossfade', JSON.stringify(v)); set({ crossfade: v }) },
+  crossfadeDuration: loadJson<number>('waveify_crossfade_duration', 3),
+  setCrossfadeDuration: (v) => { localStorage.setItem('waveify_crossfade_duration', JSON.stringify(v)); set({ crossfadeDuration: v }) },
   songs: [],
   setSongs: (songs) => set({ songs }),
   playlists: [],
@@ -108,8 +149,12 @@ export const useStore = create<AppState>((set) => ({
   setTheme: (theme) => set({ theme }),
   accentColor: 'wave',
   setAccentColor: (color) => set({ accentColor: color }),
+  customAccentColor: null,
+  setCustomAccentColor: (color) => set({ customAccentColor: color }),
   activities: [],
   setActivities: (activities) => set({ activities }),
   badges: [],
   setBadges: (badges) => set({ badges }),
+  unreadNotifCount: 0,
+  setUnreadNotifCount: (n) => set({ unreadNotifCount: n }),
 }))

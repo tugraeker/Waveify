@@ -11,6 +11,23 @@ declare global {
       minimize: () => void
       maximize: () => void
       close: () => void
+      platform: string
+      getYouTubeAudio: (videoId: string) => Promise<any>
+      updateDiscordPresence: (data: any) => void
+      checkForUpdates: () => void
+      downloadUpdate: () => void
+      installUpdate: () => void
+      onUpdateChecking: (cb: any) => void
+      onUpdateAvailable: (cb: any) => void
+      onUpdateNotAvailable: (cb: any) => void
+      onUpdateProgress: (cb: any) => void
+      onUpdateDownloaded: (cb: any) => void
+      onUpdateError: (cb: any) => void
+      cacheSave: (songId: string, audioUrl: string) => Promise<any>
+      cacheGet: (songId: string) => Promise<any>
+      cacheRemove: (songId: string) => Promise<any>
+      cacheList: () => Promise<string[]>
+      cacheClear: () => Promise<any>
     }
   }
 }

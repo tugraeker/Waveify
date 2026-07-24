@@ -75,7 +75,11 @@ export interface EqualizerSettings {
   treble: number
 }
 
-export type VisualizerMode = 'bars' | 'wave' | 'circle' | 'fire'
+export interface EqPreset extends EqualizerSettings {
+  name: string
+}
+
+export type VisualizerMode = 'bars' | 'wave' | 'circle' | 'fire' | 'party'
 
 export interface SleepTimer {
   remaining: number

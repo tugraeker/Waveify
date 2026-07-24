@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useStore } from '@/store/store'
 import { audioEngine } from '@/lib/audioEngine'
 import { supabase } from '@/lib/supabase'
+import { trackListen, updateStreak } from '@/lib/achievements'
 import type { Song } from '@/types'
 
 export function useAudio() {
@@ -60,13 +61,18 @@ export function useAudio() {
     if (!currentSong || !currentSong.audio_url) return
     if (prevSongId.current === currentSong.id && audioEngine.isPlaying()) return
     prevSongId.current = currentSong.id
-    audioEngine.play(currentSong.audio_url)
+    const state = useStore.getState()
+    if (state.crossfade && state.isPlaying && audioEngine.isPlayingState) {
+      audioEngine.crossfade(currentSong.audio_url, state.crossfadeDuration || 3)
+    } else {
+      audioEngine.play(currentSong.audio_url)
+    }
     setIsPlaying(true)
     setDuration(currentSong.duration || 0)
     setCurrentTime(0)
     addToHistory(currentSong)
-    // Log listen history & activity
-    const state = useStore.getState()
+    trackListen()
+    updateStreak()
     if (state.user) {
       Promise.all([
         supabase.from('listen_history').insert({ user_id: state.user!.id, song_id: currentSong.id }),

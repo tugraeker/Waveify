@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
@@ -8,29 +8,33 @@ import { useMediaSession } from '@/hooks/useMediaSession'
 import Sidebar from '@/components/Sidebar'
 import Player from '@/components/Player'
 import TitleBar from '@/components/TitleBar'
-import Auth from '@/pages/Auth'
-import Home from '@/pages/Home'
-import Search from '@/pages/Search'
-import Library from '@/pages/Library'
-import Upload from '@/pages/Upload'
-import Friends from '@/pages/Friends'
-import PlaylistPage from '@/pages/Playlist'
-import NowPlaying from '@/pages/NowPlaying'
-import SongDetail from '@/pages/SongDetail'
-import QueuePage from '@/pages/Queue'
-import CreatePlaylist from '@/pages/CreatePlaylist'
-import UserProfile from '@/pages/UserProfile'
-import SyncRoom from '@/pages/SyncRoom'
-import History from '@/pages/History'
-import Import from '@/pages/Import'
-import Settings from '@/pages/Settings'
-import Activity from '@/pages/Activity'
 import ToastContainer from '@/components/ToastContainer'
 import UpdateBanner from '@/components/UpdateBanner'
-import Stats from '@/pages/Stats'
-import Admin from '@/pages/Admin'
-import ChatPage from '@/pages/Chat'
+import { useAchievementsInit } from '@/hooks/useAchievements'
 import type { AccentColor } from '@/types'
+
+const Auth = lazy(() => import('@/pages/Auth'))
+const Home = lazy(() => import('@/pages/Home'))
+const Search = lazy(() => import('@/pages/Search'))
+const Library = lazy(() => import('@/pages/Library'))
+const Upload = lazy(() => import('@/pages/Upload'))
+const Friends = lazy(() => import('@/pages/Friends'))
+const PlaylistPage = lazy(() => import('@/pages/Playlist'))
+const NowPlaying = lazy(() => import('@/pages/NowPlaying'))
+const SongDetail = lazy(() => import('@/pages/SongDetail'))
+const QueuePage = lazy(() => import('@/pages/Queue'))
+const CreatePlaylist = lazy(() => import('@/pages/CreatePlaylist'))
+const UserProfile = lazy(() => import('@/pages/UserProfile'))
+const SyncRoom = lazy(() => import('@/pages/SyncRoom'))
+const History = lazy(() => import('@/pages/History'))
+const Import = lazy(() => import('@/pages/Import'))
+const Settings = lazy(() => import('@/pages/Settings'))
+const Activity = lazy(() => import('@/pages/Activity'))
+const Stats = lazy(() => import('@/pages/Stats'))
+const Admin = lazy(() => import('@/pages/Admin'))
+const ChatPage = lazy(() => import('@/pages/Chat'))
+const ArtistPage = lazy(() => import('@/pages/ArtistPage'))
+const Discover = lazy(() => import('@/pages/Discover'))
 
 const accentPalettes: Record<AccentColor, Record<string, string>> = {
   wave:   { '50': '238 251 250', '100': '213 245 242', '200': '174 234 229', '300': '106 217 210', '400': '34 199 192', '500': '15 171 166', '600': '9 139 136', '700': '12 111 109', '800': '15 89 88', '900': '18 74 73', '950': '3 45 45' },
@@ -50,7 +54,7 @@ function hexToRgb(hex: string): string {
 }
 
 export default function App() {
-  const { user, theme, accentColor, setUser } = useStore()
+  const { user, theme, accentColor, customAccentColor, setUser } = useStore()
   const navigate = useNavigate()
   const location = useLocation()
   const [mounted, setMounted] = useState(false)
@@ -59,21 +63,34 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
     document.documentElement.classList.toggle('light', theme === 'light')
+    const savedBg = localStorage.getItem('waveify_bg_color')
+    if (savedBg) {
+      document.documentElement.style.setProperty('--custom-bg', savedBg)
+    }
   }, [theme])
 
   useEffect(() => {
     const palette = accentPalettes[accentColor]
-    if (palette) {
-      const root = document.documentElement
+    const root = document.documentElement
+    if (customAccentColor) {
+      const rgb = hexToRgb(customAccentColor)
+      for (const [shade, _] of Object.entries(accentPalettes.wave)) {
+        const intensity = parseInt(shade) / 950
+        root.style.setProperty(`--wave-${shade}`, `255 255 255`)
+      }
+      root.style.setProperty('--wave-400', rgb)
+      root.style.setProperty('--wave-500', rgb)
+    } else if (palette) {
       for (const [shade, value] of Object.entries(palette)) {
         root.style.setProperty(`--wave-${shade}`, value)
       }
     }
-  }, [accentColor])
+  }, [accentColor, customAccentColor])
 
   useKeyboardShortcuts()
   useDiscordRPC()
   useMediaSession()
+  useAchievementsInit()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -132,29 +149,37 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 flex flex-col overflow-hidden">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/library" element={<Library />} />
-            <Route path="/upload" element={<Upload />} />
-            <Route path="/friends" element={<Friends />} />
-            <Route path="/playlist" element={<PlaylistPage />} />
-            <Route path="/now-playing" element={<NowPlaying />} />
-            <Route path="/song/:id" element={<SongDetail />} />
-            <Route path="/queue" element={<QueuePage />} />
-            <Route path="/create-playlist" element={<CreatePlaylist />} />
-            <Route path="/profile" element={<UserProfile />} />
-            <Route path="/profile/:id" element={<UserProfile />} />
-            <Route path="/sync-room" element={<SyncRoom />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/import" element={<Import />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/activity" element={<Activity />} />
-            <Route path="/stats" element={<Stats />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/auth" element={<Auth />} />
-          </Routes>
+          <Suspense fallback={
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-8 h-8 border-2 border-wave-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          }>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/search" element={<Search />} />
+              <Route path="/library" element={<Library />} />
+              <Route path="/upload" element={<Upload />} />
+              <Route path="/friends" element={<Friends />} />
+              <Route path="/playlist" element={<PlaylistPage />} />
+              <Route path="/now-playing" element={<NowPlaying />} />
+              <Route path="/song/:id" element={<SongDetail />} />
+              <Route path="/queue" element={<QueuePage />} />
+              <Route path="/create-playlist" element={<CreatePlaylist />} />
+              <Route path="/profile" element={<UserProfile />} />
+              <Route path="/profile/:id" element={<UserProfile />} />
+              <Route path="/sync-room" element={<SyncRoom />} />
+              <Route path="/history" element={<History />} />
+              <Route path="/import" element={<Import />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/activity" element={<Activity />} />
+              <Route path="/stats" element={<Stats />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/chat" element={<ChatPage />} />
+              <Route path="/artist/:name" element={<ArtistPage />} />
+              <Route path="/discover" element={<Discover />} />
+              <Route path="/auth" element={<Auth />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
       <Player />

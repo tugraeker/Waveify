@@ -10,8 +10,9 @@ import SyncedLyrics from '@/components/SyncedLyrics'
 import type { Song } from '@/types'
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
-  Volume2, ChevronDown, Heart, Music2, Disc3,
+  Volume2, ChevronDown, Heart, Music2, Disc3, X,
   BarChart3, Waves, Circle, Flame, Radio,
+  Maximize2,
 } from 'lucide-react'
 import type { VisualizerMode } from '@/types'
 
@@ -20,11 +21,13 @@ const VISUALIZER_MODES: { key: VisualizerMode; label: string; icon: typeof BarCh
   { key: 'wave', label: 'Dalga', icon: Waves },
   { key: 'circle', label: 'Daire', icon: Circle },
   { key: 'fire', label: 'Ateş', icon: Flame },
+  { key: 'party', label: 'Parti', icon: Maximize2 },
 ]
 
 export default function NowPlaying() {
   const navigate = useNavigate()
   const { currentSong, volume, shuffle, repeat, equalizer, user, visualizerMode,
+    eqPresets, saveEqPreset, deleteEqPreset, loadEqPreset,
     setVolume, setShuffle, setRepeat, setEqualizer, resetEqualizer, setVisualizerMode, setQueue, setCurrentSong } = useStore()
   const { isPlaying, currentTime, duration, togglePlay, seek, nextSong, prevSong, analyserData } = useAudio()
   const [showEq, setShowEq] = useState(false)
@@ -110,7 +113,12 @@ export default function NowPlaying() {
               return (
                 <button
                   key={m.key}
-                  onClick={() => setVisualizerMode(m.key)}
+                  onClick={() => {
+                    setVisualizerMode(m.key)
+                    if (m.key === 'party') {
+                      document.documentElement.requestFullscreen?.()
+                    }
+                  }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     visualizerMode === m.key
                       ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20'
@@ -122,6 +130,14 @@ export default function NowPlaying() {
                 </button>
               )
             })}
+            {visualizerMode === 'party' && document.fullscreenElement && (
+              <button
+                onClick={() => document.exitFullscreen()}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-400 border border-red-500/20 hover:bg-red-500/10"
+              >
+                Tam Ekrandan Çık
+              </button>
+            )}
           </div>
 
           {currentSong.lyrics && (
@@ -198,8 +214,24 @@ export default function NowPlaying() {
               <div className="glass rounded-2xl p-4 border border-surface-800/50 animate-fade-in">
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-xs font-semibold text-surface-300">Equalizer</span>
-                  <button onClick={resetEqualizer} className="text-xs text-wave-400 hover:underline">Sıfırla</button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => {
+                      const name = prompt('Preset adı:')
+                      if (name?.trim()) saveEqPreset(name.trim())
+                    }} className="text-xs text-wave-400 hover:underline">Kaydet</button>
+                    <button onClick={resetEqualizer} className="text-xs text-surface-500 hover:text-white">Sıfırla</button>
+                  </div>
                 </div>
+                {eqPresets.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {eqPresets.map((p) => (
+                      <div key={p.name} className="flex items-center gap-1 bg-surface-800/50 rounded-lg px-2 py-1">
+                        <button onClick={() => loadEqPreset(p)} className="text-[11px] text-wave-400 hover:underline truncate max-w-20">{p.name}</button>
+                        <button onClick={() => deleteEqPreset(p.name)} className="text-surface-500 hover:text-red-400 flex-shrink-0"><X size={11} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex gap-3 justify-center">
                   {(['bass', 'mid', 'treble'] as const).map((key) => (
                     <div key={key} className="flex flex-col items-center gap-2.5 flex-1">

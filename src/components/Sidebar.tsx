@@ -9,7 +9,7 @@ import {
   Music, Flame, Clock, Heart, TrendingUp,
   Plus, List, Disc3, User, Radio,
   History, Sun, Moon, Globe, Settings as SettingsIcon,
-  Activity, BarChart3, Shield, MessageSquare,
+  Activity, BarChart3, Shield, MessageSquare, Sparkles,
 } from 'lucide-react'
 
 const navItems = [
@@ -75,6 +75,7 @@ export default function Sidebar() {
 
         <div className="flex flex-col gap-0.5 mt-1">
           {[
+            { icon: Sparkles, label: 'Keşfet', path: '/discover' },
             { icon: List, label: 'Sıradakiler', path: '/queue' },
             { icon: Disc3, label: 'Şimdi Çalıyor', path: '/now-playing' },
             { icon: User, label: 'Profilim', path: '/profile' },

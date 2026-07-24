@@ -27,11 +27,17 @@ export default function Visualizer({ analyserData, isPlaying, className = '' }: 
         case 'wave': drawWave(ctx, canvas, data); break
         case 'circle': drawCircle(ctx, canvas, data); break
         case 'fire': drawFire(ctx, canvas, data); break
+        case 'party': drawParty(ctx, canvas, data); break
       }
     }
 
-    if (isPlaying) draw()
-    else ctx.clearRect(0, 0, canvas.width, canvas.height)
+    if (isPlaying) {
+      draw()
+      animRef.current = requestAnimationFrame(function tick() {
+        draw()
+        animRef.current = requestAnimationFrame(tick)
+      })
+    } else ctx.clearRect(0, 0, canvas.width, canvas.height)
     return () => cancelAnimationFrame(animRef.current)
   }, [isPlaying, analyserData, mode])
 
@@ -68,6 +74,25 @@ function drawWave(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data
     x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
   }
   ctx.stroke()
+}
+
+function drawParty(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: Uint8Array) {
+  const bars = 48
+  const w = canvas.width / bars
+  const colors = ['#ff6b6b', '#ffa502', '#ffd43b', '#69db7c', '#22c7c0', '#748ffc', '#da77f2', '#f783ac']
+  const time = Date.now() / 1000
+  for (let i = 0; i < bars; i++) {
+    const v = data[Math.floor(i * data.length / bars)] / 255
+    const h = v * canvas.height * 0.95
+    const x = i * w
+    const colorIdx = Math.floor((i + time * 4) % colors.length)
+    ctx.fillStyle = colors[colorIdx]
+    ctx.globalAlpha = 0.6 + v * 0.4
+    ctx.fillRect(x, canvas.height - h, w, h)
+    ctx.globalAlpha = 0.3 + v * 0.3
+    ctx.fillRect(x, Math.max(0, canvas.height - h - 4), w, 4)
+  }
+  ctx.globalAlpha = 1
 }
 
 function drawCircle(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: Uint8Array) {

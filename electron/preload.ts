@@ -18,4 +18,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onUpdateProgress: (cb: any) => { ipcRenderer.on('update:progress', (_e: any, p: any) => cb(p)) },
   onUpdateDownloaded: (cb: any) => { ipcRenderer.on('update:downloaded', cb) },
   onUpdateError: (cb: any) => { ipcRenderer.on('update:error', (_e: any, msg: any) => cb(msg)) },
+
+  // Offline cache
+  cacheSave: (songId: string, audioUrl: string) => ipcRenderer.invoke('cache:save', songId, audioUrl),
+  cacheGet: (songId: string) => ipcRenderer.invoke('cache:get', songId),
+  cacheRemove: (songId: string) => ipcRenderer.invoke('cache:remove', songId),
+  cacheList: () => ipcRenderer.invoke('cache:list'),
+  cacheClear: () => ipcRenderer.invoke('cache:clear'),
 })
