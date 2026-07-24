@@ -77,10 +77,26 @@ export default function UserProfile() {
     setUploadingAvatar(true)
     try {
       const ext = file.name.split('.').pop()
-      const path = `avatars/${currentUser.id}.${ext}`
-      const { error: uploadError } = await supabase.storage.from('covers').upload(path, file, { upsert: true })
-      if (uploadError) throw uploadError
-      const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(path)
+      const fileName = `${currentUser.id}.${ext}`
+      let publicUrl = ''
+
+      // Try multiple bucket/path combos
+      const attempts = [
+        { bucket: 'covers', path: `avatars/${fileName}` },
+        { bucket: 'avatars', path: fileName },
+        { bucket: 'covers', path: fileName },
+      ]
+
+      for (const { bucket, path } of attempts) {
+        const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
+        if (!upErr) {
+          const { data: { publicUrl: url } } = supabase.storage.from(bucket).getPublicUrl(path)
+          publicUrl = url
+          break
+        }
+      }
+
+      if (!publicUrl) throw new Error('Tüm yükleme denemeleri başarısız')
       const { error: updateError } = await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', currentUser.id)
       if (!updateError) {
         setAvatarUrl(publicUrl)
