@@ -154,6 +154,9 @@ export default function Sidebar() {
             {theme === 'dark' ? 'Aydınlık Tema' : 'Karanlık Tema'}
           </button>
         </div>
+        <div className="px-3 py-2 text-[10px] text-surface-600 text-center">
+          v{__APP_VERSION__}
+        </div>
       </div>
     </div>
   )

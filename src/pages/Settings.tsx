@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
@@ -30,6 +30,7 @@ export default function Settings() {
   const [error, setError] = useState('')
   const [bgColor, setBgColor] = useState(localStorage.getItem('waveify_bg_color') || '')
   const [customAccentInput, setCustomAccentInput] = useState(customAccentColor || '')
+  const [appVersion] = useState(__APP_VERSION__)
 
   async function saveProfile() {
     if (!user) return
@@ -209,6 +210,11 @@ export default function Settings() {
                 Aydınlık
               </button>
             </div>
+          </div>
+
+          <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-4 text-center">
+            <p className="text-xs text-surface-500">Waveify v{appVersion}</p>
+            <p className="text-[10px] text-surface-600 mt-0.5">© 2026 Tugra Eker</p>
           </div>
 
           <div className="bg-surface-900/60 border border-red-500/10 rounded-2xl p-6">

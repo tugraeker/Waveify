@@ -61,6 +61,8 @@ autoUpdater.on('error', (err) => {
   mainWindow?.webContents.send('update:error', msg.includes('Cannot') || msg.includes('connect') ? 'Sunucuya bağlanılamadı' : msg.slice(0, 100))
 })
 
+ipcMain.handle('app:version', () => app.getVersion())
+
 ipcMain.on('update:check', () => {
   if (isDev) return
   autoUpdater.checkForUpdates()
