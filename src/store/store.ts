@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { User, Song, Playlist, EqualizerSettings, SyncRoom, VisualizerMode, SleepTimer, AccentColor, Activity, Badge, EqPreset } from '@/types'
+import type { User, Song, Playlist, EqualizerSettings, SyncRoom, VisualizerMode, SleepTimer, AccentColor, Activity, Badge, EqPreset, VisualizerColorTheme, SongNote, SongRating } from '@/types'
+import { defaultEqBands, EQ_PRESETS } from '@/types'
 
 interface AppState {
   user: User | null
@@ -48,6 +49,10 @@ interface AppState {
   setSearchQuery: (q: string) => void
   visualizerMode: VisualizerMode
   setVisualizerMode: (mode: VisualizerMode) => void
+  visualizerColorTheme: VisualizerColorTheme
+  setVisualizerColorTheme: (theme: VisualizerColorTheme) => void
+  visualizerSensitivity: number
+  setVisualizerSensitivity: (v: number) => void
   sleepTimer: SleepTimer
   setSleepTimer: (timer: SleepTimer) => void
   songHistory: Song[]
@@ -66,6 +71,12 @@ interface AppState {
   setBadges: (badges: Badge[]) => void
   unreadNotifCount: number
   setUnreadNotifCount: (n: number) => void
+  showEqInPlayer: boolean
+  setShowEqInPlayer: (v: boolean) => void
+  songRatings: Record<string, number>
+  setSongRating: (songId: string, rating: number) => void
+  songNotes: Record<string, string>
+  setSongNote: (songId: string, note: string) => void
 }
 
 function loadJson<T>(key: string, fallback: T): T {
@@ -75,7 +86,7 @@ function loadJson<T>(key: string, fallback: T): T {
   } catch { return fallback }
 }
 
-const defaultEqualizer: EqualizerSettings = { bass: 0, mid: 0, treble: 0 }
+const defaultEqualizer: EqualizerSettings = { bass: 0, mid: 0, treble: 0, bands: defaultEqBands() }
 
 export const useStore = create<AppState>((set) => ({
   user: null,
@@ -98,15 +109,15 @@ export const useStore = create<AppState>((set) => ({
   setQueue: (queue) => set({ queue }),
   addToQueue: (song) => set((state) => ({ queue: [...state.queue, song] })),
   removeFromQueue: (index) => set((state) => ({ queue: state.queue.filter((_, i) => i !== index) })),
-  equalizer: { bass: 0, mid: 0, treble: 0 },
+  equalizer: { ...defaultEqualizer, bands: loadJson<number[]>('waveify_eq_bands', defaultEqBands()) },
   setEqualizer: (eq) => set({ equalizer: eq }),
-  resetEqualizer: () => set({ equalizer: { bass: 0, mid: 0, treble: 0 } }),
+  resetEqualizer: () => set({ equalizer: { ...defaultEqualizer, bands: defaultEqBands() } }),
   eqPresets: loadJson<EqPreset[]>('waveify_eq_presets', []),
   setEqPresets: (presets) => { localStorage.setItem('waveify_eq_presets', JSON.stringify(presets)); set({ eqPresets: presets }) },
   saveEqPreset: (name) => set((state) => {
     const existing = state.eqPresets.findIndex(p => p.name === name)
     let presets = [...state.eqPresets]
-    const newPreset: EqPreset = { name, ...state.equalizer }
+    const newPreset: EqPreset = { name, ...state.equalizer, bands: [...(state.equalizer.bands || defaultEqBands())] }
     if (existing >= 0) presets[existing] = newPreset
     else presets = [...presets, newPreset]
     localStorage.setItem('waveify_eq_presets', JSON.stringify(presets))
@@ -117,7 +128,7 @@ export const useStore = create<AppState>((set) => ({
     localStorage.setItem('waveify_eq_presets', JSON.stringify(presets))
     return { eqPresets: presets }
   }),
-  loadEqPreset: (preset) => set({ equalizer: { bass: preset.bass, mid: preset.mid, treble: preset.treble } }),
+  loadEqPreset: (preset) => set({ equalizer: { bass: preset.bass, mid: preset.mid, treble: preset.treble, bands: [...(preset.bands || defaultEqBands())] } }),
   crossfade: loadJson<boolean>('waveify_crossfade', false),
   setCrossfade: (v) => { localStorage.setItem('waveify_crossfade', JSON.stringify(v)); set({ crossfade: v }) },
   crossfadeDuration: loadJson<number>('waveify_crossfade_duration', 3),
@@ -136,6 +147,10 @@ export const useStore = create<AppState>((set) => ({
   setSearchQuery: (q) => set({ searchQuery: q }),
   visualizerMode: 'bars',
   setVisualizerMode: (mode) => set({ visualizerMode: mode }),
+  visualizerColorTheme: loadJson<VisualizerColorTheme>('waveify_viz_theme', 'wave'),
+  setVisualizerColorTheme: (theme) => { localStorage.setItem('waveify_viz_theme', theme); set({ visualizerColorTheme: theme }) },
+  visualizerSensitivity: loadJson<number>('waveify_viz_sensitivity', 1),
+  setVisualizerSensitivity: (v) => { localStorage.setItem('waveify_viz_sensitivity', JSON.stringify(v)); set({ visualizerSensitivity: v }) },
   sleepTimer: { remaining: 0, endOfSong: false, active: false },
   setSleepTimer: (timer) => set({ sleepTimer: timer }),
   songHistory: [],
@@ -157,4 +172,18 @@ export const useStore = create<AppState>((set) => ({
   setBadges: (badges) => set({ badges }),
   unreadNotifCount: 0,
   setUnreadNotifCount: (n) => set({ unreadNotifCount: n }),
+  showEqInPlayer: false,
+  setShowEqInPlayer: (v) => set({ showEqInPlayer: v }),
+  songRatings: loadJson<Record<string, number>>('waveify_song_ratings', {}),
+  setSongRating: (songId, rating) => set((state) => {
+    const ratings = { ...state.songRatings, [songId]: rating }
+    localStorage.setItem('waveify_song_ratings', JSON.stringify(ratings))
+    return { songRatings: ratings }
+  }),
+  songNotes: loadJson<Record<string, string>>('waveify_song_notes', {}),
+  setSongNote: (songId, note) => set((state) => {
+    const notes = { ...state.songNotes, [songId]: note }
+    localStorage.setItem('waveify_song_notes', JSON.stringify(notes))
+    return { songNotes: notes }
+  }),
 }))

@@ -41,7 +41,17 @@ export default function AdminPage() {
       const s = data as any
       setStats({ users: s.users || 0, songs: s.songs || 0, plays: s.plays || 0 })
     } else {
-      setStats({ users: 0, songs: 0, plays: 0 })
+      // Fallback: count directly
+      try {
+        const [u, s, p] = await Promise.all([
+          supabase.from('users').select('*', { count: 'exact', head: true }),
+          supabase.from('songs').select('*', { count: 'exact', head: true }),
+          supabase.from('listen_history').select('*', { count: 'exact', head: true }),
+        ])
+        setStats({ users: u.count || 0, songs: s.count || 0, plays: p.count || 0 })
+      } catch {
+        setStats({ users: 0, songs: 0, plays: 0 })
+      }
     }
   }
 
@@ -55,6 +65,16 @@ export default function AdminPage() {
       if (statsRes.data) {
         for (const row of statsRes.data as any[]) {
           statsMap[row.user_id] = { song_count: Number(row.song_count) || 0, play_count: Number(row.play_count) || 0 }
+        }
+      } else if (statsRes.error) {
+        // Fallback: fetch song counts per user directly
+        const { data: songs } = await supabase.from('songs').select('user_id')
+        if (songs) {
+          const counts: Record<string, number> = {}
+          songs.forEach((s: any) => { counts[s.user_id] = (counts[s.user_id] || 0) + 1 })
+          usersRes.data.forEach((u: any) => {
+            statsMap[u.id] = { song_count: counts[u.id] || 0, play_count: 0 }
+          })
         }
       }
       setUsers((usersRes.data as any[]).map((u: any) => ({

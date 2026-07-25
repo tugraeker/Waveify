@@ -8,7 +8,7 @@ import { SongSkeleton } from '@/components/Skeleton'
 import ContextMenu from '@/components/ContextMenu'
 import AddToPlaylistModal from '@/components/AddToPlaylistModal'
 import type { Song } from '@/types'
-import { Play, Search as SearchIcon, X, Music, Users, ListMusic, Heart } from 'lucide-react'
+import { Play, Search as SearchIcon, X, Music, Users, ListMusic, Heart, Filter, ArrowUpDown } from 'lucide-react'
 
 export default function SearchPage() {
   const { searchQuery, setSearchQuery, songs, setSongs, setQueue, setCurrentSong, currentSong, user } = useStore()
@@ -23,6 +23,8 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(true)
   const [ctxMenu, setCtxMenu] = useState<{ song: Song; x: number; y: number } | null>(null)
   const [addPlaylistSong, setAddPlaylistSong] = useState<Song | null>(null)
+  const [genreFilter, setGenreFilter] = useState('')
+  const [sortBy, setSortBy] = useState<'title' | 'artist' | 'duration' | 'created_at'>('created_at')
   const debounceRef = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
@@ -125,13 +127,28 @@ export default function SearchPage() {
       </div>
 
       {hasQuery && (
-        <div className="flex gap-4 mb-6 border-b border-surface-800/50">
-          {(['all', 'songs', 'artists', 'playlists'] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`pb-3 text-sm font-medium transition-colors border-b-2 ${tab === t ? 'text-wave-400 border-wave-400' : 'text-surface-500 hover:text-white border-transparent'}`}>
-              {t === 'all' ? 'Tümü' : t === 'songs' ? 'Şarkılar' : t === 'artists' ? 'Sanatçılar' : 'Listeler'}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="flex gap-3 mb-4 flex-wrap">
+            <select value={genreFilter} onChange={e => setGenreFilter(e.target.value)} className="h-8 rounded-lg bg-surface-800 border border-surface-700 px-2.5 text-xs text-white">
+              <option value="">Tüm Türler</option>
+              {['Pop', 'Rock', 'Jazz', 'Elektronik', 'Klasik', 'Hip Hop', 'R&B', 'Alternatif', 'Metal', 'Folk'].map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="h-8 rounded-lg bg-surface-800 border border-surface-700 px-2.5 text-xs text-white">
+              <option value="created_at">En Yeni</option>
+              <option value="title">İsim</option>
+              <option value="artist">Sanatçı</option>
+              <option value="duration">Süre</option>
+            </select>
+            {genreFilter && <button onClick={() => setGenreFilter('')} className="h-8 px-2 rounded-lg text-xs text-surface-500 hover:text-white border border-surface-700"><X size={12} className="inline mr-1" />Filtre Temizle</button>}
+          </div>
+          <div className="flex gap-4 mb-6 border-b border-surface-800/50">
+            {(['all', 'songs', 'artists', 'playlists'] as const).map((t) => (
+              <button key={t} onClick={() => setTab(t)} className={`pb-3 text-sm font-medium transition-colors border-b-2 ${tab === t ? 'text-wave-400 border-wave-400' : 'text-surface-500 hover:text-white border-transparent'}`}>
+                {t === 'all' ? 'Tümü' : t === 'songs' ? 'Şarkılar' : t === 'artists' ? 'Sanatçılar' : 'Listeler'}
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       {userResults.length > 0 && (showAll || tab === 'artists') && (

@@ -26,6 +26,21 @@ export interface Song {
   user?: User
   likes_count?: number
   liked_by_user?: boolean
+  year?: number
+  track_number?: number
+  bpm?: number
+  key?: string
+}
+
+export interface SongNote {
+  song_id: string
+  text: string
+  created_at: string
+}
+
+export interface SongRating {
+  song_id: string
+  rating: number
 }
 
 export interface Playlist {
@@ -76,13 +91,36 @@ export interface EqualizerSettings {
   bass: number
   mid: number
   treble: number
+  bands?: number[]
 }
+
+export const EQ_BAND_FREQS = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+
+export function defaultEqBands(): number[] {
+  return EQ_BAND_FREQS.map(() => 0)
+}
+
+export const EQ_PRESETS: { name: string; bands: number[] }[] = [
+  { name: 'Normal', bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  { name: 'Rock', bands: [4, 3, 2, 0, -1, -1, 0, 2, 3, 4] },
+  { name: 'Pop', bands: [-1, 0, 2, 3, 2, 0, -1, -1, 0, 1] },
+  { name: 'Jazz', bands: [3, 2, 1, 1, 0, 0, 1, 2, 3, 4] },
+  { name: 'Classical', bands: [4, 3, 2, 1, 0, 0, 1, 2, 3, 4] },
+  { name: 'Bass Boost', bands: [6, 5, 4, 3, 1, 0, -1, -1, 0, 1] },
+  { name: 'Treble Boost', bands: [-1, 0, 0, 1, 1, 2, 3, 4, 5, 6] },
+  { name: 'Vocal', bands: [-1, -1, 0, 1, 3, 4, 3, 1, 0, -1] },
+  { name: 'Electronic', bands: [4, 3, 2, 1, 0, -1, 0, 2, 3, 5] },
+  { name: 'Hip Hop', bands: [5, 4, 3, 2, 0, -1, -1, 0, 1, 2] },
+]
 
 export interface EqPreset extends EqualizerSettings {
   name: string
+  bands: number[]
 }
 
-export type VisualizerMode = 'bars' | 'wave' | 'circle' | 'fire' | 'party'
+export type VisualizerMode = 'bars' | 'wave' | 'circle' | 'fire' | 'party' | 'spectrum' | 'particles' | 'dual'
+
+export type VisualizerColorTheme = 'wave' | 'rainbow' | 'fire' | 'ice' | 'neon' | 'pastel' | 'mono'
 
 export interface SleepTimer {
   remaining: number

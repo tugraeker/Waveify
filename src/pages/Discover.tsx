@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { formatDuration } from '@/lib/utils'
 import type { Song } from '@/types'
-import { Play, Pause, Music2, TrendingUp, Clock, Heart, Radio, Sparkles } from 'lucide-react'
+import { Play, Pause, Music2, TrendingUp, Clock, Heart, Radio, Sparkles, User, Star } from 'lucide-react'
 
 const moodStations = [
   { id: 'energetic', label: 'Enerjik', icon: '🔥', genres: ['rock', 'pop', 'electronic'] },
@@ -17,16 +17,36 @@ const moodStations = [
 
 export default function Discover() {
   const navigate = useNavigate()
-  const { setCurrentSong, setQueue, currentSong, isPlaying } = useStore()
+  const { setCurrentSong, setQueue, currentSong, isPlaying, user, songs } = useStore()
   const [recentSongs, setRecentSongs] = useState<Song[]>([])
   const [trendingSongs, setTrendingSongs] = useState<Song[]>([])
   const [genreSongs, setGenreSongs] = useState<Record<string, Song[]>>({})
+  const [likedSongs, setLikedSongs] = useState<Song[]>([])
 
   useEffect(() => {
     fetchRecent()
     fetchTrending()
     fetchGenreSongs()
-  }, [])
+    if (user) fetchLikedSongs()
+  }, [user])
+
+  async function fetchLikedSongs() {
+    const { data } = await supabase.from('likes').select('song:songs(*)').eq('user_id', user!.id).limit(20)
+    if (data) setLikedSongs(data.map((l: any) => l.song).filter(Boolean))
+  }
+
+  // Personalized: recommend from same artists as liked songs
+  const personalSongs = useMemo(() => {
+    if (likedSongs.length === 0) return []
+    const likedArtist = likedSongs[0]?.artist
+    return songs.filter(s => s.artist === likedArtist && !likedSongs.find(l => l.id === s.id)).slice(0, 10)
+  }, [likedSongs, songs])
+
+  // For You: mix of recent trending + personal
+  const forYouSongs = useMemo(() => {
+    const mixed = [...trendingSongs, ...personalSongs]
+    return mixed.filter((s, i, a) => a.findIndex(x => x.id === s.id) === i).slice(0, 10)
+  }, [trendingSongs, personalSongs])
 
   async function fetchRecent() {
     const { data } = await supabase.from('songs').select('*').order('created_at', { ascending: false }).limit(10)
@@ -123,6 +143,8 @@ export default function Discover() {
         </div>
       </div>
 
+      {forYouSongs.length > 0 && <SongList songs={forYouSongs} title="Senin İçin" icon={Star} />}
+      {personalSongs.length > 0 && <SongList songs={personalSongs} title="Beğendiklerine Benzer" icon={User} />}
       <SongList songs={trendingSongs} title="Popüler" icon={TrendingUp} />
       <SongList songs={recentSongs} title="En Son Yüklenenler" icon={Clock} />
     </div>

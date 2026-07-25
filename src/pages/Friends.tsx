@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
-import { UserPlus, UserCheck, Clock, X, Users, Search, Trash2 } from 'lucide-react'
+import { UserPlus, UserCheck, Clock, X, Users, Search, Trash2, Ban, Circle } from 'lucide-react'
 import { trackFriend, awardXp } from '@/lib/achievements'
 
-interface FriendUser { id: string; username: string; email?: string }
+interface FriendUser { id: string; username: string; email?: string; last_seen?: string }
 interface PendingReq { id: string; user_id: string; friend_id: string; status: string; created_at: string; user?: { id: string; username: string } }
 
 export default function FriendsPage() {
@@ -18,13 +18,22 @@ export default function FriendsPage() {
   const [searchResults, setSearchResults] = useState<FriendUser[]>([])
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
+  const [blockedUsers, setBlockedUsers] = useState<FriendUser[]>([])
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
 
-  useEffect(() => { if (user) fetchFriends() }, [user])
+  useEffect(() => { if (user) { fetchFriends(); fetchBlocked() } }, [user])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch(`https://${import.meta.env.VITE_SOCKET_URL || 'localhost'}:${import.meta.env.VITE_SOCKET_PORT || 3001}/api/online-users`).then(r => r.json()).then(setOnlineUsers).catch(() => {})
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   async function fetchFriends() {
     try {
-      const { data: sent } = await supabase.from('friends').select('*, friend:friend_id(id, username)').eq('user_id', user?.id).eq('status', 'accepted')
-      const { data: received } = await supabase.from('friends').select('*, user:user_id(id, username)').eq('friend_id', user?.id).eq('status', 'accepted')
+      const { data: sent } = await supabase.from('friends').select('*, friend:friend_id(id, username, email, last_seen)').eq('user_id', user?.id).eq('status', 'accepted')
+      const { data: received } = await supabase.from('friends').select('*, user:user_id(id, username, email, last_seen)').eq('friend_id', user?.id).eq('status', 'accepted')
       const { data: pending } = await supabase.from('friends').select('*, user:user_id(id, username)').eq('friend_id', user?.id).eq('status', 'pending')
       const allFriends: FriendUser[] = []
       sent?.forEach((f: any) => f.friend && allFriends.push(f.friend))
@@ -32,6 +41,11 @@ export default function FriendsPage() {
       setFriends(allFriends)
       setPendingRequests((pending || []) as any)
     } catch (err: any) { setError(err.message) }
+  }
+
+  async function fetchBlocked() {
+    const { data } = await supabase.from('blocks').select('blocked_id, blocked:blocked_id(id, username)').eq('user_id', user?.id)
+    if (data) setBlockedUsers(data.map((b: any) => b.blocked).filter(Boolean))
   }
 
   async function searchUser() {
@@ -71,6 +85,23 @@ export default function FriendsPage() {
     fetchFriends()
   }
 
+  async function handleBlock(targetId: string) {
+    if (!user) return
+    try { await supabase.from('blocks').insert({ user_id: user.id, blocked_id: targetId }) } catch {}
+    removeFriend(targetId)
+    fetchBlocked()
+  }
+
+  async function handleUnblock(targetId: string) {
+    if (!user) return
+    await supabase.from('blocks').delete().eq('user_id', user.id).eq('blocked_id', targetId)
+    fetchBlocked()
+  }
+
+  function isOnline(userId: string) {
+    return onlineUsers.has(userId)
+  }
+
   return (
     <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
       <h1 className="text-2xl font-bold mb-6">Arkadaşlar</h1>
@@ -85,7 +116,10 @@ export default function FriendsPage() {
             {searchResults.map((sr) => (
               <div key={sr.id} className="glass rounded-xl p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/profile/${sr.id}`)}>
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-wave-500 to-wave-400 flex items-center justify-center text-sm font-bold text-white">{sr.username[0]?.toUpperCase() || '?'}</div>
+                  <div className="relative">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-wave-500 to-wave-400 flex items-center justify-center text-sm font-bold text-white">{sr.username[0]?.toUpperCase() || '?'}</div>
+                    <Circle size={8} className={`absolute -bottom-0.5 -right-0.5 ${isOnline(sr.id) ? 'text-green-400' : 'text-surface-600'}`} fill={isOnline(sr.id) ? '#22c55e' : '#52525b'} />
+                  </div>
                   <div><p className="text-sm font-medium">{sr.username}</p><p className="text-xs text-surface-400">{sr.email}</p></div>
                 </div>
                 <Button size="sm" onClick={() => sendRequest(sr.id)}><UserPlus size={14} /> Ekle</Button>
@@ -119,11 +153,17 @@ export default function FriendsPage() {
               <div className="flex flex-col items-center py-12 text-surface-500 glass rounded-2xl border-dashed"><Users size={36} className="mb-3 opacity-30" /><p className="text-sm">Henüz arkadaşın yok</p><p className="text-xs mt-1 text-surface-600">İsim veya e-posta ile arkadaşlarını bul</p></div>
             ) : friends.map((f) => (
               <div key={f.id} className="glass rounded-xl p-3.5 flex items-center gap-3 hover:bg-surface-800/60 transition-colors group">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-wave-500/30 to-wave-400/30 flex items-center justify-center text-sm font-bold text-wave-400 cursor-pointer" onClick={() => navigate(`/profile/${f.id}`)}>{f.username?.[0]?.toUpperCase() || '?'}</div>
+                <div className="relative cursor-pointer" onClick={() => navigate(`/profile/${f.id}`)}>
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-wave-500/30 to-wave-400/30 flex items-center justify-center text-sm font-bold text-wave-400">{f.username?.[0]?.toUpperCase() || '?'}</div>
+                  <Circle size={8} className={`absolute -bottom-0.5 -right-0.5 ${isOnline(f.id) ? 'text-green-400' : 'text-surface-600'}`} fill={isOnline(f.id) ? '#22c55e' : '#52525b'} />
+                </div>
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/profile/${f.id}`)}>
                   <p className="text-sm font-medium text-white truncate">{f.username}</p>
                   {f.email && <p className="text-xs text-surface-500 truncate">{f.email}</p>}
                 </div>
+                <button onClick={() => handleBlock(f.id)} className="p-2 rounded-lg text-surface-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all" title="Engelle">
+                  <Ban size={14} />
+                </button>
                 <button onClick={() => removeFriend(f.id)} className="p-2 rounded-lg text-surface-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all" title="Arkadaşlıktan Çıkar">
                   <Trash2 size={14} />
                 </button>
@@ -131,6 +171,22 @@ export default function FriendsPage() {
             ))}
           </div>
         </section>
+        {blockedUsers.length > 0 && (
+          <section>
+            <h2 className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-3 flex items-center gap-2"><Ban size={14} /> Engellenenler</h2>
+            <div className="flex flex-col gap-2">
+              {blockedUsers.map((b) => (
+                <div key={b.id} className="bg-surface-900/30 border border-surface-800/50 rounded-xl p-3 flex items-center justify-between opacity-60">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-surface-800 flex items-center justify-center text-xs font-bold text-surface-500">{b.username?.[0]?.toUpperCase() || '?'}</div>
+                    <p className="text-sm text-surface-400">{b.username}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => handleUnblock(b.id)}>Engeli Kaldır</Button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   )

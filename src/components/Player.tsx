@@ -8,19 +8,20 @@ import { Slider } from '@/components/ui'
 import { useAudio } from '@/hooks/useAudio'
 import ShortcutsModal from '@/components/ShortcutsModal'
 import CrossfadeControls from '@/components/CrossfadeControls'
+import Visualizer from '@/components/Visualizer'
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
   Volume2, Music2, List, Maximize2, Heart,
-  Timer, Keyboard, Minimize2,
+  Timer, Keyboard, Minimize2, Star, ArrowUpDown,
 } from 'lucide-react'
 
 export default function Player() {
   const navigate = useNavigate()
   const { currentSong, user, volume, shuffle, repeat, queue, sleepTimer, playbackRate, miniPlayer,
-    crossfade, crossfadeDuration,
+    crossfade, crossfadeDuration, songRatings, equalizer, visualizerMode,
     setVolume, setShuffle, setRepeat, setSleepTimer, setPlaybackRate, setMiniPlayer,
-    setCrossfade, setCrossfadeDuration } = useStore()
-  const { isPlaying, currentTime, duration, togglePlay, seek, nextSong, prevSong } = useAudio()
+    setCrossfade, setCrossfadeDuration, setShowEqInPlayer, showEqInPlayer } = useStore()
+  const { isPlaying, currentTime, duration, togglePlay, seek, nextSong, prevSong, analyserData } = useAudio()
   const [showVol, setShowVol] = useState(false)
   const [audioData, setAudioData] = useState<Uint8Array>(new Uint8Array(128))
   const [isSeeking, setIsSeeking] = useState(false)
@@ -28,6 +29,8 @@ export default function Player() {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showSleep, setShowSleep] = useState(false)
   const [liked, setLiked] = useState(false)
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [showEq, setShowEq] = useState(false)
 
   useEffect(() => {
     if (!currentSong || !user) { setLiked(false); return }
@@ -85,32 +88,28 @@ export default function Player() {
 
   const displayTime = isSeeking ? seekValue : currentTime
   const progress = duration > 0 ? (displayTime / duration) * 100 : 0
+  const currentRating = songRatings[currentSong.id] || 0
 
+  // Enhanced mini player with visualizer (Feature 5)
   if (miniPlayer) {
     return (
-      <div className="fixed bottom-4 right-4 z-[100] bg-surface-900 border border-surface-700 rounded-2xl shadow-2xl p-3 w-[320px] animate-fade-in">
-        <div className="flex items-center gap-3">
+      <div className="fixed bottom-4 right-4 z-[100] bg-surface-900 border border-surface-700 rounded-2xl shadow-2xl p-3 w-[340px] animate-fade-in">
+        <div className="flex items-center gap-3 mb-2">
           <div className="relative flex-shrink-0">
             {currentSong.cover_url ? (
-              <img src={currentSong.cover_url} alt="" className="w-14 h-14 rounded-xl object-cover" />
+              <img src={currentSong.cover_url} alt="" className="w-12 h-12 rounded-xl object-cover" />
             ) : (
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 flex items-center justify-center">
-                <Music2 size={24} className="text-surface-500" />
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 flex items-center justify-center">
+                <Music2 size={20} className="text-surface-500" />
               </div>
             )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white truncate">{currentSong.title}</p>
             <p className="text-xs text-surface-400 truncate">{currentSong.artist}</p>
-            <div className="mt-2 h-1 bg-surface-700 rounded-full overflow-hidden">
-              <div className="h-full bg-wave-500 transition-all" style={{ width: `${progress}%` }} />
-            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={togglePlay}
-              className="bg-wave-500 text-white rounded-full p-2 hover:scale-105 transition-all"
-            >
+          <div className="flex items-center gap-1.5">
+            <button onClick={togglePlay} className="bg-wave-500 text-white rounded-full p-2 hover:scale-105 transition-all">
               {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
             </button>
             <button onClick={() => setMiniPlayer(false)} className="text-surface-400 hover:text-white transition-colors">
@@ -118,13 +117,21 @@ export default function Player() {
             </button>
           </div>
         </div>
+        <Visualizer analyserData={analyserData} isPlaying={isPlaying} className="w-full h-8 rounded-lg" />
+        <div className="mt-1.5 h-1 bg-surface-700 rounded-full overflow-hidden">
+          <div className="h-full bg-wave-500 transition-all" style={{ width: `${progress}%` }} />
+        </div>
       </div>
     )
   }
 
   return (
     <div className="h-22 bg-surface-950 border-t border-surface-800/30 flex items-center px-4 gap-3 z-50">
-      <div className="flex items-center gap-3 w-[280px] min-w-0">
+      {/* Song info with tooltip (Feature 2) */}
+      <div className="flex items-center gap-3 w-[280px] min-w-0"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
         <div
           className="relative group cursor-pointer flex-shrink-0"
           onClick={() => navigate('/now-playing')}
@@ -147,17 +154,41 @@ export default function Player() {
           )}
         </div>
         <div
-          className="min-w-0 cursor-pointer"
+          className="min-w-0 cursor-pointer relative"
           onClick={() => navigate('/now-playing')}
         >
           <p className="text-sm font-medium text-white truncate hover:text-wave-400 transition-colors">{currentSong.title}</p>
           <p className="text-xs text-surface-400 truncate">{currentSong.artist}</p>
+          {/* Rating display (Feature 4) */}
+          {currentRating > 0 && (
+            <div className="flex items-center gap-0.5 mt-0.5">
+              {[1,2,3,4,5].map(s => (
+                <Star key={s} size={8} className={s <= currentRating ? 'fill-yellow-400 text-yellow-400' : 'text-surface-700'} />
+              ))}
+            </div>
+          )}
+          {/* Tooltip */}
+          {showTooltip && (
+            <div className="absolute bottom-full left-0 mb-2 glass rounded-xl p-3 border border-surface-800/50 shadow-2xl w-64 animate-fade-in z-50" onMouseEnter={() => setShowTooltip(true)} onMouseLeave={() => setShowTooltip(false)}>
+              <div className="flex gap-3">
+                {currentSong.cover_url ? <img src={currentSong.cover_url} alt="" className="w-16 h-16 rounded-lg object-cover" /> : <div className="w-16 h-16 rounded-lg bg-surface-800 flex items-center justify-center"><Music2 size={24} className="text-surface-500" /></div>}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{currentSong.title}</p>
+                  <p className="text-xs text-surface-400 truncate">{currentSong.artist}</p>
+                  {currentSong.album && <p className="text-[11px] text-surface-500 truncate">{currentSong.album}</p>}
+                  {currentSong.genre && <p className="text-[11px] text-surface-500 truncate">{currentSong.genre}</p>}
+                  <p className="text-[11px] text-surface-500">{formatDuration(duration)}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <button onClick={toggleLike} className={`transition-colors flex-shrink-0 ${liked ? 'text-red-400' : 'text-surface-500 hover:text-red-400'}`}>
           <Heart size={15} fill={liked ? 'currentColor' : 'none'} />
         </button>
       </div>
 
+      {/* Center controls */}
       <div className="flex-1 max-w-[560px] mx-auto">
         <div className="flex items-center justify-center gap-3 mb-1.5">
           <button onClick={() => setShuffle(!shuffle)} className={`transition-colors ${shuffle ? 'text-wave-400' : 'text-surface-400 hover:text-white'}`}>
@@ -209,7 +240,8 @@ export default function Player() {
         </div>
       </div>
 
-      <div className="w-[260px] flex items-center justify-end gap-2.5">
+      {/* Right controls */}
+      <div className="w-[290px] flex items-center justify-end gap-2.5">
         <CrossfadeControls
           crossfade={crossfade}
           crossfadeDuration={crossfadeDuration}
@@ -229,6 +261,39 @@ export default function Player() {
         >
           {playbackRate}x
         </button>
+        {/* Quick EQ toggle (Feature 3) */}
+        <div className="relative">
+          <button onClick={() => setShowEq(!showEq)} className={`text-xs font-bold px-2 py-1 rounded-lg transition-colors ${showEq ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20' : 'text-surface-500 hover:text-white border border-transparent'}`} title="Ekolayzer">
+            EQ
+          </button>
+          {showEq && (
+            <div className="absolute bottom-full right-0 mb-2 glass rounded-2xl p-4 border border-surface-800/50 shadow-2xl w-72 animate-fade-in" onMouseLeave={() => setShowEq(false)}>
+              <p className="text-xs font-semibold text-surface-300 mb-3">Ekolayzer</p>
+              <div className="flex gap-1.5 justify-center items-end h-20">
+                {[31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000].map((freq, i) => {
+                  const bands = equalizer.bands || [0,0,0,0,0,0,0,0,0,0]
+                  const val = bands[i] || 0
+                  return (
+                    <div key={freq} className="flex flex-col items-center gap-0.5 flex-1">
+                      <input
+                        type="range" min={-10} max={10}
+                        value={val}
+                        onChange={(e) => {
+                          const newBands = [...bands]
+                          newBands[i] = Number(e.target.value)
+                          useStore.getState().setEqualizer({ ...equalizer, bands: newBands })
+                        }}
+                        className="h-14 w-full accent-wave-400 [writing-mode:vertical-lr] appearance-none bg-surface-700 rounded-full"
+                        style={{ transform: 'rotate(180deg)' }}
+                      />
+                      <span className="text-[7px] text-surface-600">{freq >= 1000 ? `${(freq/1000).toFixed(0)}k` : freq}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
         <button onClick={() => setShowShortcuts(true)} className="text-surface-400 hover:text-white transition-colors" title="Kısayollar">
           <Keyboard size={15} />
         </button>
@@ -297,7 +362,7 @@ export default function Player() {
         <div className="flex items-center gap-1.5" onMouseEnter={() => setShowVol(true)} onMouseLeave={() => setShowVol(false)}>
           <Volume2 size={15} className="text-surface-400 hover:text-white transition-colors cursor-pointer" />
           {showVol && (
-            <div className="w-20 animate-fade-in">
+            <div className="w-16 animate-fade-in">
               <Slider value={volume * 100} onChange={(v) => setVolume(v / 100)} />
             </div>
           )}

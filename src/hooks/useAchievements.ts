@@ -1,11 +1,14 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
-import { getStats, getXpTotal, awardXp } from '@/lib/achievements'
+import { getStats, getXpTotal, awardXp, isXpBonusDay, getHolidayBadges, getDailyQuests, getWeeklyQuests } from '@/lib/achievements'
 import { emitToast } from '@/hooks/useToast'
+import { computeLevel } from '@/types'
 
 export function useAchievementsInit() {
   const { user, badges, setBadges } = useStore()
+  const [showLevelUp, setShowLevelUp] = useState(false)
+  const [newLevel, setNewLevel] = useState(0)
 
   const loadBadges = useCallback(() => {
     if (!user) return
@@ -21,13 +24,22 @@ export function useAchievementsInit() {
     const lastVisit = localStorage.getItem('waveify_last_visit_date')
     const today = new Date().toDateString()
     if (lastVisit !== today) {
-      awardXp(3)
+      const xpAmount = isXpBonusDay() ? 6 : 3
+      const prevLevel = computeLevel(getXpTotal()).level
+      awardXp(xpAmount)
+      const newLevelInfo = computeLevel(getXpTotal())
+      if (newLevelInfo.level > prevLevel) {
+        setNewLevel(newLevelInfo.level)
+        setShowLevelUp(true)
+        setTimeout(() => setShowLevelUp(false), 4000)
+      }
       localStorage.setItem('waveify_last_visit_date', today)
     }
   }, [user?.id])
 
   async function checkAndAward(type: string, label: string, color: string) {
     if (!user || badges.some(b => b.badge_type === type)) return
+    const prevLevel = computeLevel(getXpTotal()).level
     const { error } = await supabase.from('badges').insert({
       user_id: user.id,
       badge_type: type,
@@ -39,6 +51,13 @@ export function useAchievementsInit() {
       emitToast(`🏆 ${label} rozetini kazandın!`, 'success')
     }
   }
+
+  // Holiday badge check
+  useEffect(() => {
+    if (!user) return
+    const holidayBadges = getHolidayBadges()
+    holidayBadges.forEach(hb => checkAndAward(hb.type, hb.label, hb.color))
+  }, [user?.id])
 
   useEffect(() => {
     if (!user) return
@@ -81,4 +100,6 @@ export function useAchievementsInit() {
     if (xp >= 2000) checkAndAward('level_10', 'Seviye 10', '#22c7c0')
     if (xp >= 10000) checkAndAward('level_25', 'Seviye 25', '#8b5cf6')
   }, [user?.id])
+
+  return { showLevelUp, newLevel }
 }

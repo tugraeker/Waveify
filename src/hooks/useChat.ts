@@ -11,6 +11,11 @@ interface ChatMessage {
   user_id: string
   content: string
   created_at: string
+  edited_at?: string
+  reply_to?: { id: string; content: string; user: string }
+  reactions?: Record<string, string[]>
+  file_url?: string
+  file_name?: string
   user?: { username: string; avatar_url: string }
 }
 
@@ -52,6 +57,9 @@ export function useChat(socket: Socket | null) {
   const [selectedSpeaker, setSelectedSpeaker] = useState('')
   const [pushToTalk, setPushToTalk] = useState(false)
   const [pttHeld, setPttHeld] = useState(false)
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null)
+  const [blockedUsers, setBlockedUsers] = useState<string[]>([])
+  const [searchHistory, setSearchHistory] = useState('')
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map())
   const localStreamRef = useRef<MediaStream | null>(null)
   const screenStreamRef = useRef<MediaStream | null>(null)
@@ -237,18 +245,82 @@ export function useChat(socket: Socket | null) {
     if (data) setMessages(data)
   }
 
+  useEffect(() => {
+    if (!user) return
+    supabase.from('blocks').select('blocked_id').eq('user_id', user.id).then(({ data }) => {
+      if (data) setBlockedUsers(data.map(b => b.blocked_id))
+    })
+  }, [user])
+
   const selectChannel = useCallback((channelId: string) => {
-    setActiveChannel(channelId); setMessages([])
+    setActiveChannel(channelId); setMessages([]); setReplyingTo(null)
     socket?.emit('chat:join', channelId)
     fetchMessages(channelId)
   }, [socket])
 
   const sendMessage = useCallback((content: string) => {
     if (!activeChannel || !content.trim()) return
-    socket?.emit('chat:send', { channelId: activeChannel, content: content.trim() })
+    const payload: any = { channelId: activeChannel, content: content.trim() }
+    if (replyingTo) payload.replyTo = { id: replyingTo.id, content: replyingTo.content.slice(0, 100), user: replyingTo.user?.username || '' }
+    socket?.emit('chat:send', payload)
     trackChatMessage()
     awardXp(1)
-  }, [socket, activeChannel])
+    setReplyingTo(null)
+  }, [socket, activeChannel, replyingTo])
+
+  const editMessage = useCallback(async (messageId: string, newContent: string) => {
+    if (!newContent.trim()) return
+    await supabase.from('chat_messages').update({ content: newContent.trim(), edited_at: new Date().toISOString() }).eq('id', messageId)
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: newContent.trim(), edited_at: new Date().toISOString() } : m))
+  }, [])
+
+  const deleteMessage = useCallback(async (messageId: string) => {
+    await supabase.from('chat_messages').delete().eq('id', messageId)
+    setMessages(prev => prev.filter(m => m.id !== messageId))
+  }, [])
+
+  const addReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!user) return
+    const key = `waveify_chat_reactions_${messageId}`
+    const existing = JSON.parse(localStorage.getItem(key) || '{}')
+    const users = existing[emoji] || []
+    if (users.includes(user.id)) {
+      existing[emoji] = users.filter((u: string) => u !== user.id)
+      if (existing[emoji].length === 0) delete existing[emoji]
+    } else {
+      existing[emoji] = [...users, user.id]
+    }
+    localStorage.setItem(key, JSON.stringify(existing))
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions: existing } : m))
+  }, [user])
+
+  const blockUser = useCallback(async (targetUserId: string) => {
+    if (!user) return
+    try { await supabase.from('blocks').insert({ user_id: user.id, blocked_id: targetUserId }) } catch {}
+    setBlockedUsers(prev => [...prev, targetUserId])
+    emitToast('Kullanıcı engellendi', 'success')
+  }, [user])
+
+  const unblockUser = useCallback(async (targetUserId: string) => {
+    if (!user) return
+    await supabase.from('blocks').delete().eq('user_id', user.id).eq('blocked_id', targetUserId)
+    setBlockedUsers(prev => prev.filter(id => id !== targetUserId))
+    emitToast('Engel kaldırıldı', 'success')
+  }, [user])
+
+  const uploadFile = useCallback(async (file: File): Promise<string | null> => {
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `chat/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const { data, error } = await supabase.storage.from('covers').upload(path, file)
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(path)
+      return publicUrl
+    } catch (e: any) {
+      emitToast('Dosya yüklenemedi: ' + e.message, 'error')
+      return null
+    }
+  }, [])
 
   const createServer = useCallback(async (name: string) => {
     if (!user) return
@@ -369,5 +441,7 @@ export function useChat(socket: Socket | null) {
     fetchServers, fetchChannels, selectChannel, sendMessage, createServer, joinServer,
     joinVoice, leaveVoice, toggleMute, toggleScreenShare,
     pushToTalk, togglePushToTalk, pttHeld, handlePttKey,
+    replyingTo, setReplyingTo, editMessage, deleteMessage, addReaction,
+    blockedUsers, blockUser, unblockUser, uploadFile, searchHistory, setSearchHistory,
   }
 }

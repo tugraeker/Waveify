@@ -4,7 +4,7 @@ import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
 import OfflineMode from '@/components/OfflineMode'
-import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity, PaintBucket } from 'lucide-react'
+import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity, PaintBucket, Trash2, Bell, Monitor, Moon } from 'lucide-react'
 import type { AccentColor } from '@/types'
 
 const accentColors: { key: AccentColor; label: string; color: string }[] = [
@@ -179,6 +179,37 @@ export default function Settings() {
           </div>
 
           <OfflineMode />
+
+          <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-surface-800 flex items-center justify-center"><Trash2 size={18} className="text-surface-400" /></div>
+              <h2 className="text-lg font-semibold">Önbellek</h2>
+            </div>
+            <p className="text-xs text-surface-400 mb-3">Uygulama verilerini temizle</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { localStorage.removeItem('waveify_stats'); localStorage.removeItem('waveify_xp'); window.location.reload() }}>
+                <Trash2 size={14} /> İstatistikleri Sıfırla
+              </Button>
+              <Button variant="ghost" onClick={() => { if (confirm('Tüm önbellek temizlensin mi?')) { localStorage.clear(); window.location.reload() } }}>
+                <Trash2 size={14} /> Tümünü Temizle
+              </Button>
+            </div>
+          </div>
+
+          <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-surface-800 flex items-center justify-center"><Monitor size={18} className="text-surface-400" /></div>
+              <h2 className="text-lg font-semibold">Görünüm</h2>
+            </div>
+            <div className="flex gap-3 mb-3">
+              <button onClick={() => setTheme('dark')} className={`flex-1 p-3 rounded-xl border text-sm font-medium transition-all ${theme === 'dark' ? 'bg-wave-500/10 border-wave-500/20 text-wave-400' : 'bg-surface-800/50 border-surface-700 text-surface-400'}`}>
+                <Moon size={16} className="inline mr-1.5" />Karanlık
+              </button>
+              <button onClick={() => setTheme('light')} className={`flex-1 p-3 rounded-xl border text-sm font-medium transition-all ${theme === 'light' ? 'bg-wave-500/10 border-wave-500/20 text-wave-400' : 'bg-surface-800/50 border-surface-700 text-surface-400'}`}>
+                Aydınlık
+              </button>
+            </div>
+          </div>
 
           <div className="bg-surface-900/60 border border-red-500/10 rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-4">

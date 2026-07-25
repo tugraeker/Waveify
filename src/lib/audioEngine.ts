@@ -7,9 +7,7 @@ class AudioEngine {
   private audio: HTMLAudioElement | null = null
   private source: MediaElementAudioSourceNode | null = null
 
-  private bassFilter: BiquadFilterNode | null = null
-  private midFilter: BiquadFilterNode | null = null
-  private trebleFilter: BiquadFilterNode | null = null
+  private eqFilters: BiquadFilterNode[] = []
   private gainNode: GainNode | null = null
   private analyserNode: AnalyserNode | null = null
 
@@ -35,28 +33,28 @@ class AudioEngine {
     if (this.ctx) return
     this.ensureCtx()
     const c = this.ctx!
-    this.bassFilter = c.createBiquadFilter()
-    this.bassFilter.type = 'lowshelf'
-    this.bassFilter.frequency.value = 250
-    this.bassFilter.gain.value = 0
-    this.midFilter = c.createBiquadFilter()
-    this.midFilter.type = 'peaking'
-    this.midFilter.frequency.value = 1000
-    this.midFilter.Q.value = 1
-    this.midFilter.gain.value = 0
-    this.trebleFilter = c.createBiquadFilter()
-    this.trebleFilter.type = 'highshelf'
-    this.trebleFilter.frequency.value = 4000
-    this.trebleFilter.gain.value = 0
     this.gainNode = c.createGain()
     this.gainNode.gain.value = this._volume
     this.analyserNode = c.createAnalyser()
     this.analyserNode.fftSize = 256
-    this.bassFilter.connect(this.midFilter)
-    this.midFilter.connect(this.trebleFilter)
-    this.trebleFilter.connect(this.gainNode)
     this.gainNode.connect(this.analyserNode)
     this.analyserNode.connect(c.destination)
+    this.createEqFilters(c)
+  }
+
+  private createEqFilters(ctx: AudioContext) {
+    const freqs = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+    this.eqFilters = freqs.map((freq) => {
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'peaking'
+      filter.frequency.value = freq
+      filter.Q.value = 1.4
+      filter.gain.value = 0
+      return filter
+    })
+    for (let i = 0; i < this.eqFilters.length - 1; i++) {
+      this.eqFilters[i].connect(this.eqFilters[i + 1])
+    }
   }
 
   private cancelFade() {
@@ -104,7 +102,11 @@ class AudioEngine {
           const c = this.ctx || new AudioContext()
           this.ctx = c
           this.source = c.createMediaElementSource(this.audio!)
-          this.source.connect(this.bassFilter!)
+          if (this.eqFilters.length > 0) {
+            this.source.connect(this.eqFilters[0])
+          } else {
+            this.source.connect(this.gainNode!)
+          }
         } catch (e) {
           console.warn('Source connection failed, retrying', e)
         }
@@ -162,7 +164,11 @@ class AudioEngine {
     this.initAudio()
     if (this.source) {
       try { this.source.disconnect() } catch {}
-      this.source.connect(this.bassFilter!)
+      if (this.eqFilters.length > 0) {
+        this.source.connect(this.eqFilters[0])
+      } else {
+        this.source.connect(this.gainNode!)
+      }
     }
     if (startTime > 0) this.audio!.currentTime = startTime
     this.gainNode!.gain.value = 0
@@ -223,14 +229,25 @@ class AudioEngine {
   }
 
   applyEqualizer(settings: EqualizerSettings) {
-    if (!this.bassFilter || !this.midFilter || !this.trebleFilter) {
+    if (this.eqFilters.length === 0) {
       setTimeout(() => this.applyEqualizer(settings), 100)
       return
     }
     try {
-      this.bassFilter.gain.value = settings.bass * 2
-      this.midFilter.gain.value = settings.mid * 2
-      this.trebleFilter.gain.value = settings.treble * 2
+      if (settings.bands && settings.bands.length === 10) {
+        settings.bands.forEach((gain, i) => {
+          if (i < this.eqFilters.length) {
+            this.eqFilters[i].gain.value = gain * 1.5
+          }
+        })
+      } else {
+        this.eqFilters.forEach((f, i) => {
+          const map = [3, 5, 7]
+          const idx = Math.min(i, map.length - 1)
+          const val = idx === 0 ? settings.bass : idx === 1 ? settings.mid : settings.treble
+          f.gain.value = val * 2
+        })
+      }
     } catch (e) {
       console.warn('EQ apply failed:', e)
     }
@@ -250,7 +267,7 @@ class AudioEngine {
     this.stop()
     if (this.audio) { this.audio.src = ''; this.audio = null }
     if (this.source) { try { this.source.disconnect() } catch {}; this.source = null }
-    this.bassFilter = this.midFilter = this.trebleFilter = null
+    this.eqFilters = []
     this.gainNode = this.analyserNode = null
     if (this.ctx) { this.ctx.close(); this.ctx = null }
   }

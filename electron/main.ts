@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { app, BrowserWindow, ipcMain, net } from 'electron'
+import { app, BrowserWindow, ipcMain, net, Tray, Menu, Notification, globalShortcut, nativeImage } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import path from 'path'
 import fs from 'fs'
@@ -15,6 +15,7 @@ let rpcReady = false
 let rpcReconnectTimer: ReturnType<typeof setTimeout> | null = null
 let rpcStartTime: number | null = null
 let downloadedUpdatePath: string | null = null
+let isQuitting = false
 
 const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID || '1337133713371337'
 
@@ -189,9 +190,51 @@ function createWindow() {
   })
 }
 
+let tray: Tray | null = null
+
+function createTray() {
+  const icon = nativeImage.createEmpty()
+  tray = new Tray(icon)
+  tray.setToolTip('Waveify')
+  const ctx = Menu.buildFromTemplate([
+    { label: 'Waveify\'i Göster', click: () => { mainWindow?.show(); mainWindow?.focus() } },
+    { label: 'Çal/Duraklat', click: () => mainWindow?.webContents.send('global:play-pause') },
+    { label: 'Sonraki', click: () => mainWindow?.webContents.send('global:next') },
+    { label: 'Önceki', click: () => mainWindow?.webContents.send('global:prev') },
+    { type: 'separator' },
+    { label: 'Çıkış', click: () => { isQuitting = true; app.quit() } },
+  ])
+  tray.setContextMenu(ctx)
+  tray.on('double-click', () => { mainWindow?.show(); mainWindow?.focus() })
+}
+
+function registerGlobalShortcuts() {
+  globalShortcut.register('MediaPlayPause', () => {
+    mainWindow?.webContents.send('global:play-pause')
+  })
+  globalShortcut.register('MediaNextTrack', () => {
+    mainWindow?.webContents.send('global:next')
+  })
+  globalShortcut.register('MediaPreviousTrack', () => {
+    mainWindow?.webContents.send('global:prev')
+  })
+}
+
+ipcMain.on('notify:song', (_e, data: { title: string; artist: string }) => {
+  const n = new Notification({ title: data.title, body: data.artist + ' — Waveify' })
+  n.on('click', () => { mainWindow?.show(); mainWindow?.focus() })
+  n.show()
+})
+
 app.whenReady().then(() => {
   createWindow()
   initDiscordRPC()
+  createTray()
+  registerGlobalShortcuts()
+})
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
 })
 
 app.on('window-all-closed', () => {

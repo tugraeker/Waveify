@@ -11,6 +11,7 @@ import TitleBar from '@/components/TitleBar'
 import ToastContainer from '@/components/ToastContainer'
 import UpdateBanner from '@/components/UpdateBanner'
 import { useAchievementsInit } from '@/hooks/useAchievements'
+import { Trophy } from 'lucide-react'
 import type { AccentColor } from '@/types'
 
 const Auth = lazy(() => import('@/pages/Auth'))
@@ -36,6 +37,8 @@ const ChatPage = lazy(() => import('@/pages/Chat'))
 const ArtistPage = lazy(() => import('@/pages/ArtistPage'))
 const Discover = lazy(() => import('@/pages/Discover'))
 const BadgeGallery = lazy(() => import('@/pages/BadgeGallery'))
+const PodcastPage = lazy(() => import('@/pages/Podcast'))
+const RadioPage = lazy(() => import('@/pages/Radio'))
 
 const accentPalettes: Record<AccentColor, Record<string, string>> = {
   wave:   { '50': '238 251 250', '100': '213 245 242', '200': '174 234 229', '300': '106 217 210', '400': '34 199 192', '500': '15 171 166', '600': '9 139 136', '700': '12 111 109', '800': '15 89 88', '900': '18 74 73', '950': '3 45 45' },
@@ -91,7 +94,7 @@ export default function App() {
   useKeyboardShortcuts()
   useDiscordRPC()
   useMediaSession()
-  useAchievementsInit()
+  const { showLevelUp, newLevel } = useAchievementsInit()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -179,6 +182,8 @@ export default function App() {
               <Route path="/artist/:name" element={<ArtistPage />} />
               <Route path="/discover" element={<Discover />} />
               <Route path="/badges" element={<BadgeGallery />} />
+              <Route path="/podcast" element={<PodcastPage />} />
+              <Route path="/radio" element={<RadioPage />} />
               <Route path="/auth" element={<Auth />} />
             </Routes>
           </Suspense>
@@ -187,6 +192,18 @@ export default function App() {
       <Player />
       <ToastContainer />
       <UpdateBanner />
+      {showLevelUp && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => {}}>
+          <div className="text-center animate-level-up">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-yellow-500/30 animate-bounce">
+              <Trophy size={48} className="text-white" />
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-1">Seviye Atladın!</h2>
+            <p className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-2">Seviye {newLevel}</p>
+            <p className="text-surface-400 text-sm">Tebrikler! Yeni bir seviyeye ulaştın.</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

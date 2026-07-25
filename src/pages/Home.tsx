@@ -53,13 +53,21 @@ export default function Home() {
     friendsRev?.forEach((f: any) => friendIds.add(f.user_id))
     if (friendIds.size === 0) return
 
-    const { data: activities } = await supabase
-      .from('activities')
-      .select('*, user:user_id(id, username, avatar_url), song:song_id(*)')
-      .in('user_id', Array.from(friendIds))
-      .order('created_at', { ascending: false })
-      .limit(20)
-    if (activities) setFriendActivity(activities as any)
+    try {
+      const { data: activities, error: actError } = await supabase
+        .from('activities')
+        .select('*, user:user_id(id, username, avatar_url), song:song_id(*)')
+        .in('user_id', Array.from(friendIds))
+        .order('created_at', { ascending: false })
+        .limit(20)
+      if (actError) {
+        console.warn('Friend activity fetch error:', actError.message)
+        return
+      }
+      if (activities) setFriendActivity(activities as any)
+    } catch (e: any) {
+      console.warn('Friend activity error:', e?.message || e)
+    }
   }
 
   const playSong = (song: Song) => {
