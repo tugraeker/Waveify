@@ -4,7 +4,7 @@ import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
 import OfflineMode from '@/components/OfflineMode'
-import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity, PaintBucket, Trash2, Bell, Monitor, Moon } from 'lucide-react'
+import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity, PaintBucket, Trash2, Bell, Monitor, Moon, RotateCcw } from 'lucide-react'
 import type { AccentColor } from '@/types'
 
 const accentColors: { key: AccentColor; label: string; color: string }[] = [
@@ -67,6 +67,34 @@ export default function Settings() {
     } finally {
       setSavingPassword(false)
       setTimeout(() => { setMessage(''); setError('') }, 3000)
+    }
+  }
+
+  async function resetProfile() {
+    if (!user) return
+    if (!confirm('Profil tamamen sıfırlansın mı? Avatar, banner, biyografi ve tüm görünüm ayarları silinecek.')) return
+    setSaving(true)
+    try {
+      await supabase.from('users').update({ avatar_url: null, banner_url: null, bio: null, accent_color: null }).eq('id', user.id)
+      localStorage.removeItem('waveify_accent')
+      localStorage.removeItem('waveify_custom_accent')
+      localStorage.removeItem('waveify_bg_color')
+      localStorage.removeItem('waveify_profile_theme')
+      localStorage.removeItem('waveify_profile_font')
+      localStorage.removeItem('waveify_profile_layout')
+      localStorage.removeItem('waveify_profile_bg')
+      localStorage.removeItem('waveify_avatar_frame')
+      localStorage.removeItem('waveify_profile_view')
+      localStorage.removeItem('waveify_profile_density')
+      localStorage.removeItem('waveify_profile_show_stats')
+      localStorage.removeItem('waveify_show_badge_names')
+      setMessage('Profil sıfırlandı')
+      setUser({ ...user, avatar_url: undefined, banner_url: undefined, bio: undefined })
+      setTimeout(() => window.location.reload(), 1500)
+    } catch (e: any) {
+      setError(e.message || 'Hata')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -210,6 +238,15 @@ export default function Settings() {
                 Aydınlık
               </button>
             </div>
+          </div>
+
+          <div className="bg-surface-900/60 border border-red-500/10 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center"><RotateCcw size={18} className="text-red-400" /></div>
+              <h2 className="text-lg font-semibold">Profili Sıfırla</h2>
+            </div>
+            <p className="text-xs text-surface-400 mb-3">Avatar, banner, biyografi ve tüm görünüm ayarlarını sıfırlar.</p>
+            <Button variant="danger" onClick={resetProfile}><RotateCcw size={14} /> Profili Sıfırla</Button>
           </div>
 
           <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-4 text-center">

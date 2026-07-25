@@ -5,7 +5,7 @@ import { Button, Input } from '@/components/ui'
 import { BADGE_DEFS } from '@/types'
 import type { User, Song, Badge } from '@/types'
 import { emitToast } from '@/hooks/useToast'
-import { Shield, Search, Trash2, Plus, X, Crown, Music, Users, Activity, Clock, TrendingUp, Disc, UserX } from 'lucide-react'
+import { Shield, Search, Trash2, Plus, X, Crown, Music, Users, Activity, Clock, TrendingUp, Disc, UserX, RotateCcw } from 'lucide-react'
 
 type Tab = 'users' | 'songs' | 'badges' | 'stats'
 
@@ -107,6 +107,13 @@ export default function AdminPage() {
     loadStats()
   }
 
+  async function resetUserProfile(targetUser: User) {
+    if (!confirm(`"${targetUser.username}" kullanıcısının profilini sıfırlamak istediğine emin misin? Avatar, banner ve biyografi silinecek.`)) return
+    const { error } = await supabase.from('users').update({ avatar_url: null, banner_url: null, bio: null, accent_color: null }).eq('id', targetUser.id)
+    if (error) { emitToast('Sıfırlama hatası: ' + error.message, 'error'); return }
+    emitToast(`${targetUser.username} profili sıfırlandı`, 'success')
+  }
+
   async function getUserBadges(userId: string): Promise<Badge[]> {
     const { data } = await supabase.from('badges').select('*').eq('user_id', userId)
     return data || []
@@ -185,7 +192,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {filteredUsers.map((u) => (
-                    <UserRow key={u.id} user={u} onToggleAdmin={() => toggleAdmin(u)} onGrantBadge={(type) => grantBadge(u, type)} onRevokeBadge={(b) => revokeBadge(b)} onDelete={() => deleteUser(u)} />
+                    <UserRow key={u.id} user={u} onToggleAdmin={() => toggleAdmin(u)} onGrantBadge={(type) => grantBadge(u, type)} onRevokeBadge={(b) => revokeBadge(b)} onDelete={() => deleteUser(u)} onResetProfile={() => resetUserProfile(u)} />
                   ))}
                 </tbody>
               </table>
@@ -315,7 +322,7 @@ export default function AdminPage() {
   )
 }
 
-function UserRow({ user, onToggleAdmin, onGrantBadge, onRevokeBadge, onDelete }: { user: User; onToggleAdmin: () => void; onGrantBadge: (type: string) => void; onRevokeBadge: (b: Badge) => void; onDelete: () => void }) {
+function UserRow({ user, onToggleAdmin, onGrantBadge, onRevokeBadge, onDelete, onResetProfile }: { user: User; onToggleAdmin: () => void; onGrantBadge: (type: string) => void; onRevokeBadge: (b: Badge) => void; onDelete: () => void; onResetProfile: () => void }) {
   const [badges, setBadges] = useState<Badge[]>([])
   const [showBadgePicker, setShowBadgePicker] = useState(false)
 
@@ -381,6 +388,9 @@ function UserRow({ user, onToggleAdmin, onGrantBadge, onRevokeBadge, onDelete }:
       </td>
       <td className="p-4 text-right">
         <div className="flex items-center justify-end gap-2">
+          <button onClick={onResetProfile} className="p-1.5 rounded-lg text-surface-500 hover:text-orange-400 hover:bg-orange-500/10 transition-colors" title="Profili Sıfırla">
+            <RotateCcw size={13} />
+          </button>
           <button onClick={onDelete} className="p-1.5 rounded-lg text-surface-500 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Kullanıcıyı Sil">
             <Trash2 size={13} />
           </button>
