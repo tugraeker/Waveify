@@ -3,6 +3,7 @@ import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
 import { Upload, Music, Check, AlertCircle, AudioWaveform, Users, Search, X } from 'lucide-react'
+import { trackUpload, awardXp } from '@/lib/achievements'
 
 type AppUser = { id: string; username: string; avatar_url?: string; email?: string }
 
@@ -123,6 +124,8 @@ export default function UploadPage() {
       }
 
       setUploaded(true)
+      trackUpload()
+      awardXp(10)
       setTimeout(resetForm, 2500)
     } catch (err: any) {
       setError(err.message || 'Bilinmeyen hata')

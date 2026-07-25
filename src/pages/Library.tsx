@@ -8,7 +8,8 @@ import AddToPlaylistModal from '@/components/AddToPlaylistModal'
 import { SongSkeleton } from '@/components/Skeleton'
 import { emitToast } from '@/hooks/useToast'
 import type { Song } from '@/types'
-import { Play, Music, AudioWaveform, Heart, Plus, ListMusic, SlidersHorizontal } from 'lucide-react'
+import { Play, Music, AudioWaveform, Heart, Plus, ListMusic, SlidersHorizontal, ArrowUpDown } from 'lucide-react'
+import { trackLike, awardXp, trackSongLiked } from '@/lib/achievements'
 
 export default function Library() {
   const { songs, setSongs, setQueue, setCurrentSong, currentSong, user, addToQueue } = useStore()
@@ -19,17 +20,22 @@ export default function Library() {
   const [filterGenre, setFilterGenre] = useState('')
   const [filterArtist, setFilterArtist] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [sortBy, setSortBy] = useState<'date' | 'title' | 'artist' | 'duration'>('date')
   const [loading, setLoading] = useState(true)
   const [ctxMenu, setCtxMenu] = useState<{ song: Song; x: number; y: number } | null>(null)
 
   const genres = [...new Set(songs.map((s) => s.genre).filter(Boolean))]
   const artists = [...new Set(songs.map((s) => s.artist).filter(Boolean))]
-  const filteredSongs = songs.filter((s) => {
+  let filteredSongs = songs.filter((s) => {
     if (filterText && !s.title.toLowerCase().includes(filterText.toLowerCase()) && !s.artist.toLowerCase().includes(filterText.toLowerCase())) return false
     if (filterGenre && s.genre !== filterGenre) return false
     if (filterArtist && s.artist !== filterArtist) return false
     return true
   })
+  if (sortBy === 'title') filteredSongs.sort((a, b) => a.title.localeCompare(b.title))
+  else if (sortBy === 'artist') filteredSongs.sort((a, b) => a.artist.localeCompare(b.artist))
+  else if (sortBy === 'duration') filteredSongs.sort((a, b) => b.duration - a.duration)
+  else filteredSongs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   useEffect(() => { fetchSongs(); fetchLikes() }, [])
 
@@ -60,6 +66,9 @@ export default function Library() {
       await supabase.from('likes').insert({ user_id: user.id, song_id: song.id })
       await supabase.from('songs').update({ likes_count: (song.likes_count || 0) + 1 }).eq('id', song.id)
       likedIds.add(song.id)
+      trackLike()
+      trackSongLiked(song.user_id, user.id)
+      awardXp(2)
       emitToast('Beğenildi!', 'success')
     }
     setLikedIds(new Set(likedIds))
@@ -95,6 +104,16 @@ export default function Library() {
             <option value="">Tüm Sanatçılar</option>
             {artists.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
+          {/* Sort */}
+          <div className="flex items-center gap-1.5 ml-auto">
+            <ArrowUpDown size={13} className="text-surface-500" />
+            {(['date', 'title', 'artist', 'duration'] as const).map((s) => (
+              <button key={s} onClick={() => setSortBy(s)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${sortBy === s ? 'bg-wave-500/10 text-wave-400' : 'text-surface-500 hover:text-white'}`}>
+                {s === 'date' ? 'Tarih' : s === 'title' ? 'İsim' : s === 'artist' ? 'Sanatçı' : 'Süre'}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { emitToast } from '@/hooks/useToast'
+import { trackChatMessage, awardXp } from '@/lib/achievements'
 import type { Socket } from 'socket.io-client'
 
 interface ChatMessage {
@@ -245,6 +246,8 @@ export function useChat(socket: Socket | null) {
   const sendMessage = useCallback((content: string) => {
     if (!activeChannel || !content.trim()) return
     socket?.emit('chat:send', { channelId: activeChannel, content: content.trim() })
+    trackChatMessage()
+    awardXp(1)
   }, [socket, activeChannel])
 
   const createServer = useCallback(async (name: string) => {

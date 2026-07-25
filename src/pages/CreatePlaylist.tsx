@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
 import type { Song } from '@/types'
 import { Check, Music2, Search, X } from 'lucide-react'
+import { trackPlaylist, awardXp } from '@/lib/achievements'
 
 export default function CreatePlaylist() {
   const navigate = useNavigate()
@@ -51,6 +52,8 @@ export default function CreatePlaylist() {
         }))
       )
       setPlaylists([...playlists, { ...playlist, type: 'custom' }])
+      trackPlaylist()
+      awardXp(5)
       navigate('/playlist')
     }
     setSaving(false)

@@ -6,6 +6,8 @@ import { formatDuration } from '@/lib/utils'
 import { Button, Input } from '@/components/ui'
 import SongEditModal from '@/components/SongEditModal'
 import type { Song, Badge, AccentColor } from '@/types'
+import { computeLevel } from '@/types'
+import { getXpTotal, getStats } from '@/lib/achievements'
 import {
   Play, Music2, LogOut, Upload, Edit3, Save, X, Camera,
   Pencil, Trash2, Heart, Award, Palette, Grid3X3, List,
@@ -296,7 +298,7 @@ export default function UserProfile() {
 
             {badges.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                {badges.map((b) => {
+                {badges.slice(0, 8).map((b) => {
                   const bg = b.color || '#14b8a6'
                   return (
                     <div key={b.id} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium shadow-sm backdrop-blur-sm"
@@ -306,6 +308,9 @@ export default function UserProfile() {
                     </div>
                   )
                 })}
+                {badges.length > 8 && (
+                  <span className="text-[10px] text-surface-500">+{badges.length - 8}</span>
+                )}
               </div>
             )}
 
@@ -338,6 +343,17 @@ export default function UserProfile() {
 
             <div className="flex items-center gap-5 mt-3 text-sm text-surface-400">
               <span><strong className="text-white">{stats.songs}</strong> şarkı</span>
+              {(() => {
+                const xp = getXpTotal()
+                const lv = computeLevel(xp)
+                return (
+                  <span className="flex items-center gap-1.5">
+                    <Award size={13} className="text-wave-400" />
+                    <strong className="text-white">Seviye {lv.level}</strong>
+                    <span className="text-[10px] text-surface-500">({lv.xp}/{lv.nextLevelXp} XP)</span>
+                  </span>
+                )
+              })()}
             </div>
           </div>
         </div>

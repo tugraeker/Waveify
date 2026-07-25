@@ -35,6 +35,7 @@ const Admin = lazy(() => import('@/pages/Admin'))
 const ChatPage = lazy(() => import('@/pages/Chat'))
 const ArtistPage = lazy(() => import('@/pages/ArtistPage'))
 const Discover = lazy(() => import('@/pages/Discover'))
+const BadgeGallery = lazy(() => import('@/pages/BadgeGallery'))
 
 const accentPalettes: Record<AccentColor, Record<string, string>> = {
   wave:   { '50': '238 251 250', '100': '213 245 242', '200': '174 234 229', '300': '106 217 210', '400': '34 199 192', '500': '15 171 166', '600': '9 139 136', '700': '12 111 109', '800': '15 89 88', '900': '18 74 73', '950': '3 45 45' },
@@ -177,6 +178,7 @@ export default function App() {
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/artist/:name" element={<ArtistPage />} />
               <Route path="/discover" element={<Discover />} />
+              <Route path="/badges" element={<BadgeGallery />} />
               <Route path="/auth" element={<Auth />} />
             </Routes>
           </Suspense>

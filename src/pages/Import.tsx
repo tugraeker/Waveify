@@ -4,6 +4,7 @@ import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
 import { Link2, Music2, Check, Globe, Loader2, AlertCircle } from 'lucide-react'
+import { trackImport, awardXp } from '@/lib/achievements'
 
 export default function Import() {
   const navigate = useNavigate()
@@ -73,6 +74,8 @@ export default function Import() {
       }] as any)
 
       if (dbError) throw new Error(`Veritabanı hatası: ${dbError.message}`)
+      trackImport()
+      awardXp(5)
       navigate('/library')
     } catch (e: any) {
       setError(e.message || 'Bir hata oluştu')

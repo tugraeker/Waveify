@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useStore } from '@/store/store'
 import { audioEngine } from '@/lib/audioEngine'
 import { supabase } from '@/lib/supabase'
-import { trackListen, updateStreak } from '@/lib/achievements'
+import { trackListen, updateStreak, awardXp } from '@/lib/achievements'
 import type { Song } from '@/types'
 
 export function useAudio() {
@@ -78,6 +78,7 @@ export function useAudio() {
     addToHistory(currentSong)
     trackListen()
     updateStreak()
+    awardXp(1)
     if (state.user) {
       Promise.all([
         supabase.from('listen_history').insert({ user_id: state.user!.id, song_id: currentSong.id }),

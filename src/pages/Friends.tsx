@@ -4,6 +4,7 @@ import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
 import { UserPlus, UserCheck, Clock, X, Users, Search, Trash2 } from 'lucide-react'
+import { trackFriend, awardXp } from '@/lib/achievements'
 
 interface FriendUser { id: string; username: string; email?: string }
 interface PendingReq { id: string; user_id: string; friend_id: string; status: string; created_at: string; user?: { id: string; username: string } }
@@ -53,6 +54,8 @@ export default function FriendsPage() {
   async function acceptRequest(friendUserId: string) {
     if (!user) return
     await supabase.from('friends').update({ status: 'accepted' }).eq('user_id', friendUserId).eq('friend_id', user.id)
+    trackFriend()
+    awardXp(15)
     fetchFriends()
   }
 
