@@ -14,10 +14,11 @@ let rpc: any = null
 let rpcReady = false
 let rpcReconnectTimer: ReturnType<typeof setTimeout> | null = null
 let rpcStartTime: number | null = null
+let downloadedUpdatePath: string | null = null
 
 const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID || '1337133713371337'
 
-autoUpdater.autoDownload = false
+autoUpdater.autoDownload = true
 autoUpdater.autoInstallOnAppQuit = true
 autoUpdater.setFeedURL({
   provider: 'generic',
@@ -44,6 +45,10 @@ autoUpdater.on('download-progress', (progress) => {
 })
 
 autoUpdater.on('update-downloaded', () => {
+  try {
+    const helper = (autoUpdater as any).downloadedUpdateHelper
+    if (helper?.file) downloadedUpdatePath = helper.file
+  } catch {}
   mainWindow?.webContents.send('update:downloaded')
 })
 
@@ -67,7 +72,21 @@ ipcMain.on('update:download', () => {
   autoUpdater.downloadUpdate()
 })
 
-ipcMain.on('update:install', () => {
+ipcMain.on('update:install', async () => {
+  const portableExe = process.env.PORTABLE_EXECUTABLE_FILE
+  if (portableExe && downloadedUpdatePath && fs.existsSync(downloadedUpdatePath)) {
+    try {
+      const exeName = path.basename(portableExe)
+      const exeDir = path.dirname(portableExe)
+      const destPath = path.join(exeDir, exeName)
+      fs.copyFileSync(downloadedUpdatePath, destPath)
+      spawn(destPath, [], { detached: true, stdio: 'ignore' }).unref()
+      app.quit()
+      return
+    } catch (e) {
+      console.error('[Update] portable replace error:', e)
+    }
+  }
   autoUpdater.quitAndInstall()
 })
 
