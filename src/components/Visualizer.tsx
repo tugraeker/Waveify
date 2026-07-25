@@ -11,7 +11,10 @@ interface Props {
 export default function Visualizer({ analyserData, isPlaying, className = '' }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<number>(0)
+  const dataRef = useRef(analyserData)
   const mode = useStore((s) => s.visualizerMode)
+
+  dataRef.current = analyserData
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -19,8 +22,13 @@ export default function Visualizer({ analyserData, isPlaying, className = '' }: 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    if (!isPlaying) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      return
+    }
+
     const draw = () => {
-      const data = analyserData
+      const data = dataRef.current
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       switch (mode) {
         case 'bars': drawBars(ctx, canvas, data); break
@@ -31,13 +39,11 @@ export default function Visualizer({ analyserData, isPlaying, className = '' }: 
       }
     }
 
-    if (isPlaying) {
+    draw()
+    animRef.current = requestAnimationFrame(function tick() {
       draw()
-      animRef.current = requestAnimationFrame(function tick() {
-        draw()
-        animRef.current = requestAnimationFrame(tick)
-      })
-    } else ctx.clearRect(0, 0, canvas.width, canvas.height)
+      animRef.current = requestAnimationFrame(tick)
+    })
     return () => cancelAnimationFrame(animRef.current)
   }, [isPlaying, mode])
 
@@ -45,7 +51,6 @@ export default function Visualizer({ analyserData, isPlaying, className = '' }: 
 }
 
 function drawBars(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: Uint8Array) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
   const bars = 64
   const w = canvas.width / bars
   for (let i = 0; i < bars; i++) {
@@ -65,11 +70,9 @@ function drawBars(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data
 }
 
 function drawWave(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: Uint8Array) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
   ctx.beginPath()
   ctx.strokeStyle = '#22c7c0'
   ctx.lineWidth = 2
-  const step = Math.floor(data.length / canvas.width)
   for (let x = 0; x < canvas.width; x++) {
     const i = Math.min(Math.floor(x * data.length / canvas.width), data.length - 1)
     const v = data[i] / 255
@@ -99,7 +102,6 @@ function drawParty(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, dat
 }
 
 function drawCircle(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: Uint8Array) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
   const cx = canvas.width / 2
   const cy = canvas.height / 2
   const radius = Math.min(cx, cy) * 0.4
@@ -118,7 +120,6 @@ function drawCircle(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, da
 }
 
 function drawFire(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: Uint8Array) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
   const bars = 32
   const w = canvas.width / bars
   for (let i = 0; i < bars; i++) {

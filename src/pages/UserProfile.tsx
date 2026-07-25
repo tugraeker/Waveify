@@ -47,6 +47,9 @@ export default function UserProfile() {
   const [accentColor, setAccentColor] = useState<AccentColor>('wave')
   const [showColors, setShowColors] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const [density, setDensity] = useState<'compact' | 'normal'>('normal')
+  const [showStats, setShowStats] = useState(true)
+  const [profileBg, setProfileBg] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [sortedSongs, setSortedSongs] = useState<Song[]>([])
 
@@ -78,13 +81,19 @@ export default function UserProfile() {
   }
   seenAlbums.forEach((songs, name) => albumGroups.push({ name, songs }))
 
-  // Load saved accent color
+  // Load saved display settings
   useEffect(() => {
     try {
       const saved = localStorage.getItem('waveify_accent')
       if (saved) setAccentColor(saved as AccentColor)
       const savedView = localStorage.getItem('waveify_profile_view')
       if (savedView) setViewMode(savedView as 'list' | 'grid')
+      const savedDensity = localStorage.getItem('waveify_profile_density')
+      if (savedDensity) setDensity(savedDensity as 'compact' | 'normal')
+      const savedShowStats = localStorage.getItem('waveify_profile_show_stats')
+      if (savedShowStats !== null) setShowStats(savedShowStats === 'true')
+      const savedBg = localStorage.getItem('waveify_profile_bg')
+      if (savedBg) setProfileBg(savedBg)
     } catch {}
   }, [])
 
@@ -207,7 +216,7 @@ export default function UserProfile() {
   if (loading) return <div className="p-8 flex items-center justify-center h-full text-surface-500"><p>Yükleniyor...</p></div>
 
   return (
-    <div className="overflow-y-auto h-full scrollbar-thin animate-fade-in">
+    <div className="overflow-y-auto h-full scrollbar-thin animate-fade-in" style={profileBg ? { backgroundColor: profileBg } : {}}>
       {/* Banner */}
       <div className="relative h-56 md:h-72 flex-shrink-0 bg-gradient-to-br from-surface-900 via-surface-800 to-surface-900">
         {bannerUrl ? (
@@ -360,18 +369,69 @@ export default function UserProfile() {
             </div>
           </div>
 
-          {/* Display settings */}
-          <div className="flex items-center justify-between">
+          {/* View mode */}
+          <div className="flex items-center justify-between mb-4">
             <span className="text-xs text-surface-400">Görünüm</span>
             <div className="flex bg-surface-800 rounded-lg p-0.5">
-              <button onClick={() => { setViewMode('list'); try { localStorage.setItem('waveify_profile_view', 'list') } catch {} }}
+              <button onClick={() => { setViewMode('list'); localStorage.setItem('waveify_profile_view', 'list') }}
                 className={`px-3 py-1.5 rounded-md text-xs transition-all ${viewMode === 'list' ? 'bg-wave-500/20 text-wave-400' : 'text-surface-400 hover:text-white'}`}>
                 <List size={14} className="inline mr-1" />Liste
               </button>
-              <button onClick={() => { setViewMode('grid'); try { localStorage.setItem('waveify_profile_view', 'grid') } catch {} }}
+              <button onClick={() => { setViewMode('grid'); localStorage.setItem('waveify_profile_view', 'grid') }}
                 className={`px-3 py-1.5 rounded-md text-xs transition-all ${viewMode === 'grid' ? 'bg-wave-500/20 text-wave-400' : 'text-surface-400 hover:text-white'}`}>
                 <Grid3X3 size={14} className="inline mr-1" />Izgara
               </button>
+            </div>
+          </div>
+
+          {/* Density */}
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs text-surface-400">Yoğunluk</span>
+            <div className="flex bg-surface-800 rounded-lg p-0.5">
+              <button onClick={() => { setDensity('compact'); localStorage.setItem('waveify_profile_density', 'compact') }}
+                className={`px-3 py-1.5 rounded-md text-xs transition-all ${density === 'compact' ? 'bg-wave-500/20 text-wave-400' : 'text-surface-400 hover:text-white'}`}>
+                Sıkı
+              </button>
+              <button onClick={() => { setDensity('normal'); localStorage.setItem('waveify_profile_density', 'normal') }}
+                className={`px-3 py-1.5 rounded-md text-xs transition-all ${density === 'normal' ? 'bg-wave-500/20 text-wave-400' : 'text-surface-400 hover:text-white'}`}>
+                Normal
+              </button>
+            </div>
+          </div>
+
+          {/* Show stats */}
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs text-surface-400">İstatistikler</span>
+            <button
+              onClick={() => {
+                const next = !showStats
+                setShowStats(next)
+                localStorage.setItem('waveify_profile_show_stats', String(next))
+              }}
+              className={`relative w-10 h-5 rounded-full transition-colors ${showStats ? 'bg-wave-500' : 'bg-surface-700'}`}
+            >
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showStats ? 'translate-x-5' : 'translate-x-0.5'}`} />
+            </button>
+          </div>
+
+          {/* Background color */}
+          <div>
+            <span className="text-xs text-surface-400 block mb-2">Arkaplan Rengi</span>
+            <div className="flex gap-2">
+              {['#121216', '#1a1a2e', '#16213e', '#1b2838', '#2d1b36', '#1b1b1b'].map((c) => (
+                <button
+                  key={c}
+                  onClick={() => { setProfileBg(c); localStorage.setItem('waveify_profile_bg', c) }}
+                  className={`w-7 h-7 rounded-full border-2 transition-all ${profileBg === c ? 'border-white scale-110' : 'border-transparent hover:scale-110'}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+              <input
+                type="color"
+                value={profileBg || '#121216'}
+                onChange={(e) => { setProfileBg(e.target.value); localStorage.setItem('waveify_profile_bg', e.target.value) }}
+                className="w-7 h-7 rounded-full cursor-pointer border-0 bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-full"
+              />
             </div>
           </div>
         </div>
