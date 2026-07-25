@@ -3,8 +3,11 @@ export interface User {
   username: string
   email: string
   avatar_url?: string
+  banner_url?: string
   bio?: string
   is_admin?: boolean
+  accent_color?: AccentColor
+  display_settings?: Record<string, any>
   created_at: string
 }
 

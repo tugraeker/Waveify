@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { useAudio } from '@/hooks/useAudio'
@@ -12,7 +12,7 @@ import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
   Volume2, ChevronDown, Heart, Music2, Disc3, X,
   BarChart3, Waves, Circle, Flame, Radio,
-  Maximize2,
+  Maximize2, Share2,
 } from 'lucide-react'
 import type { VisualizerMode } from '@/types'
 
@@ -36,6 +36,16 @@ export default function NowPlaying() {
   const [seekValue, setSeekValue] = useState(0)
   const [showSleep, setShowSleep] = useState(false)
   const [relatedSongs, setRelatedSongs] = useState<Song[]>([])
+  const shareSong = useCallback(() => {
+    if (!currentSong) return
+    const base = import.meta.env.VITE_PUBLIC_URL || 'https://waveify.app'
+    navigator.clipboard.writeText(`${base}/song/${currentSong.id}`)
+    const toast = document.createElement('div')
+    toast.className = 'fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-xl bg-surface-800 border border-surface-700 text-sm text-white shadow-2xl animate-fade-in'
+    toast.textContent = 'Link kopyalandı'
+    document.body.appendChild(toast)
+    setTimeout(() => toast.remove(), 1500)
+  }, [currentSong])
 
   // Check like status
   useEffect(() => {
@@ -200,6 +210,9 @@ export default function NowPlaying() {
             <div className="flex items-center justify-between px-2">
               <button onClick={toggleLike} className="transition-colors">
                 <Heart size={17} className={liked ? 'fill-wave-400 text-wave-400' : 'text-surface-500 hover:text-wave-400'} />
+              </button>
+              <button onClick={shareSong} className="text-surface-500 hover:text-wave-400 transition-colors" title="Paylaş">
+                <Share2 size={15} />
               </button>
               <div className="flex items-center gap-3">
                 <button onClick={() => setShowEq(!showEq)} className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${showEq ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20' : 'text-surface-400 hover:text-white border border-transparent'}`}>

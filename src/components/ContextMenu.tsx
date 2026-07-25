@@ -52,7 +52,7 @@ export default function ContextMenu({ song, x, y, onClose, onAddToPlaylist }: Pr
     }},
     { icon: User, label: 'Sanatçı Sayfası', action: () => { navigate(`/search?q=${encodeURIComponent(song.artist)}`); onClose() } },
     { icon: Copy, label: 'Linki Kopyala', action: () => {
-      const base = import.meta.env.VITE_PUBLIC_URL || window.location.origin
+      const base = import.meta.env.VITE_PUBLIC_URL || 'https://waveify.app'
       navigator.clipboard.writeText(`${base}/song/${song.id}`)
       emitToast('Link kopyalandı', 'success')
       onClose()

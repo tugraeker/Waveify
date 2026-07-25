@@ -60,6 +60,11 @@ export function useAudio() {
   useEffect(() => {
     if (!currentSong || !currentSong.audio_url) return
     if (prevSongId.current === currentSong.id && audioEngine.isPlaying()) return
+    if (audioEngine.currentUrl === currentSong.audio_url) {
+      setDuration(currentSong.duration || 0)
+      setIsPlaying(audioEngine.isPlaying())
+      return
+    }
     prevSongId.current = currentSong.id
     const state = useStore.getState()
     if (state.crossfade && state.isPlaying && audioEngine.isPlayingState) {
