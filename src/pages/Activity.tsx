@@ -35,15 +35,22 @@ export default function ActivityPage() {
       const currentPage = reset ? 1 : page
       const from = (currentPage - 1) * PAGE_SIZE
       const to = from + PAGE_SIZE - 1
-      const { data } = await supabase
+      const { data: actData } = await supabase
         .from('activities')
-        .select('*, user:users(*), song:songs(*)')
+        .select('*, user:users(*)')
         .in('user_id', ids)
         .order('created_at', { ascending: false })
         .range(from, to)
-      if (data) {
-        setActivities(prev => reset ? (data as any) : [...prev, ...(data as any)])
-        setHasMore(data.length === PAGE_SIZE)
+      if (actData) {
+        const songIds = actData.filter((a: any) => a.song_id).map((a: any) => a.song_id).filter(Boolean)
+        const songs: Record<string, any> = {}
+        if (songIds.length > 0) {
+          const { data: songData } = await supabase.from('songs').select('*').in('id', songIds)
+          if (songData) songData.forEach((s: any) => songs[s.id] = s)
+        }
+        const enriched = actData.map((a: any) => ({ ...a, song: songs[a.song_id] || null }))
+        setActivities(prev => reset ? enriched : [...prev, ...enriched])
+        setHasMore(actData.length === PAGE_SIZE)
       }
     } catch {} finally { setLoading(false) }
   }

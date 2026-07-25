@@ -21,8 +21,8 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!me) return
-    supabase.rpc('admin_check').then(({ data, error }) => {
-      if (!error && data === true) setIsAdmin(true)
+    supabase.from('users').select('is_admin').eq('id', me.id).single().then(({ data, error }) => {
+      if (!error && data?.is_admin === true) setIsAdmin(true)
       else setIsAdmin(false)
       setLoading(false)
     })
@@ -36,67 +36,36 @@ export default function AdminPage() {
   }, [isAdmin])
 
   async function loadStats() {
-    const { data, error } = await supabase.rpc('admin_get_stats')
-    if (!error && data) {
-      const s = data as any
-      setStats({ users: s.users || 0, songs: s.songs || 0, plays: s.plays || 0 })
-    } else {
-      // Fallback: count directly
-      try {
-        const [u, s, p] = await Promise.all([
-          supabase.from('users').select('*', { count: 'exact', head: true }),
-          supabase.from('songs').select('*', { count: 'exact', head: true }),
-          supabase.from('listen_history').select('*', { count: 'exact', head: true }),
-        ])
-        setStats({ users: u.count || 0, songs: s.count || 0, plays: p.count || 0 })
-      } catch {
-        setStats({ users: 0, songs: 0, plays: 0 })
-      }
+    try {
+      const [u, s, p] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('songs').select('*', { count: 'exact', head: true }),
+        supabase.from('listen_history').select('*', { count: 'exact', head: true }),
+      ])
+      setStats({ users: u.count || 0, songs: s.count || 0, plays: p.count || 0 })
+    } catch {
+      setStats({ users: 0, songs: 0, plays: 0 })
     }
   }
 
   async function loadUsers() {
-    const [usersRes, statsRes] = await Promise.all([
-      supabase.rpc('admin_get_users'),
-      supabase.rpc('admin_get_user_stats'),
-    ])
-    if (usersRes.data) {
-      const statsMap: Record<string, { song_count: number; play_count: number }> = {}
-      if (statsRes.data) {
-        for (const row of statsRes.data as any[]) {
-          statsMap[row.user_id] = { song_count: Number(row.song_count) || 0, play_count: Number(row.play_count) || 0 }
-        }
-      } else if (statsRes.error) {
-        // Fallback: fetch song counts per user directly
-        const { data: songs } = await supabase.from('songs').select('user_id')
-        if (songs) {
-          const counts: Record<string, number> = {}
-          songs.forEach((s: any) => { counts[s.user_id] = (counts[s.user_id] || 0) + 1 })
-          usersRes.data.forEach((u: any) => {
-            statsMap[u.id] = { song_count: counts[u.id] || 0, play_count: 0 }
-          })
-        }
-      }
-      setUsers((usersRes.data as any[]).map((u: any) => ({
-        ...u,
-        song_count: statsMap[u.id]?.song_count || 0,
-        play_count: statsMap[u.id]?.play_count || 0,
-      })))
+    const { data: usersData } = await supabase.from('users').select('*').order('created_at', { ascending: false }).limit(100)
+    if (usersData) {
+      const { data: songs } = await supabase.from('songs').select('user_id')
+      const counts: Record<string, number> = {}
+      if (songs) songs.forEach((s: any) => { counts[s.user_id] = (counts[s.user_id] || 0) + 1 })
+      setUsers(usersData.map((u: any) => ({ ...u, song_count: counts[u.id] || 0, play_count: 0 })))
     }
     setLoading(false)
   }
 
   async function loadSongs() {
-    const { data } = await supabase.rpc('admin_get_songs')
+    const { data } = await supabase.from('songs').select('*, user:user_id(id, username)').order('created_at', { ascending: false }).limit(100)
     if (data) setSongs(data as any)
-    else {
-      const { data: fallback } = await supabase.from('songs').select('*, user:user_id(id, username)').order('created_at', { ascending: false }).limit(100)
-      if (fallback) setSongs(fallback as any)
-    }
   }
 
   async function toggleAdmin(targetUser: User) {
-    const { error } = await supabase.rpc('admin_toggle_admin', { target_user_id: targetUser.id })
+    const { error } = await supabase.from('users').update({ is_admin: !targetUser.is_admin }).eq('id', targetUser.id)
     if (error) { emitToast('Hata: ' + error.message, 'error'); return }
     setUsers((prev) => prev.map((u) => u.id === targetUser.id ? { ...u, is_admin: !targetUser.is_admin } : u))
     emitToast(`${targetUser.username} ${targetUser.is_admin ? 'admin yetkisi alındı' : 'admin yapıldı'}`, 'success')
@@ -104,7 +73,7 @@ export default function AdminPage() {
 
   async function deleteSong(song: Song) {
     if (!confirm(`"${song.title}" silinsin mi?`)) return
-    const { error } = await supabase.rpc('admin_delete_song', { song_id: song.id })
+    const { error } = await supabase.from('songs').delete().eq('id', song.id)
     if (error) { emitToast('Hata: ' + error.message, 'error'); return }
     setSongs((prev) => prev.filter((s) => s.id !== song.id))
     emitToast('Şarkı silindi', 'success')
@@ -131,7 +100,7 @@ export default function AdminPage() {
 
   async function deleteUser(targetUser: User) {
     if (!confirm(`"${targetUser.username}" kullanıcısını ve tüm şarkılarını silmek istediğine emin misin?`)) return
-    const { error } = await supabase.rpc('admin_delete_user', { target_user_id: targetUser.id })
+    const { error } = await supabase.from('users').delete().eq('id', targetUser.id)
     if (error) { emitToast('Silme hatası: ' + error.message, 'error'); return }
     emitToast('Kullanıcı silindi', 'success')
     loadUsers()

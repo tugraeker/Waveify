@@ -56,7 +56,7 @@ export default function Home() {
     try {
       const { data: activities, error: actError } = await supabase
         .from('activities')
-        .select('*, user:user_id(id, username, avatar_url), song:song_id(*)')
+        .select('*, user:user_id(id, username, avatar_url)')
         .in('user_id', Array.from(friendIds))
         .order('created_at', { ascending: false })
         .limit(20)
@@ -64,7 +64,15 @@ export default function Home() {
         console.warn('Friend activity fetch error:', actError.message)
         return
       }
-      if (activities) setFriendActivity(activities as any)
+      if (activities) {
+        const songIds = activities.filter((a: any) => a.song_id).map((a: any) => a.song_id).filter(Boolean)
+        const songs: Record<string, any> = {}
+        if (songIds.length > 0) {
+          const { data: songData } = await supabase.from('songs').select('*').in('id', songIds)
+          if (songData) songData.forEach((s: any) => songs[s.id] = s)
+        }
+        setFriendActivity(activities.map((a: any) => ({ ...a, song: songs[a.song_id] || null })) as any)
+      }
     } catch (e: any) {
       console.warn('Friend activity error:', e?.message || e)
     }

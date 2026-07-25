@@ -216,26 +216,33 @@ export default function UserProfile() {
     try {
       const ext = file.name.split('.').pop()
       const fileName = `${currentUser.id}-${prefix}.${ext}`
-      const reader = new FileReader()
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => { const r = reader.result as string; resolve(r.split(',')[1] || r) }
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-      const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'}/api/upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bucket: 'covers', fileBase64: base64, fileName, contentType: file.type }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Yükleme başarısız')
-      await supabase.from('users').update({ [field]: data.publicUrl }).eq('id', currentUser.id)
-      setUrl(data.publicUrl)
-      setUser({ ...currentUser, [field]: data.publicUrl })
+      const { error: upErr } = await supabase.storage.from('covers').upload(fileName, file, { upsert: true })
+      if (upErr) {
+        if (upErr.message?.includes('duplicate')) {
+          const { error: rmErr } = await supabase.storage.from('covers').remove([fileName])
+          if (!rmErr) {
+            const { error: retryErr } = await supabase.storage.from('covers').upload(fileName, file)
+            if (retryErr) throw new Error(retryErr.message)
+          } else throw new Error(upErr.message)
+        } else if (upErr.message?.includes('policy') || upErr.message?.includes('security') || upErr.message?.includes('RLS') || upErr.message?.includes('violates')) {
+          throw new Error('Supabase Storage RLS izin vermiyor. Lütfen Supabase SQL Editor\'da şu SQL\'i çalıştır:\n\n' +
+            'INSERT INTO storage.buckets (id,name,public) VALUES (\'covers\',\'covers\',true) ON CONFLICT DO NOTHING;\n' +
+            'DROP POLICY IF EXISTS "Allow upload covers" ON storage.objects;\n' +
+            'CREATE POLICY "Allow upload covers" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id=\'covers\');\n' +
+            'DROP POLICY IF EXISTS "Allow read covers" ON storage.objects;\n' +
+            'CREATE POLICY "Allow read covers" ON storage.objects FOR SELECT TO public USING (bucket_id=\'covers\');\n' +
+            'DROP POLICY IF EXISTS "Allow delete covers" ON storage.objects;\n' +
+            'CREATE POLICY "Allow delete covers" ON storage.objects FOR DELETE TO authenticated USING (bucket_id=\'covers\');')
+        } else throw new Error(upErr.message)
+      }
+      const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(fileName)
+      await supabase.from('users').update({ [field]: publicUrl }).eq('id', currentUser.id)
+      setUrl(publicUrl)
+      setUser({ ...currentUser, [field]: publicUrl })
       inputKeySetter(prev => prev + 1)
     } catch (e: any) {
       console.error('Upload error:', e)
-      alert('Yükleme hatası: ' + e.message)
+      alert(e.message)
     } finally { setUploading(false) }
   }
 

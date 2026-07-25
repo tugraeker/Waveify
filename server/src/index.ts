@@ -709,12 +709,11 @@ app.get('/api/get-audio-url', async (req, res) => {
   }
 })
 
-// Upload to Supabase Storage via service role (bypasses RLS)
+// Upload to Supabase Storage via backend (bypasses RLS if service key is set)
 app.post('/api/upload', async (req, res) => {
   try {
     const { bucket, fileBase64, fileName, contentType } = req.body
     if (!bucket || !fileBase64 || !fileName) return res.status(400).json({ error: 'bucket, fileBase64, fileName gerekli' })
-    if (!isServiceKey) return res.status(400).json({ error: 'Service role key gerekli' })
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
     const buffer = Buffer.from(fileBase64, 'base64')
     const { error: upErr } = await supabase.storage.from(bucket).upload(fileName, buffer, {
