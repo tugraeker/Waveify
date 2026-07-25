@@ -18,7 +18,7 @@ function badgeIcon(def: LooseBadgeDef) {
     star: Star, verified: Award, artist: Medal, dj: Music,
     mod: Shield, vip: Trophy, early: Sparkles, contributor: Award,
     beta: Shield, hall: Trophy, ambassador: Award, legend: Medal,
-    supporter: Heart,
+    supporter: Heart, producer: Music,
   }
   return map[def.icon] || Award
 }

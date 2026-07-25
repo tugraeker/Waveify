@@ -216,23 +216,26 @@ export default function UserProfile() {
     try {
       const ext = file.name.split('.').pop()
       const fileName = `${currentUser.id}-${prefix}.${ext}`
-      const { error: upErr } = await supabase.storage.from('covers').upload(fileName, file, { upsert: true })
-      if (upErr && upErr.message?.includes('duplicate')) {
-        const { error: rmErr } = await supabase.storage.from('covers').remove([fileName])
-        if (!rmErr) {
-          const { error: retryErr } = await supabase.storage.from('covers').upload(fileName, file)
-          if (retryErr) throw new Error(retryErr.message)
-        } else throw new Error(upErr.message)
-      } else if (upErr) throw new Error(upErr.message)
-      const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(fileName)
-      await supabase.from('users').update({ [field]: publicUrl }).eq('id', currentUser.id)
-      setUrl(publicUrl)
-      setUser({ ...currentUser, [field]: publicUrl })
+      const reader = new FileReader()
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => { const r = reader.result as string; resolve(r.split(',')[1] || r) }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'}/api/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bucket: 'covers', fileBase64: base64, fileName, contentType: file.type }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Yükleme başarısız')
+      await supabase.from('users').update({ [field]: data.publicUrl }).eq('id', currentUser.id)
+      setUrl(data.publicUrl)
+      setUser({ ...currentUser, [field]: data.publicUrl })
       inputKeySetter(prev => prev + 1)
     } catch (e: any) {
-      if (e.message?.includes('policy') || e.message?.includes('security') || e.message?.includes('RLS'))
-        alert('Supabase Storage RLS engelliyor. migration_v13_storage_rls.sql dosyasını Supabase SQL Editor\'da çalıştır.')
-      else console.error('Upload error:', e)
+      console.error('Upload error:', e)
+      alert('Yükleme hatası: ' + e.message)
     } finally { setUploading(false) }
   }
 

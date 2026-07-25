@@ -153,6 +153,7 @@ export const BADGE_DEFS: { type: string; label: string; color: string; category:
   { type: 'verified', label: 'Doğrulanmış Hesap', color: '#3b82f6', category: 'admin', desc: 'Resmi olarak doğrulanmış hesap', icon: 'verified' },
   { type: 'artist', label: 'Sanatçı', color: '#8b5cf6', category: 'admin', desc: 'Platform sanatçısı', icon: 'artist' },
   { type: 'dj', label: 'DJ', color: '#22c7c0', category: 'admin', desc: 'DJ rütbesi', icon: 'dj' },
+  { type: 'producer', label: 'Prodüktör', color: '#a855f7', category: 'admin', desc: 'Müzik prodüktörü', icon: 'producer' },
   { type: 'moderator', label: 'Moderatör', color: '#10b981', category: 'admin', desc: 'Topluluk moderatörü', icon: 'mod' },
   { type: 'vip', label: 'VIP', color: '#f59e0b', category: 'admin', desc: 'Özel üye', icon: 'vip' },
   { type: 'early', label: 'Erken Kuş', color: '#ec4899', category: 'admin', desc: 'İlk kullanıcılardan', icon: 'early' },

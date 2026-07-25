@@ -55,7 +55,7 @@
       "artifactName": "Waveify-${version}-portable.exe",
       "splashImage": null
     },
-    "generateUpdatesFilesForAll": true,
+    "generateUpdatesFilesForAllChannels": true,
     "publish": [
       {
         "provider": "github",
