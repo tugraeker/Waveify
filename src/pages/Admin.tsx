@@ -327,9 +327,9 @@ function UserRow({ user, onToggleAdmin, onGrantBadge, onRevokeBadge, onDelete, o
   const [showBadgePicker, setShowBadgePicker] = useState(false)
 
   useEffect(() => {
-    supabase.from('badges').select('*').eq('user_id', user.id).then(({ data }) => {
-      if (data) setBadges(data)
-    })
+    (async () => {
+      try { const { data } = await supabase.from('badges').select('*').eq('user_id', user.id); if (data) setBadges(data) } catch {}
+    })()
   }, [user.id])
 
   return (

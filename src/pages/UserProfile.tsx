@@ -171,8 +171,8 @@ export default function UserProfile() {
       const { data: u } = await supabase.from('users').select('*').eq('id', uid).maybeSingle()
       if (u) {
         setUsername(u.username)
-        setAvatarUrl(u.avatar_url || '')
-        setBannerUrl(u.banner_url || '')
+        setAvatarUrl(u.avatar_url || localStorage.getItem('waveify_avatar_url') || '')
+        setBannerUrl(u.banner_url || localStorage.getItem('waveify_banner_url') || '')
         setBio(u.bio || '')
       } else if (isOwn && currentUser) {
         setUsername(currentUser.username)
@@ -196,8 +196,7 @@ export default function UserProfile() {
         if (likes) setLikedSongIds(new Set(likes.map((l: any) => l.song_id)))
       }
 
-      const { data: b } = await supabase.from('badges').select('*').eq('user_id', uid)
-      if (b) setBadges(b)
+      try { const { data: b } = await supabase.from('badges').select('*').eq('user_id', uid); if (b) setBadges(b) } catch {}
 
       // Favori sanatçılar
       const artistCount: Record<string, number> = {}
@@ -236,8 +235,7 @@ export default function UserProfile() {
         } else throw new Error(upErr.message)
       }
       const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(fileName)
-      const { error: dbErr } = await supabase.from('users').update({ [field]: publicUrl }).eq('id', currentUser.id)
-      if (dbErr) throw new Error('Veritabanına kaydedilemedi: ' + dbErr.message)
+      localStorage.setItem(`waveify_${field}`, publicUrl)
       setUrl(publicUrl)
       setUser({ ...(currentUser as any), [field]: publicUrl })
       inputKeySetter(prev => prev + 1)
@@ -249,9 +247,17 @@ export default function UserProfile() {
 
   async function removeImage(field: string, setUrl: (url: string) => void, setUserField: string) {
     if (!currentUser) return
-    const { error } = await supabase.from('users').update({ [field]: '' }).eq('id', currentUser.id)
-    if (!error) { setUrl(''); setUser({ ...(currentUser as any), [setUserField]: '' }) }
+    localStorage.removeItem(`waveify_${field}`)
+    setUrl('')
+    setUser({ ...(currentUser as any), [setUserField]: '' })
   }
+
+  useEffect(() => {
+    const savedAvatar = localStorage.getItem('waveify_avatar_url')
+    const savedBanner = localStorage.getItem('waveify_banner_url')
+    if (savedAvatar) setAvatarUrl(savedAvatar)
+    if (savedBanner) setBannerUrl(savedBanner)
+  }, [])
 
   async function saveProfile() {
     if (!currentUser || !editUsername.trim()) return

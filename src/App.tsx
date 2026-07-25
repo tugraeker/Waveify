@@ -116,15 +116,16 @@ export default function App() {
   }, [])
 
   async function restoreUser(authUser: any) {
-    const { data: profile } = await supabase.from('users').select('*').eq('id', authUser.id).maybeSingle()
+    let profile: any = null
+    try { const r = await supabase.from('users').select('id,username,avatar_url,banner_url,bio').eq('id', authUser.id).maybeSingle(); profile = r.data } catch {}
     let isAdmin = false
     try { const r = await supabase.from('users').select('is_admin').eq('id', authUser.id).single(); isAdmin = r.data?.is_admin === true } catch {}
     setUser({
       id: authUser.id,
       email: authUser.email || '',
       username: profile?.username || authUser.user_metadata?.username || authUser.email?.split('@')[0] || 'User',
-      avatar_url: profile?.avatar_url || '',
-      banner_url: profile?.banner_url || '',
+      avatar_url: profile?.avatar_url || localStorage.getItem('waveify_avatar_url') || '',
+      banner_url: profile?.banner_url || localStorage.getItem('waveify_banner_url') || '',
       is_admin: isAdmin,
       created_at: authUser.created_at,
     })
