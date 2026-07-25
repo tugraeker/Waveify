@@ -42,11 +42,14 @@ autoUpdater.on('download-progress', (progress) => {
   mainWindow?.webContents.send('update:progress', progress)
 })
 
-autoUpdater.on('update-downloaded', () => {
+autoUpdater.on('update-downloaded', (info) => {
   try {
     const helper = (autoUpdater as any).downloadedUpdateHelper
     if (helper?.file) downloadedUpdatePath = helper.file
   } catch {}
+  if (!downloadedUpdatePath && (info as any)?.downloadedFile) {
+    downloadedUpdatePath = (info as any).downloadedFile
+  }
   mainWindow?.webContents.send('update:downloaded')
 })
 
@@ -72,22 +75,20 @@ ipcMain.on('update:download', () => {
   autoUpdater.downloadUpdate()
 })
 
-ipcMain.on('update:install', async () => {
+function applyPortableUpdate() {
   const portableExe = process.env.PORTABLE_EXECUTABLE_FILE
-  if (portableExe && downloadedUpdatePath && fs.existsSync(downloadedUpdatePath)) {
-    try {
-      const exeDir = path.dirname(portableExe)
-      const exeName = path.basename(portableExe)
-      const oldExe = path.join(exeDir, exeName)
-      const oldExeBackup = path.join(exeDir, `${exeName}.bak`)
-      const batPath = path.join(exeDir, `update-${Date.now()}.bat`)
+  if (!portableExe || !downloadedUpdatePath || !fs.existsSync(downloadedUpdatePath)) return false
+  try {
+    const exeDir = path.dirname(portableExe)
+    const exeName = path.basename(portableExe)
+    const oldExe = path.join(exeDir, exeName)
+    const oldExeBackup = path.join(exeDir, `${exeName}.bak`)
+    const batPath = path.join(exeDir, `update-${Date.now()}.bat`)
 
-      // Rename current exe (allowable on Windows since the running exe is locked by name, not inode)
-      if (fs.existsSync(oldExeBackup)) fs.unlinkSync(oldExeBackup)
-      fs.renameSync(oldExe, oldExeBackup)
+    if (fs.existsSync(oldExeBackup)) fs.unlinkSync(oldExeBackup)
+    fs.renameSync(oldExe, oldExeBackup)
 
-      // Write batch script: wait for this process to exit, copy new exe, start it, clean up
-      const batContent = `@echo off
+    const batContent = `@echo off
 :wait
 tasklist /FI "PID eq ${process.pid}" 2>NUL | find /I /N "${process.pid}" >NUL
 if not errorlevel 1 (
@@ -98,21 +99,36 @@ copy /Y "${downloadedUpdatePath}" "${oldExe}" >NUL
 start "" "${oldExe}"
 del "%~f0"
 `
-      fs.writeFileSync(batPath, batContent)
-      spawn(batPath, [], { detached: true, stdio: 'ignore', windowsHide: true }).unref()
-      app.quit()
-      return
-    } catch (e) {
-      console.error('[Update] portable replace error:', e)
-      // Restore backup if possible
-      try {
-        const oldExe = path.join(path.dirname(portableExe), path.basename(portableExe))
-        const backup = oldExe + '.bak'
-        if (fs.existsSync(backup) && !fs.existsSync(oldExe)) fs.renameSync(backup, oldExe)
-      } catch {}
-    }
+    fs.writeFileSync(batPath, batContent)
+    spawn(batPath, [], { detached: true, stdio: 'ignore', windowsHide: true }).unref()
+    return true
+  } catch (e) {
+    console.error('[Update] portable replace error:', e)
+    try {
+      const oldExe = path.join(path.dirname(portableExe), path.basename(portableExe))
+      const backup = oldExe + '.bak'
+      if (fs.existsSync(backup) && !fs.existsSync(oldExe)) fs.renameSync(backup, oldExe)
+    } catch {}
+    return false
+  }
+}
+
+ipcMain.on('update:install', () => {
+  if (applyPortableUpdate()) {
+    app.quit()
+    return
   }
   autoUpdater.quitAndInstall()
+})
+
+// Auto-install on quit for portable
+app.on('before-quit', (event) => {
+  if (isQuitting) return
+  if (!downloadedUpdatePath || !process.env.PORTABLE_EXECUTABLE_FILE) return
+  isQuitting = true
+  event.preventDefault()
+  applyPortableUpdate()
+  app.exit()
 })
 
 async function initDiscordRPC(retries = 3) {
