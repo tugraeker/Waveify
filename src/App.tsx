@@ -117,13 +117,15 @@ export default function App() {
 
   async function restoreUser(authUser: any) {
     const { data: profile } = await supabase.from('users').select('*').eq('id', authUser.id).maybeSingle()
-    const { data: adminCheck } = await supabase.rpc('admin_check')
+    let isAdmin = false
+    try { const r = await supabase.from('users').select('is_admin').eq('id', authUser.id).single(); isAdmin = r.data?.is_admin === true } catch {}
     setUser({
       id: authUser.id,
       email: authUser.email || '',
       username: profile?.username || authUser.user_metadata?.username || authUser.email?.split('@')[0] || 'User',
       avatar_url: profile?.avatar_url || '',
-      is_admin: adminCheck === true,
+      banner_url: profile?.banner_url || '',
+      is_admin: isAdmin,
       created_at: authUser.created_at,
     })
   }

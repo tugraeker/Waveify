@@ -236,9 +236,10 @@ export default function UserProfile() {
         } else throw new Error(upErr.message)
       }
       const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(fileName)
-      await supabase.from('users').update({ [field]: publicUrl }).eq('id', currentUser.id)
+      const { error: dbErr } = await supabase.from('users').update({ [field]: publicUrl }).eq('id', currentUser.id)
+      if (dbErr) throw new Error('Veritabanına kaydedilemedi: ' + dbErr.message)
       setUrl(publicUrl)
-      setUser({ ...currentUser, [field]: publicUrl })
+      setUser({ ...(currentUser as any), [field]: publicUrl })
       inputKeySetter(prev => prev + 1)
     } catch (e: any) {
       console.error('Upload error:', e)
@@ -249,7 +250,7 @@ export default function UserProfile() {
   async function removeImage(field: string, setUrl: (url: string) => void, setUserField: string) {
     if (!currentUser) return
     const { error } = await supabase.from('users').update({ [field]: '' }).eq('id', currentUser.id)
-    if (!error) { setUrl(''); setUser({ ...currentUser, [setUserField]: '' }) }
+    if (!error) { setUrl(''); setUser({ ...(currentUser as any), [setUserField]: '' }) }
   }
 
   async function saveProfile() {
