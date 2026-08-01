@@ -26,7 +26,13 @@
     ],
     "extraResources": [
       "app-update.yml",
-      { "from": "bin", "to": "bin", "filter": ["**/*"] }
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "win": {
       "target": [
@@ -58,7 +64,9 @@
     "protocols": [
       {
         "name": "Waveify Deep Link",
-        "schemes": ["waveify"]
+        "schemes": [
+          "waveify"
+        ]
       }
     ],
     "generateUpdatesFilesForAllChannels": true,
@@ -72,7 +80,10 @@
     ]
   },
   "dependencies": {
-
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@supabase/supabase-js": "^2.47.0",
     "@xhayper/discord-rpc": "^1.3.4",
     "bufferutil": "^4.1.0",

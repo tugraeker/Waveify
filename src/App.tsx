@@ -8,6 +8,9 @@ import { useMediaSession } from '@/hooks/useMediaSession'
 import Sidebar from '@/components/Sidebar'
 import Player from '@/components/Player'
 import TitleBar from '@/components/TitleBar'
+import MobileTopBar from '@/components/MobileTopBar'
+import MobileNav from '@/components/MobileNav'
+import MobilePlayer from '@/components/MobilePlayer'
 import ToastContainer from '@/components/ToastContainer'
 import UpdateBanner from '@/components/UpdateBanner'
 import { useAchievementsInit } from '@/hooks/useAchievements'
@@ -135,10 +138,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    const api = (window as any).electronAPI
-    if (!api?.onDeepLinkSong) return
-    api.deepLinkReady()
-    api.onDeepLinkSong((songId: string) => {
+    const handleSongId = (songId: string) => {
       supabase
         .from('songs')
         .select('*')
@@ -150,7 +150,21 @@ export default function App() {
           useStore.getState().setCurrentSong(data as Song)
           navigate('/now-playing')
         }, () => {})
-    })
+    }
+
+    const api = (window as any).electronAPI
+    if (api?.onDeepLinkSong) {
+      api.deepLinkReady()
+      api.onDeepLinkSong(handleSongId)
+    }
+
+    const onAppUrlOpen = (e: any) => {
+      const url: string = e?.detail?.url || ''
+      const m = url.match(/^waveify:\/\/song\/([0-9a-fA-F-]{36})/i)
+      if (m) handleSongId(m[1])
+    }
+    window.addEventListener('appUrlOpen', onAppUrlOpen)
+    return () => window.removeEventListener('appUrlOpen', onAppUrlOpen)
   }, [navigate])
 
   useEffect(() => {
@@ -174,9 +188,14 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col bg-surface-950">
-      <TitleBar />
+      <div className="hidden md:block">
+        <TitleBar />
+      </div>
+      <MobileTopBar />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
+        <div className="hidden md:flex">
+          <Sidebar />
+        </div>
         <main className="flex-1 flex flex-col overflow-hidden">
           <Suspense fallback={
             <div className="flex-1 flex items-center justify-center">
@@ -213,7 +232,11 @@ export default function App() {
           </Suspense>
         </main>
       </div>
-      <Player />
+      <div className="hidden md:block">
+        <Player />
+      </div>
+      <MobilePlayer />
+      <MobileNav />
       <ToastContainer />
       <UpdateBanner />
       {showLevelUp && (

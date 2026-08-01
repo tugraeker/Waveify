@@ -72,7 +72,7 @@ export default function Player() {
 
   if (!currentSong) {
     return (
-      <div className="h-22 bg-surface-950 border-t border-surface-800/30 flex items-center px-5">
+      <div className="hidden md:flex h-22 bg-surface-950 border-t border-surface-800/30 items-center px-5">
         <div className="flex items-center gap-4 text-surface-500">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-800/50 flex items-center justify-center shadow-sm">
             <Music2 size={22} className="opacity-40" />
@@ -93,7 +93,7 @@ export default function Player() {
   // Enhanced mini player with visualizer (Feature 5)
   if (miniPlayer) {
     return (
-      <div className="fixed bottom-4 right-4 z-[100] bg-surface-900 border border-surface-700 rounded-2xl shadow-2xl p-3 w-[340px] animate-fade-in">
+      <div className="hidden md:block fixed bottom-4 right-4 z-[100] bg-surface-900 border border-surface-700 rounded-2xl shadow-2xl p-3 w-[340px] animate-fade-in">
         <div className="flex items-center gap-3 mb-2">
           <div className="relative flex-shrink-0">
             {currentSong.cover_url ? (
@@ -126,7 +126,7 @@ export default function Player() {
   }
 
   return (
-    <div className="h-22 bg-surface-950 border-t border-surface-800/30 flex items-center px-4 gap-3 z-50">
+    <div className="hidden md:flex h-22 bg-surface-950 border-t border-surface-800/30 items-center px-4 gap-3 z-50">
       {/* Song info with tooltip (Feature 2) */}
       <div className="flex items-center gap-3 w-[280px] min-w-0"
         onMouseEnter={() => setShowTooltip(true)}

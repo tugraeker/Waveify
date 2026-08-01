@@ -69,7 +69,7 @@ export default function TitleBar() {
   }
 
   return (
-    <div className="drag-region h-9 bg-surface-950 flex items-center justify-between px-4 border-b border-surface-800/50 flex-shrink-0">
+    <div className="hidden md:flex drag-region h-9 bg-surface-950 items-center justify-between px-4 border-b border-surface-800/50 flex-shrink-0">
       <div className="flex items-center gap-2">
         <Logo size={20} />
         <span className="text-xs font-semibold text-surface-300 tracking-wider">Waveify</span>

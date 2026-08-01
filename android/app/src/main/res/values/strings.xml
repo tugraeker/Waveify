@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Waveify</string>
+    <string name="title_activity_main">Waveify</string>
+    <string name="package_name">com.waveify.mobile</string>
+    <string name="custom_url_scheme">com.waveify.mobile</string>
+</resources>

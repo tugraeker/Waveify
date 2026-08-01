@@ -36,3 +36,12 @@ pnpm-debug.log*
 *.tmp
 *.temp
 .cache/
+
+# Capacitor / Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+android/app/src/main/assets/public/
+
