@@ -112,7 +112,6 @@ export default function PlaylistPage() {
     } else {
       await supabase.from('likes').insert({ user_id: user.id, song_id: song.id })
       await supabase.from('songs').update({ likes_count: (song.likes_count || 0) + 1 }).eq('id', song.id)
-      supabase.from('activities').insert({ user_id: user.id, type: 'like', data: { song_id: song.id } }).select()
       likedIds.add(song.id)
     }
     setLikedIds(new Set(likedIds))

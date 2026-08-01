@@ -55,6 +55,9 @@ class AudioEngine {
     for (let i = 0; i < this.eqFilters.length - 1; i++) {
       this.eqFilters[i].connect(this.eqFilters[i + 1])
     }
+    if (this.eqFilters.length > 0) {
+      this.eqFilters[this.eqFilters.length - 1].connect(this.gainNode!)
+    }
   }
 
   private cancelFade() {

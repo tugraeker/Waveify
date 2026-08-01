@@ -80,10 +80,7 @@ export function useAudio() {
     updateStreak()
     awardXp(1)
     if (state.user) {
-      Promise.all([
-        supabase.from('listen_history').insert({ user_id: state.user!.id, song_id: currentSong.id }),
-        supabase.from('activities').insert({ user_id: state.user!.id, type: 'listen', data: { song_id: currentSong.id } }),
-      ])
+      supabase.from('listen_history').insert({ user_id: state.user!.id, song_id: currentSong.id }).then(() => {}, () => {})
     }
   }, [currentSong?.id])
 

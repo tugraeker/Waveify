@@ -75,7 +75,7 @@ export default function Settings() {
     if (!confirm('Profil tamamen sıfırlansın mı? Avatar, banner, biyografi ve tüm görünüm ayarları silinecek.')) return
     setSaving(true)
     try {
-      await supabase.from('users').update({ avatar_url: null, banner_url: null, bio: null, accent_color: null }).eq('id', user.id)
+      try { await supabase.from('users').update({ avatar_url: null, bio: null }).eq('id', user.id) } catch {}
       localStorage.removeItem('waveify_accent')
       localStorage.removeItem('waveify_custom_accent')
       localStorage.removeItem('waveify_bg_color')

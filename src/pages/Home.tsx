@@ -6,8 +6,8 @@ import { formatDuration } from '@/lib/utils'
 import { SongSkeleton, CardSkeleton } from '@/components/Skeleton'
 import ContextMenu from '@/components/ContextMenu'
 import AddToPlaylistModal from '@/components/AddToPlaylistModal'
-import type { Song, Activity } from '@/types'
-import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic, Users, Award } from 'lucide-react'
+import type { Song } from '@/types'
+import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic, Award } from 'lucide-react'
 import { computeLevel } from '@/types'
 import { getStats, getXpTotal } from '@/lib/achievements'
 
@@ -27,7 +27,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [ctxMenu, setCtxMenu] = useState<{ song: Song; x: number; y: number } | null>(null)
   const [addPlaylistSong, setAddPlaylistSong] = useState<Song | null>(null)
-  const [friendActivity, setFriendActivity] = useState<(Activity & { user?: any; song?: Song })[]>([])
 
   useEffect(() => {
     const h = new Date().getHours()
@@ -35,7 +34,6 @@ export default function Home() {
     else if (h < 18) setGreeting('İyi Günler')
     else setGreeting('İyi Akşamlar')
     fetchSongs()
-    if (user) fetchFriendActivity()
   }, [user?.id])
 
   async function fetchSongs() {
@@ -43,39 +41,6 @@ export default function Home() {
     const { data } = await supabase.from('songs').select('*').order('created_at', { ascending: false }).limit(30)
     if (data) { setSongs(data); setRecentSongs(data.slice(0, 6)) }
     setLoading(false)
-  }
-
-  async function fetchFriendActivity() {
-    const { data: friends } = await supabase.from('friends').select('friend_id').eq('user_id', user!.id).eq('status', 'accepted')
-    const { data: friendsRev } = await supabase.from('friends').select('user_id').eq('friend_id', user!.id).eq('status', 'accepted')
-    const friendIds = new Set<string>()
-    friends?.forEach((f: any) => friendIds.add(f.friend_id))
-    friendsRev?.forEach((f: any) => friendIds.add(f.user_id))
-    if (friendIds.size === 0) return
-
-    try {
-      const { data: activities, error: actError } = await supabase
-        .from('activities')
-        .select('*, user:user_id(id, username, avatar_url)')
-        .in('user_id', Array.from(friendIds))
-        .order('created_at', { ascending: false })
-        .limit(20)
-      if (actError) {
-        console.warn('Friend activity fetch error:', actError.message)
-        return
-      }
-      if (activities) {
-        const songIds = activities.filter((a: any) => a.song_id).map((a: any) => a.song_id).filter(Boolean)
-        const songs: Record<string, any> = {}
-        if (songIds.length > 0) {
-          const { data: songData } = await supabase.from('songs').select('*').in('id', songIds)
-          if (songData) songData.forEach((s: any) => songs[s.id] = s)
-        }
-        setFriendActivity(activities.map((a: any) => ({ ...a, song: songs[a.song_id] || null })) as any)
-      }
-    } catch (e: any) {
-      console.warn('Friend activity error:', e?.message || e)
-    }
   }
 
   const playSong = (song: Song) => {
@@ -130,33 +95,6 @@ export default function Home() {
           </div>
         )}
       </section>
-
-      {/* Friend Activity Feed */}
-      {friendActivity.length > 0 && (
-        <section className="mb-10">
-          <h2 className="text-lg font-semibold mb-5 text-surface-200 flex items-center gap-2"><Users size={18} /> Arkadaşlarının Aktivitesi</h2>
-          <div className="flex flex-col gap-1.5">
-            {friendActivity.slice(0, 8).map((act) => {
-              const actLabels: Record<string, string> = { listen: 'dinliyor', like: 'beğendi', playlist_add: 'listeye ekledi', import: 'içe aktardı', follow: 'takip etti' }
-              return (
-                <div key={act.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-all">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-wave-500 to-emerald-600 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
-                    {act.user?.username?.[0]?.toUpperCase() || '?'}
-                  </div>
-                  <div className="flex-1 min-w-0 text-sm">
-                    <span className="text-surface-300 font-medium">{act.user?.username || 'Biri'}</span>{' '}
-                    <span className="text-surface-500">{actLabels[act.type] || 'bir şey yaptı'}</span>
-                    {act.song && (
-                      <span className="text-surface-300"> — <span className="hover:text-wave-400 cursor-pointer" onClick={() => playSong(act.song!)}>{act.song.title}</span></span>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-surface-600">{new Date(act.created_at).toLocaleDateString('tr-TR')}</span>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
 
       <section>
         <div className="flex items-center justify-between mb-5">

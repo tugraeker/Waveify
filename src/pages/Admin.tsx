@@ -109,7 +109,7 @@ export default function AdminPage() {
 
   async function resetUserProfile(targetUser: User) {
     if (!confirm(`"${targetUser.username}" kullanıcısının profilini sıfırlamak istediğine emin misin? Avatar, banner ve biyografi silinecek.`)) return
-    const { error } = await supabase.from('users').update({ avatar_url: null, banner_url: null, bio: null, accent_color: null }).eq('id', targetUser.id)
+    const { error } = await supabase.from('users').update({ avatar_url: null, bio: null }).eq('id', targetUser.id)
     if (error) { emitToast('Sıfırlama hatası: ' + error.message, 'error'); return }
     emitToast(`${targetUser.username} profili sıfırlandı`, 'success')
   }

@@ -30,7 +30,6 @@ const SyncRoom = lazy(() => import('@/pages/SyncRoom'))
 const History = lazy(() => import('@/pages/History'))
 const Import = lazy(() => import('@/pages/Import'))
 const Settings = lazy(() => import('@/pages/Settings'))
-const Activity = lazy(() => import('@/pages/Activity'))
 const Stats = lazy(() => import('@/pages/Stats'))
 const Admin = lazy(() => import('@/pages/Admin'))
 const ChatPage = lazy(() => import('@/pages/Chat'))
@@ -117,7 +116,7 @@ export default function App() {
 
   async function restoreUser(authUser: any) {
     let profile: any = null
-    try { const r = await supabase.from('users').select('id,username,avatar_url,banner_url,bio').eq('id', authUser.id).maybeSingle(); profile = r.data } catch {}
+    try { const r = await supabase.from('users').select('id,username,avatar_url,bio').eq('id', authUser.id).maybeSingle(); profile = r.data } catch {}
     let isAdmin = false
     try { const r = await supabase.from('users').select('is_admin').eq('id', authUser.id).single(); isAdmin = r.data?.is_admin === true } catch {}
     setUser({
@@ -178,7 +177,6 @@ export default function App() {
               <Route path="/history" element={<History />} />
               <Route path="/import" element={<Import />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/activity" element={<Activity />} />
               <Route path="/stats" element={<Stats />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/chat" element={<ChatPage />} />
