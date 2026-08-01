@@ -206,9 +206,9 @@ export default function NowPlaying() {
           {/* Cover art */}
           <div className="relative flex-shrink-0 group">
             {currentSong.cover_url ? (
-              <img src={currentSong.cover_url} alt="" className={`w-72 h-72 md:w-80 md:h-80 rounded-2xl shadow-2xl object-cover ${isPlaying ? 'animate-spin-slow' : ''}`} />
+              <img src={currentSong.cover_url} alt="" className={`w-72 h-72 md:w-80 md:h-80 rounded-full shadow-2xl object-cover ${isPlaying ? 'animate-spin-slow' : ''}`} />
             ) : (
-              <div className="w-72 h-72 md:w-80 md:h-80 rounded-2xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 flex items-center justify-center">
+              <div className="w-72 h-72 md:w-80 md:h-80 rounded-full bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 flex items-center justify-center">
                 <Music2 size={64} className="text-surface-500" />
               </div>
             )}
