@@ -171,8 +171,8 @@ export default function UserProfile() {
       const { data: u } = await supabase.from('users').select('*').eq('id', uid).maybeSingle()
       if (u) {
         setUsername(u.username)
-        setAvatarUrl(u.avatar_url || localStorage.getItem('waveify_avatar_url') || '')
-        setBannerUrl(u.banner_url || localStorage.getItem('waveify_banner_url') || '')
+        setAvatarUrl(u.avatar_url || (isOwn ? localStorage.getItem('waveify_avatar_url') || '' : ''))
+        setBannerUrl(u.banner_url || (isOwn ? localStorage.getItem('waveify_banner_url') || '' : ''))
         setBio(u.bio || '')
       } else if (isOwn && currentUser) {
         setUsername(currentUser.username)
@@ -235,9 +235,10 @@ export default function UserProfile() {
         } else throw new Error(upErr.message)
       }
       const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(fileName)
-      localStorage.setItem(`waveify_${field}`, publicUrl)
-      setUrl(publicUrl)
-      setUser({ ...(currentUser as any), [field]: publicUrl })
+      const cacheBustedUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}v=${Date.now()}`
+      localStorage.setItem(`waveify_${field}`, cacheBustedUrl)
+      setUrl(cacheBustedUrl)
+      setUser({ ...(currentUser as any), [field]: cacheBustedUrl })
       inputKeySetter(prev => prev + 1)
     } catch (e: any) {
       console.error('Upload error:', e)
@@ -253,11 +254,12 @@ export default function UserProfile() {
   }
 
   useEffect(() => {
+    if (!isOwn) return
     const savedAvatar = localStorage.getItem('waveify_avatar_url')
     const savedBanner = localStorage.getItem('waveify_banner_url')
     if (savedAvatar) setAvatarUrl(savedAvatar)
     if (savedBanner) setBannerUrl(savedBanner)
-  }, [])
+  }, [isOwn])
 
   async function saveProfile() {
     if (!currentUser || !editUsername.trim()) return

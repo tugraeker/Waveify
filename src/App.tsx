@@ -57,7 +57,7 @@ function hexToRgb(hex: string): string {
 }
 
 export default function App() {
-  const { user, theme, accentColor, customAccentColor, setUser } = useStore()
+  const { user, theme, accentColor, customAccentColor, setUser, setPlaylists } = useStore()
   const navigate = useNavigate()
   const location = useLocation()
   const [mounted, setMounted] = useState(false)
@@ -128,6 +128,10 @@ export default function App() {
       is_admin: isAdmin,
       created_at: authUser.created_at,
     })
+    try {
+      const { data } = await supabase.from('playlists').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false })
+      if (data) setPlaylists(data)
+    } catch {}
   }
 
   useEffect(() => {

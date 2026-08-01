@@ -53,6 +53,8 @@
             font-weight: 600;
             transition: all 0.2s ease;
             box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+            cursor: pointer;
+            border: none;
         }
         .btn:hover {
             transform: translateY(-2px);
@@ -61,6 +63,11 @@
         .btn svg {
             width: 1.5rem;
             height: 1.5rem;
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: wait;
+            transform: none;
         }
         .features {
             margin-top: 4rem;
@@ -82,14 +89,61 @@
             font-size: 0.95rem;
             margin-bottom: 0;
         }
+        #song-view {
+            display: none;
+            text-align: center;
+            max-width: 480px;
+        }
+        .song-card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+        .song-cover {
+            width: 220px;
+            height: 220px;
+            border-radius: 16px;
+            object-fit: cover;
+            margin: 0 auto 1.5rem;
+            display: block;
+            background: #1e293b;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        .song-title {
+            font-size: 1.75rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+        .song-artist {
+            color: #94a3b8;
+            font-size: 1.125rem;
+            margin-bottom: 0.75rem;
+        }
+        .song-meta {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        .back-link {
+            display: inline-block;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin-top: 1.5rem;
+        }
+        .back-link:hover {
+            color: white;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container" id="home-view">
         <h1>Waveify</h1>
         <p>Özel müzik paylaşım platformu — şarkı yükle, dinle, arkadaşlarınla sync odalarında birlikte eğlen!</p>
         
-        <a href="https://github.com/tugraeker/Waveify/releases/download/v1.1.0/Waveify-1.1.0-portable.exe" class="btn">
+        <a href="https://github.com/tugraeker/Waveify/releases/download/v3.0.0/Waveify-3.0.0-portable.exe" class="btn">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -111,5 +165,80 @@
             </div>
         </div>
     </div>
+
+    <div id="song-view">
+        <div class="song-card">
+            <div id="song-loading">Şarkı yükleniyor...</div>
+            <div id="song-content" style="display:none">
+                <img id="song-cover" class="song-cover" alt="Kapak" />
+                <div class="song-title" id="song-title"></div>
+                <div class="song-artist" id="song-artist"></div>
+                <div class="song-meta" id="song-meta"></div>
+                <button id="play-btn" class="btn">
+                    <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                    <span id="play-label">Çal</span>
+                </button>
+                <p class="song-meta" style="margin-top:1.5rem;margin-bottom:0">Bu şarkıyı tam deneyimle dinlemek için Waveify uygulamasını kullan</p>
+            </div>
+            <div id="song-error" style="display:none;color:#f87171">Şarkı bulunamadı.</div>
+            <a class="back-link" href="/">← Ana sayfaya dön</a>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://kjyjjqxqsbmrravhcuoc.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqeWpqcXhxc2JtcnJhdmhjdW9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NzUwNDgsImV4cCI6MjEwMDE1MTA0OH0.fB6dlkOcT-fPW6bsTvwj0XnbUbLiKmhzz4LxQ8r28g8';
+        const match = location.pathname.match(/^\/song\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+
+        if (match) {
+            document.getElementById('home-view').style.display = 'none';
+            document.getElementById('song-view').style.display = 'block';
+            const songId = match[1];
+            fetch(SUPABASE_URL + '/rest/v1/songs?select=*&id=eq.' + songId, {
+                headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY }
+            }).then(r => r.json()).then(songs => {
+                const song = songs && songs[0];
+                if (!song) {
+                    document.getElementById('song-loading').style.display = 'none';
+                    document.getElementById('song-error').style.display = 'block';
+                    return;
+                }
+                document.getElementById('song-loading').style.display = 'none';
+                document.getElementById('song-content').style.display = 'block';
+                document.title = song.title + ' - ' + song.artist + ' | Waveify';
+                const cover = document.getElementById('song-cover');
+                if (song.cover_url) cover.src = song.cover_url; else cover.style.display = 'none';
+                document.getElementById('song-title').textContent = song.title;
+                document.getElementById('song-artist').textContent = song.artist;
+                const mins = Math.floor((song.duration || 0) / 60);
+                const secs = Math.round((song.duration || 0) % 60).toString().padStart(2, '0');
+                document.getElementById('song-meta').textContent = mins + ':' + secs + ' · ' + (song.genre || 'Waveify');
+                const audio = new Audio(song.audio_url);
+                const btn = document.getElementById('play-btn');
+                const icon = document.getElementById('play-icon');
+                const label = document.getElementById('play-label');
+                btn.addEventListener('click', () => {
+                    if (audio.paused) {
+                        audio.play();
+                        icon.setAttribute('d', 'M6 5h4v14H6zM14 5h4v14h-4z');
+                        label.textContent = 'Durdur';
+                    } else {
+                        audio.pause();
+                        icon.setAttribute('d', 'M8 5v14l11-7z');
+                        label.textContent = 'Çal';
+                    }
+                });
+                audio.addEventListener('ended', () => {
+                    icon.setAttribute('d', 'M8 5v14l11-7z');
+                    label.textContent = 'Çal';
+                });
+            }).catch(() => {
+                document.getElementById('song-loading').style.display = 'none';
+                document.getElementById('song-error').style.display = 'block';
+            });
+        }
+    </script>
 </body>
 </html>
