@@ -12,7 +12,7 @@ import ToastContainer from '@/components/ToastContainer'
 import UpdateBanner from '@/components/UpdateBanner'
 import { useAchievementsInit } from '@/hooks/useAchievements'
 import { Trophy } from 'lucide-react'
-import type { AccentColor } from '@/types'
+import type { AccentColor, Song } from '@/types'
 
 const Auth = lazy(() => import('@/pages/Auth'))
 const Home = lazy(() => import('@/pages/Home'))
@@ -133,6 +133,25 @@ export default function App() {
       if (data) setPlaylists(data)
     } catch {}
   }
+
+  useEffect(() => {
+    const api = (window as any).electronAPI
+    if (!api?.onDeepLinkSong) return
+    api.deepLinkReady()
+    api.onDeepLinkSong((songId: string) => {
+      supabase
+        .from('songs')
+        .select('*')
+        .eq('id', songId)
+        .single()
+        .then(({ data }) => {
+          if (!data) return
+          useStore.getState().setQueue([data as Song])
+          useStore.getState().setCurrentSong(data as Song)
+          navigate('/now-playing')
+        }, () => {})
+    })
+  }, [navigate])
 
   useEffect(() => {
     if (!authLoading && !user && location.pathname !== '/auth') {

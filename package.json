@@ -55,6 +55,12 @@
       "artifactName": "Waveify-${version}-portable.exe",
       "splashImage": null
     },
+    "protocols": [
+      {
+        "name": "Waveify Deep Link",
+        "schemes": ["waveify"]
+      }
+    ],
     "generateUpdatesFilesForAllChannels": true,
     "publish": [
       {

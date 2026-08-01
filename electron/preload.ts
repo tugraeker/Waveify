@@ -20,6 +20,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onUpdateDownloaded: (cb: any) => { ipcRenderer.on('update:downloaded', cb) },
   onUpdateError: (cb: any) => { ipcRenderer.on('update:error', (_e: any, msg: any) => cb(msg)) },
 
+  // Deep link
+  deepLinkReady: () => ipcRenderer.send('deep-link:ready'),
+  onDeepLinkSong: (cb: any) => { ipcRenderer.on('deep-link:song', (_e: any, songId: string) => cb(songId)) },
+
   // Offline cache
   cacheSave: (songId: string, audioUrl: string) => ipcRenderer.invoke('cache:save', songId, audioUrl),
   cacheGet: (songId: string) => ipcRenderer.invoke('cache:get', songId),

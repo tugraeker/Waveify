@@ -26,6 +26,62 @@ autoUpdater.autoInstallOnAppQuit = true
 
 const isDev = !app.isPackaged
 
+const WAVEIFY_SCHEME = 'waveify'
+let pendingSongId: string | null = null
+
+function extractSongIdFromUrl(url: string): string | null {
+  const match = url.match(/^waveify:\/\/song\/([0-9a-fA-F-]{36})/i)
+  return match ? match[1] : null
+}
+
+function extractSongIdFromArgv(argv: string[]): string | null {
+  const url = argv.find((a) => a.startsWith('waveify://'))
+  return url ? extractSongIdFromUrl(url) : null
+}
+
+function queueSongId(songId: string) {
+  pendingSongId = songId
+  if (mainWindow && !mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.send('deep-link:song', songId)
+    pendingSongId = null
+  }
+}
+
+ipcMain.on('deep-link:ready', () => {
+  if (pendingSongId && mainWindow && !mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.send('deep-link:song', pendingSongId)
+    pendingSongId = null
+  }
+})
+
+// Single instance: deep link launches go to the running instance
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+}
+
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient(WAVEIFY_SCHEME, process.execPath, [path.resolve(process.argv[1])])
+  }
+} else {
+  app.setAsDefaultProtocolClient(WAVEIFY_SCHEME)
+}
+
+app.on('second-instance', (_event, argv) => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+  }
+  const songId = extractSongIdFromArgv(argv)
+  if (songId) queueSongId(songId)
+})
+
+app.on('open-url', (_event, url) => {
+  const songId = extractSongIdFromUrl(url)
+  if (songId) queueSongId(songId)
+})
+
 autoUpdater.on('checking-for-update', () => {
   mainWindow?.webContents.send('update:checking')
 })
@@ -271,6 +327,8 @@ app.whenReady().then(() => {
   initDiscordRPC()
   createTray()
   registerGlobalShortcuts()
+  const initialSongId = extractSongIdFromArgv(process.argv)
+  if (initialSongId) queueSongId(initialSongId)
 })
 
 app.on('will-quit', () => {
