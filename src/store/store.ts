@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { User, Song, Playlist, EqualizerSettings, SyncRoom, VisualizerMode, SleepTimer, AccentColor, Activity, Badge, EqPreset, VisualizerColorTheme, SongNote, SongRating } from '@/types'
+import type { User, Song, Playlist, EqualizerSettings, AudioEffects, RadioState, SyncRoom, VisualizerMode, SleepTimer, AccentColor, Activity, Badge, EqPreset, VisualizerColorTheme, SongNote, SongRating } from '@/types'
 import { defaultEqBands, EQ_PRESETS } from '@/types'
 
 interface AppState {
@@ -26,6 +26,10 @@ interface AppState {
   equalizer: EqualizerSettings
   setEqualizer: (eq: EqualizerSettings) => void
   resetEqualizer: () => void
+  audioEffects: AudioEffects
+  setAudioEffects: (fx: AudioEffects) => void
+  radio: RadioState
+  setRadio: (radio: RadioState) => void
   eqPresets: EqPreset[]
   setEqPresets: (presets: EqPreset[]) => void
   saveEqPreset: (name: string) => void
@@ -112,6 +116,10 @@ export const useStore = create<AppState>((set) => ({
   equalizer: { ...defaultEqualizer, bands: loadJson<number[]>('waveify_eq_bands', defaultEqBands()) },
   setEqualizer: (eq) => set({ equalizer: eq }),
   resetEqualizer: () => set({ equalizer: { ...defaultEqualizer, bands: defaultEqBands() } }),
+  audioEffects: loadJson<AudioEffects>('waveify_audio_effects', { bass: 0, reverb: 0, spatial: 0 }),
+  setAudioEffects: (fx) => { localStorage.setItem('waveify_audio_effects', JSON.stringify(fx)); set({ audioEffects: fx }) },
+  radio: { active: false, seedId: null },
+  setRadio: (radio) => set({ radio }),
   eqPresets: loadJson<EqPreset[]>('waveify_eq_presets', []),
   setEqPresets: (presets) => { localStorage.setItem('waveify_eq_presets', JSON.stringify(presets)); set({ eqPresets: presets }) },
   saveEqPreset: (name) => set((state) => {

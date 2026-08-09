@@ -13,7 +13,9 @@ import MobileNav from '@/components/MobileNav'
 import MobilePlayer from '@/components/MobilePlayer'
 import ToastContainer from '@/components/ToastContainer'
 import UpdateBanner from '@/components/UpdateBanner'
+import WhatsNewModal from '@/components/WhatsNewModal'
 import { useAchievementsInit } from '@/hooks/useAchievements'
+import { getAmbientColors } from '@/lib/ambient'
 import { Trophy } from 'lucide-react'
 import type { AccentColor, Song } from '@/types'
 
@@ -41,6 +43,7 @@ const Discover = lazy(() => import('@/pages/Discover'))
 const BadgeGallery = lazy(() => import('@/pages/BadgeGallery'))
 const PodcastPage = lazy(() => import('@/pages/Podcast'))
 const RadioPage = lazy(() => import('@/pages/Radio'))
+const Charts = lazy(() => import('@/pages/Charts'))
 
 const accentPalettes: Record<AccentColor, Record<string, string>> = {
   wave:   { '50': '238 251 250', '100': '213 245 242', '200': '174 234 229', '300': '106 217 210', '400': '34 199 192', '500': '15 171 166', '600': '9 139 136', '700': '12 111 109', '800': '15 89 88', '900': '18 74 73', '950': '3 45 45' },
@@ -60,7 +63,7 @@ function hexToRgb(hex: string): string {
 }
 
 export default function App() {
-  const { user, theme, accentColor, customAccentColor, setUser, setPlaylists } = useStore()
+  const { user, theme, accentColor, customAccentColor, setUser, setPlaylists, currentSong } = useStore()
   const navigate = useNavigate()
   const location = useLocation()
   const [mounted, setMounted] = useState(false)
@@ -174,6 +177,18 @@ export default function App() {
   }, [user, authLoading])
 
   useEffect(() => { setMounted(true) }, [])
+
+  useEffect(() => {
+    if (!currentSong?.cover_url) return
+    let cancelled = false
+    getAmbientColors(currentSong.cover_url).then((c) => {
+      if (cancelled) return
+      const root = document.documentElement
+      root.style.setProperty('--ambient-primary', c.primary)
+      root.style.setProperty('--ambient-secondary', c.secondary)
+    })
+    return () => { cancelled = true }
+  }, [currentSong?.cover_url])
   if (!mounted) return null
 
   if (authLoading) {
@@ -187,7 +202,8 @@ export default function App() {
   if (!user) return <Auth />
 
   return (
-    <div className="h-screen flex flex-col bg-surface-950">
+    <div className="h-screen flex flex-col bg-surface-950 relative overflow-hidden">
+      <div className="ambient-glow" />
       <div className="hidden md:block">
         <TitleBar />
       </div>
@@ -227,6 +243,7 @@ export default function App() {
               <Route path="/badges" element={<BadgeGallery />} />
               <Route path="/podcast" element={<PodcastPage />} />
               <Route path="/radio" element={<RadioPage />} />
+              <Route path="/charts" element={<Charts />} />
               <Route path="/auth" element={<Auth />} />
             </Routes>
           </Suspense>
@@ -239,6 +256,7 @@ export default function App() {
       <MobileNav />
       <ToastContainer />
       <UpdateBanner />
+      <WhatsNewModal />
       {showLevelUp && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => {}}>
           <div className="text-center animate-level-up">

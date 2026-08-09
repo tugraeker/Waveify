@@ -127,8 +127,13 @@ export default function PlaylistPage() {
   async function toggleCollaborative() {
     if (!activePlaylist || activePlaylist.type !== 'custom') return
     const newVal = !isCollab
-    await supabase.from('playlists').update({ is_collaborative: newVal }).eq('id', activePlaylist.id)
-    setIsCollab(newVal)
+    const { error } = await supabase.from('playlists').update({ is_collaborative: newVal }).eq('id', activePlaylist.id)
+    if (!error) {
+      setIsCollab(newVal)
+      emitToast(newVal ? 'İşbirlikçi mod açıldı — arkadaşların şarkı ekleyebilir' : 'İşbirlikçi mod kapatıldı', newVal ? 'success' : 'info')
+    } else {
+      emitToast('Hata: ' + error.message, 'error')
+    }
   }
 
   async function searchSongs(q: string) {

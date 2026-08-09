@@ -2,6 +2,7 @@ import { useEffect, useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { useAudio } from '@/hooks/useAudio'
+import { audioEngine } from '@/lib/audioEngine'
 import { formatDuration } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { Slider } from '@/components/ui'
@@ -14,7 +15,7 @@ import {
   Volume2, ChevronDown, Heart, Music2, Disc3, X,
   BarChart3, Waves, Circle, Flame, Radio,
   Maximize2, Share2, Star, Pencil, Info, ListPlus,
-  Palette, Plus, Check, FileText, Save,
+  Palette, Plus, Check, FileText, Save, Zap, Volume1, Landmark,
 } from 'lucide-react'
 
 const VISUALIZER_MODES: { key: VisualizerMode; label: string; icon: typeof BarChart3 }[] = [
@@ -46,7 +47,8 @@ export default function NowPlaying() {
     setVolume, setShuffle, setRepeat, setEqualizer, resetEqualizer, setVisualizerMode,
     setVisualizerColorTheme, setVisualizerSensitivity, setQueue, setCurrentSong,
     setCrossfade, setCrossfadeDuration, songRatings, setSongRating,
-    songNotes, setSongNote, playlists } = useStore()
+    songNotes, setSongNote, playlists, audioEffects, setAudioEffects,
+    radio, setRadio, queue } = useStore()
   const { isPlaying, currentTime, duration, togglePlay, seek, nextSong, prevSong, analyserData } = useAudio()
   const [showEq, setShowEq] = useState(false)
   const [liked, setLiked] = useState(false)
@@ -66,11 +68,13 @@ export default function NowPlaying() {
   const [editingLyrics, setEditingLyrics] = useState(false)
   const [lyricsText, setLyricsText] = useState('')
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false)
-  const [eqTab, setEqTab] = useState<'graphic' | 'presets'>('graphic')
+  const [eqTab, setEqTab] = useState<'graphic' | 'presets' | 'effects'>('graphic')
   const [savingPreset, setSavingPreset] = useState('')
   const [showEqPresets, setShowEqPresets] = useState(false)
   const [editingCover, setEditingCover] = useState(false)
   const [coverUrlInput, setCoverUrlInput] = useState('')
+  const [touchX, setTouchX] = useState<number | null>(null)
+  const [touchY, setTouchY] = useState<number | null>(null)
 
   const shareSong = useCallback(() => {
     if (!currentSong) return
@@ -176,6 +180,38 @@ export default function NowPlaying() {
     setShowAddToPlaylist(false)
   }
 
+  function toggleRadio() {
+    if (!currentSong) return
+    if (radio.active) {
+      setRadio({ active: false, seedId: null })
+      return
+    }
+    setRadio({ active: true, seedId: currentSong.id })
+    if (!queue.some((s) => s.id === currentSong.id)) {
+      setQueue([currentSong, ...queue])
+    }
+    if (!isPlaying) togglePlay()
+  }
+
+  function handleTouchStart(e: React.TouchEvent) {
+    setTouchX(e.touches[0].clientX)
+    setTouchY(e.touches[0].clientY)
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchX === null || touchY === null) return
+    const dx = e.changedTouches[0].clientX - touchX
+    const dy = e.changedTouches[0].clientY - touchY
+    setTouchX(null); setTouchY(null)
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return
+    if (dx < 0) nextSong()
+    else prevSong()
+  }
+
+  useEffect(() => {
+    audioEngine.setEffects(audioEffects)
+  }, [audioEffects])
+
   const currentRating = currentSong ? songRatings[currentSong.id] || 0 : 0
   const currentNote = currentSong ? songNotes[currentSong.id] || '' : ''
 
@@ -201,7 +237,8 @@ export default function NowPlaying() {
         <span className="flex-1 text-center text-[11px] font-semibold text-gradient uppercase tracking-[0.15em]">Şimdi Çalıyor</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-4">
+      <div className="flex-1 overflow-y-auto scrollbar-thin px-4"
+        onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         <div className="flex flex-col items-center gap-5 py-4">
           {/* Cover art */}
           <div className="relative flex-shrink-0 group">
@@ -341,7 +378,7 @@ export default function NowPlaying() {
               </div>
             ) : (
               <div className="w-full max-w-md">
-                <SyncedLyrics lyrics={currentSong.lyrics || ''} currentTime={currentTime} />
+                <SyncedLyrics lyrics={currentSong.lyrics || ''} currentTime={currentTime} onSeek={seek} />
                 <button onClick={() => setEditingLyrics(true)} className="text-xs text-surface-500 hover:text-wave-400 mt-1 transition-colors">
                   <Pencil size={12} className="inline mr-1" />Sözleri Düzenle
                 </button>
@@ -527,6 +564,9 @@ export default function NowPlaying() {
                   <div className="flex gap-2">
                     <button onClick={() => setEqTab('graphic')} className={`text-xs px-3 py-1 rounded-lg font-medium transition-all ${eqTab === 'graphic' ? 'bg-wave-500/10 text-wave-400' : 'text-surface-500'}`}>Grafik</button>
                     <button onClick={() => setEqTab('presets')} className={`text-xs px-3 py-1 rounded-lg font-medium transition-all ${eqTab === 'presets' ? 'bg-wave-500/10 text-wave-400' : 'text-surface-500'}`}>Presetler</button>
+                    <button onClick={() => setEqTab('effects')} className={`text-xs px-3 py-1 rounded-lg font-medium transition-all ${eqTab === 'effects' ? 'bg-wave-500/10 text-wave-400' : 'text-surface-500'}`}>
+                      <Zap size={11} className="inline mr-0.5 -mt-0.5" />Efektler
+                    </button>
                   </div>
                   <button onClick={resetEqualizer} className="text-xs text-surface-500 hover:text-white">Sıfırla</button>
                 </div>
@@ -558,7 +598,7 @@ export default function NowPlaying() {
                       )
                     })}
                   </div>
-                ) : (
+                ) : eqTab === 'presets' ? (
                   <div className="space-y-1 max-h-40 overflow-y-auto">
                     <div className="flex flex-wrap gap-1.5 mb-2">
                       {eqPresets.map((p) => (
@@ -586,6 +626,40 @@ export default function NowPlaying() {
                       <button onClick={handleSavePreset} className="h-8 px-3 rounded-lg bg-wave-500 text-white text-xs font-medium">Kaydet</button>
                     </div>
                   </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-surface-300 flex items-center gap-1"><Volume1 size={12} />Bas Geliştirme</span>
+                        <span className="text-[10px] text-wave-400 font-mono">{audioEffects.bass > 0 ? `+${Math.round(audioEffects.bass * 100)}%` : '%0'}</span>
+                      </div>
+                      <input type="range" min={0} max={1} step={0.05} value={audioEffects.bass}
+                        onChange={(e) => setAudioEffects({ ...audioEffects, bass: Number(e.target.value) })}
+                        className="w-full accent-wave-400" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-surface-300 flex items-center gap-1"><Disc3 size={12} />Yankı (Reverb)</span>
+                        <span className="text-[10px] text-wave-400 font-mono">{audioEffects.reverb > 0 ? `+${Math.round(audioEffects.reverb * 100)}%` : '%0'}</span>
+                      </div>
+                      <input type="range" min={0} max={1} step={0.05} value={audioEffects.reverb}
+                        onChange={(e) => setAudioEffects({ ...audioEffects, reverb: Number(e.target.value) })}
+                        className="w-full accent-wave-400" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-surface-300 flex items-center gap-1"><Landmark size={12} />3D Genişlik</span>
+                        <span className="text-[10px] text-wave-400 font-mono">{audioEffects.spatial > 0 ? `+${Math.round(audioEffects.spatial * 100)}%` : '%0'}</span>
+                      </div>
+                      <input type="range" min={0} max={1} step={0.05} value={audioEffects.spatial}
+                        onChange={(e) => setAudioEffects({ ...audioEffects, spatial: Number(e.target.value) })}
+                        className="w-full accent-wave-400" />
+                    </div>
+                    <button onClick={() => setAudioEffects({ bass: 0, reverb: 0, spatial: 0 })}
+                      className="text-[11px] text-surface-500 hover:text-white transition-colors">
+                      Efektleri Sıfırla
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -594,9 +668,21 @@ export default function NowPlaying() {
           {/* Related songs */}
           {relatedSongs.length > 0 && (
             <div className="w-full max-w-md flex-shrink-0 pb-8">
-              <div className="flex items-center gap-2 mb-4">
-                <Radio size={16} className="text-wave-400" />
-                <span className="text-sm font-semibold text-surface-300">Şarkı Radyosu</span>
+              <div className="flex items-center gap-2 mb-3">
+                <button
+                  onClick={toggleRadio}
+                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold transition-all ${
+                    radio.active
+                      ? 'bg-wave-500 text-white shadow-lg shadow-wave-500/30 animate-pulse'
+                      : 'bg-wave-500/10 text-wave-400 border border-wave-500/30 hover:bg-wave-500/20'
+                  }`}
+                >
+                  <Radio size={14} />
+                  {radio.active ? 'Radyo Çalıyor' : 'Radyo Başlat'}
+                </button>
+                <span className="text-sm font-semibold text-surface-300 flex-1 truncate">
+                  {currentSong.artist}
+                </span>
               </div>
               <div className="flex flex-col gap-1">
                 {relatedSongs.slice(0, 5).map((rs) => (

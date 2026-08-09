@@ -3,9 +3,10 @@ import { useRef, useEffect, useState } from 'react'
 interface Props {
   lyrics: string
   currentTime: number
+  onSeek?: (time: number) => void
 }
 
-export default function SyncedLyrics({ lyrics, currentTime }: Props) {
+export default function SyncedLyrics({ lyrics, currentTime, onSeek }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [fontSize, setFontSize] = useState(14)
   const [karaoke, setKaraoke] = useState(false)
@@ -72,7 +73,8 @@ export default function SyncedLyrics({ lyrics, currentTime }: Props) {
           return (
             <p
               key={i}
-              className={`transition-all duration-300 py-0.5 ${
+              onClick={() => { if (onSeek && l.time >= 0) onSeek(l.time) }}
+              className={`transition-all duration-300 py-0.5 ${onSeek && l.time >= 0 ? 'cursor-pointer' : ''} ${
                 isActive
                   ? 'text-wave-400 font-semibold scale-105'
                   : i === activeIdx - 1 || i === activeIdx + 1

@@ -6,8 +6,9 @@ import { formatDuration } from '@/lib/utils'
 import { SongSkeleton, CardSkeleton } from '@/components/Skeleton'
 import ContextMenu from '@/components/ContextMenu'
 import AddToPlaylistModal from '@/components/AddToPlaylistModal'
+import { generateMoodPlaylist, MOODS } from '@/lib/moods'
 import type { Song } from '@/types'
-import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic, Award } from 'lucide-react'
+import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic, Award, Sparkles } from 'lucide-react'
 import { computeLevel } from '@/types'
 import { getStats, getXpTotal } from '@/lib/achievements'
 
@@ -47,6 +48,15 @@ export default function Home() {
     setQueue(songs); setCurrentSong(song)
   }
 
+  const playMood = (key: string) => {
+    const mood = MOODS.find((m) => m.key === key)
+    if (!mood || songs.length === 0) return
+    const mix = generateMoodPlaylist(mood, songs)
+    if (mix.length === 0) return
+    setQueue(mix)
+    setCurrentSong(mix[0])
+  }
+
   function handleContextMenu(e: React.MouseEvent, song: Song) {
     e.preventDefault()
     setCtxMenu({ song, x: e.clientX, y: e.clientY })
@@ -68,6 +78,29 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      <section className="mb-10">
+        <div className="flex items-center gap-2 mb-5">
+          <Sparkles size={16} className="text-wave-400" />
+          <h2 className="text-lg font-semibold text-surface-200">Ruh Hali Karışımları</h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {MOODS.map((m) => (
+            <button
+              key={m.key}
+              onClick={() => playMood(m.key)}
+              className={`group relative overflow-hidden rounded-2xl p-4 flex flex-col items-start justify-between min-h-[110px] transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl bg-gradient-to-br ${m.gradient}`}
+            >
+              <span className="text-2xl relative z-10">{m.emoji}</span>
+              <span className="text-sm font-bold text-white relative z-10">{m.label}</span>
+              <span className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+              <span className="absolute right-2 top-2 w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Play size={13} fill="white" className="text-white ml-0.5" />
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="mb-10">
         <h2 className="text-lg font-semibold mb-5 text-surface-200">Otomatik Listeler</h2>

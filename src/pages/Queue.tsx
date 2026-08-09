@@ -1,14 +1,20 @@
 import { useState, useRef } from 'react'
 import { useStore } from '@/store/store'
+import { supabase } from '@/lib/supabase'
 import { formatDuration } from '@/lib/utils'
-import { Music2, X, Play, GripVertical } from 'lucide-react'
+import { trackPlaylist } from '@/lib/achievements'
+import { Music2, X, Play, GripVertical, Save } from 'lucide-react'
+import type { Song } from '@/types'
 
 export default function QueuePage() {
-  const { queue, currentSong, removeFromQueue, setCurrentSong, setQueue } = useStore()
+  const { queue, currentSong, removeFromQueue, setCurrentSong, setQueue, user, setPlaylists } = useStore()
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const dragOverIdx = useRef<number | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saveName, setSaveName] = useState('')
+  const [saved, setSaved] = useState(false)
 
-  const playSong = (song: any) => {
+  const playSong = (song: Song) => {
     const idx = queue.findIndex((s) => s.id === song.id)
     if (idx > -1) setCurrentSong(song)
   }
@@ -36,15 +42,62 @@ export default function QueuePage() {
     setDragIdx(null)
   }
 
+  async function saveQueue() {
+    if (!user || queue.length === 0) return
+    const name = saveName.trim() || `Sıra ${new Date().toLocaleDateString('tr-TR')}`
+    setSaving(true)
+    try {
+      const { data: pl, error } = await supabase
+        .from('playlists')
+        .insert({ user_id: user.id, name, type: 'custom', is_collaborative: false })
+        .select()
+        .single()
+      if (error || !pl) throw error
+      const rows = queue.map((song, i) => ({ playlist_id: pl.id, song_id: song.id, position: i }))
+      await supabase.from('playlist_songs').insert(rows)
+      const { data: playlists } = await supabase.from('playlists').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+      if (playlists) setPlaylists(playlists)
+      trackPlaylist()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      console.warn('Queue save failed:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="p-6 overflow-y-auto h-full scrollbar-thin animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <h1 className="text-2xl font-bold">Sıradaki</h1>
-        {queue.length > 0 && (
-          <button onClick={clearQueue} className="text-sm text-surface-500 hover:text-white transition-colors">
-            Temizle
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {queue.length > 0 && !saved && (
+            <>
+              <input
+                type="text" value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="Liste adı (opsiyonel)"
+                className="h-9 w-44 rounded-xl bg-surface-800 border border-surface-700 px-3 text-sm text-white placeholder:text-surface-500 focus:outline-none focus:border-wave-400/50"
+              />
+              <button
+                onClick={saveQueue}
+                disabled={saving || !user}
+                className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-wave-500 text-white text-xs font-semibold hover:bg-wave-400 transition-colors disabled:opacity-50"
+              >
+                <Save size={13} />Sırayı Kaydet
+              </button>
+            </>
+          )}
+          {saved && (
+            <span className="text-sm text-wave-400 font-semibold animate-fade-in">✓ Kaydedildi!</span>
+          )}
+          {queue.length > 0 && (
+            <button onClick={clearQueue} className="text-sm text-surface-500 hover:text-white transition-colors">
+              Temizle
+            </button>
+          )}
+        </div>
       </div>
 
       {queue.length === 0 ? (

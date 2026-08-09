@@ -81,6 +81,20 @@ export function trackSongLiked(songUserId: string, currentUserId: string) {
   return getStats()
 }
 
+export function trackRadioPlay() {
+  const s = getStats()
+  s.radioPlays = (s.radioPlays || 0) + 1
+  saveStats(s)
+  return s
+}
+
+export function trackEffectsUse() {
+  const s = getStats()
+  s.effectsUsed = (s.effectsUsed || 0) + 1
+  saveStats(s)
+  return s
+}
+
 export function updateStreak() {
   const s = getStats()
   const today = new Date().toDateString()
@@ -118,6 +132,8 @@ export function getDailyQuests(): Quest[] {
     { id: 'daily_listen', label: 'Şarkı Dinle', type: 'listen', target: 10, reward: 5, progress: Math.min(stats.songsListened % 100, 10), completed: false, claimed: false },
     { id: 'daily_like', label: 'Beğeni Yap', type: 'like', target: 5, reward: 3, progress: Math.min(stats.likesGiven % 50, 5), completed: false, claimed: false },
     { id: 'daily_upload', label: 'Şarkı Yükle', type: 'upload', target: 1, reward: 10, progress: Math.min(stats.songsUploaded % 10, 1), completed: false, claimed: false },
+    { id: 'daily_radio', label: 'Radyo Modunda Dinle', type: 'radio', target: 5, reward: 8, progress: Math.min(stats.radioPlays % 50, 5), completed: false, claimed: false },
+    { id: 'daily_effects', label: 'Efektli Şarkı Dinle', type: 'effects', target: 3, reward: 6, progress: Math.min(stats.effectsUsed % 30, 3), completed: false, claimed: false },
   ]
   quests.forEach(q => q.completed = q.progress >= q.target)
   localStorage.setItem(QUESTS_KEY, JSON.stringify({ date: today, quests }))
@@ -146,6 +162,8 @@ export function getWeeklyQuests(): Quest[] {
     { id: 'weekly_like', label: 'Beğeni Yap', type: 'like', target: 25, reward: 15, progress: Math.min(stats.likesGiven % 200, 25), completed: false, claimed: false },
     { id: 'weekly_upload', label: 'Şarkı Yükle', type: 'upload', target: 5, reward: 50, progress: Math.min(stats.songsUploaded % 50, 5), completed: false, claimed: false },
     { id: 'weekly_friend', label: 'Arkadaş Ekle', type: 'friend', target: 3, reward: 30, progress: Math.min(stats.friendsAdded % 20, 3), completed: false, claimed: false },
+    { id: 'weekly_radio', label: 'Radyo Modunda Dinle', type: 'radio', target: 25, reward: 35, progress: Math.min(stats.radioPlays % 200, 25), completed: false, claimed: false },
+    { id: 'weekly_effects', label: 'Efektli Şarkı Dinle', type: 'effects', target: 15, reward: 30, progress: Math.min(stats.effectsUsed % 150, 15), completed: false, claimed: false },
   ]
   quests.forEach(q => q.completed = q.progress >= q.target)
   localStorage.setItem(WEEKLY_QUESTS_KEY, JSON.stringify({ week, quests }))

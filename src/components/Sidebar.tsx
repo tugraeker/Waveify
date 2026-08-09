@@ -9,7 +9,7 @@ import {
   Music, Flame, Clock, Heart, TrendingUp,
   Plus, List, Disc3, User, Radio,
   History, Sun, Moon, Globe, Settings as SettingsIcon,
-  BarChart3, Shield, MessageSquare, Sparkles, Award,
+  BarChart3, Shield, MessageSquare, Sparkles, Award, Trophy,
 } from 'lucide-react'
 
 const navItems = [
@@ -83,6 +83,7 @@ export default function Sidebar() {
             { icon: History, label: 'Geçmiş', path: '/history' },
             { icon: BarChart3, label: 'İstatistik', path: '/stats' },
             { icon: Award, label: 'Rozetler', path: '/badges' },
+            { icon: Trophy, label: 'Charts', path: '/charts' },
             { icon: Globe, label: 'İçe Aktar', path: '/import' },
           ].map(({ icon: Icon, label, path, highlight }) => (
             <button

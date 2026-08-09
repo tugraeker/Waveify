@@ -2,13 +2,14 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useStore } from '@/store/store'
 import { audioEngine } from '@/lib/audioEngine'
 import { supabase } from '@/lib/supabase'
-import { trackListen, updateStreak, awardXp } from '@/lib/achievements'
+import { trackListen, trackRadioPlay, trackEffectsUse, updateStreak, awardXp } from '@/lib/achievements'
+import { fetchRadioBatch } from '@/lib/radio'
 import type { Song } from '@/types'
 
 export function useAudio() {
   const {
     currentSong, isPlaying, currentTime, volume,
-    shuffle, repeat, queue, equalizer, sleepTimer,
+    shuffle, repeat, queue, equalizer, audioEffects, sleepTimer,
     setIsPlaying, setCurrentTime, setCurrentSong, addToHistory,
   } = useStore()
 
@@ -46,7 +47,20 @@ export function useAudio() {
         ni = Math.floor(Math.random() * q.length)
       } else if (ni >= q.length) {
         if (rp === 'all') ni = 0
-        else return
+        else if (state.radio.active && cs) {
+          fetchRadioBatch(cs, q.map((s) => s.id)).then((batch) => {
+            const st2 = useStore.getState()
+            if (batch.length > 0) {
+              st2.setQueue([...st2.queue, ...batch])
+              const first = batch[0]
+              st2.setCurrentSong(first)
+              st2.addToHistory(first)
+            } else {
+              st2.setRadio({ active: false, seedId: null })
+            }
+          }).catch(() => {})
+          return
+        } else return
       }
       const nextSong = q[ni]
       if (nextSong) {
@@ -77,6 +91,12 @@ export function useAudio() {
     setCurrentTime(0)
     addToHistory(currentSong)
     trackListen()
+    if (state.audioEffects.bass > 0 || state.audioEffects.reverb > 0 || state.audioEffects.spatial > 0) {
+      trackEffectsUse()
+    }
+    if (state.radio.active) {
+      trackRadioPlay()
+    }
     updateStreak()
     awardXp(1)
     if (state.user) {
@@ -86,6 +106,12 @@ export function useAudio() {
 
   // Volume
   useEffect(() => { audioEngine.setVolume(volume) }, [volume])
+
+  // Effects
+  useEffect(() => {
+    const id = setTimeout(() => audioEngine.setEffects(audioEffects), 50)
+    return () => clearTimeout(id)
+  }, [audioEffects])
 
   // Equalizer
   useEffect(() => {

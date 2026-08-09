@@ -1,4 +1,4 @@
-import type { EqualizerSettings } from '@/types'
+import type { EqualizerSettings, AudioEffects } from '@/types'
 
 const FADE_DURATION = 0.3
 
@@ -10,6 +10,10 @@ class AudioEngine {
   private eqFilters: BiquadFilterNode[] = []
   private gainNode: GainNode | null = null
   private analyserNode: AnalyserNode | null = null
+  private bassFilter: BiquadFilterNode | null = null
+  private reverbWet: GainNode | null = null
+  private delayWet: GainNode | null = null
+  private _effects: AudioEffects = { bass: 0, reverb: 0, spatial: 0 }
 
   private onTimeupdate: ((t: number) => void) | null = null
   private onEnded: (() => void) | null = null
@@ -40,6 +44,53 @@ class AudioEngine {
     this.gainNode.connect(this.analyserNode)
     this.analyserNode.connect(c.destination)
     this.createEqFilters(c)
+    this.createEffects(c)
+  }
+
+  private createEffects(ctx: AudioContext) {
+    this.bassFilter = ctx.createBiquadFilter()
+    this.bassFilter.type = 'lowshelf'
+    this.bassFilter.frequency.value = 150
+    this.bassFilter.gain.value = 0
+
+    const length = Math.floor(ctx.sampleRate * 1.8)
+    const impulse = ctx.createBuffer(2, length, ctx.sampleRate)
+    for (let ch = 0; ch < 2; ch++) {
+      const data = impulse.getChannelData(ch)
+      for (let i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.4)
+      }
+    }
+    const convolver = ctx.createConvolver()
+    convolver.buffer = impulse
+    convolver.normalize = true
+
+    this.reverbWet = ctx.createGain()
+    this.reverbWet.gain.value = 0
+    const delay = ctx.createDelay(1)
+    delay.delayTime.value = 0.018
+    const feedback = ctx.createGain()
+    feedback.gain.value = 0.35
+    this.delayWet = ctx.createGain()
+    this.delayWet.gain.value = 0
+
+    if (this.eqFilters.length > 0) {
+      this.eqFilters[this.eqFilters.length - 1].disconnect(this.gainNode!)
+      this.eqFilters[this.eqFilters.length - 1].connect(this.bassFilter)
+    }
+    this.bassFilter.connect(this.gainNode!)
+    this.bassFilter.connect(convolver)
+    convolver.connect(this.reverbWet)
+    this.reverbWet.connect(this.gainNode!)
+    this.bassFilter.connect(delay)
+    delay.connect(feedback)
+    feedback.connect(delay)
+    delay.connect(this.delayWet)
+    this.delayWet.connect(this.gainNode!)
+
+    this.bassFilter.gain.value = this._effects.bass * 1.2
+    this.reverbWet.gain.value = this._effects.reverb * 0.6
+    this.delayWet.gain.value = this._effects.spatial * 0.5
   }
 
   private createEqFilters(ctx: AudioContext) {
@@ -256,6 +307,15 @@ class AudioEngine {
     }
   }
 
+  setEffects(fx: AudioEffects) {
+    this._effects = fx
+    try {
+      if (this.bassFilter) this.bassFilter.gain.value = fx.bass * 1.2
+      if (this.reverbWet) this.reverbWet.gain.value = fx.reverb * 0.6
+      if (this.delayWet) this.delayWet.gain.value = fx.spatial * 0.5
+    } catch {}
+  }
+
   getAnalyserData(): Uint8Array {
     if (!this.analyserNode) return new Uint8Array(128)
     const data = new Uint8Array(this.analyserNode.frequencyBinCount)
@@ -271,6 +331,7 @@ class AudioEngine {
     if (this.audio) { this.audio.src = ''; this.audio = null }
     if (this.source) { try { this.source.disconnect() } catch {}; this.source = null }
     this.eqFilters = []
+    this.bassFilter = this.reverbWet = this.delayWet = null
     this.gainNode = this.analyserNode = null
     if (this.ctx) { this.ctx.close(); this.ctx = null }
   }
