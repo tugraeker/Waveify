@@ -4,14 +4,27 @@ import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { formatDuration } from '@/lib/utils'
 import { Button } from '@/components/ui'
+import { isFollowing, toggleFollow } from '@/lib/artists'
 import type { Song } from '@/types'
-import { ArrowLeft, Play, Pause, Music2 } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Music2, Plus, Check } from 'lucide-react'
 
 export default function ArtistPage() {
   const { name } = useParams<{ name: string }>()
   const navigate = useNavigate()
   const { setCurrentSong, setQueue, currentSong, isPlaying } = useStore()
   const [songs, setSongs] = useState<Song[]>([])
+  const [following, setFollowing] = useState(false)
+
+  const artistName = name ? decodeURIComponent(name) : ''
+
+  useEffect(() => {
+    setFollowing(isFollowing(artistName))
+  }, [artistName])
+
+  function handleFollow() {
+    const now = toggleFollow(artistName)
+    setFollowing(now)
+  }
 
   useEffect(() => {
     if (!name) return
@@ -31,8 +44,6 @@ export default function ArtistPage() {
     setCurrentSong(song)
   }
 
-  const artistName = name ? decodeURIComponent(name) : ''
-
   return (
     <div className="overflow-y-auto h-full scrollbar-thin animate-fade-in">
       <div className="bg-gradient-to-b from-surface-900 to-surface-950 p-8">
@@ -47,10 +58,21 @@ export default function ArtistPage() {
             <p className="text-xs uppercase font-semibold tracking-widest text-surface-500">Sanatçı</p>
             <h1 className="text-4xl font-extrabold mt-1">{artistName}</h1>
             <p className="text-sm text-surface-400 mt-1">{songs.length} şarkı</p>
-            <div className="mt-4">
+            <div className="mt-4 flex items-center gap-2">
               <Button variant="primary" size="lg" onClick={playAll} disabled={songs.length === 0}>
                 <Play size={18} fill="white" /> Tümünü Oynat
               </Button>
+              <button
+                onClick={handleFollow}
+                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
+                  following
+                    ? 'bg-wave-500/10 text-wave-400 border-wave-500/30'
+                    : 'bg-surface-800 text-surface-300 border-surface-700 hover:text-white'
+                }`}
+              >
+                {following ? <Check size={15} /> : <Plus size={15} />}
+                {following ? 'Takip Ediliyor' : 'Takip Et'}
+              </button>
             </div>
           </div>
         </div>

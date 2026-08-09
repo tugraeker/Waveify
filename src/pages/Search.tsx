@@ -44,7 +44,11 @@ export default function SearchPage() {
         return
       }
       const q = searchQuery.toLowerCase()
-      setSongResults(songs.filter((s) => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)))
+      setSongResults(songs.filter((s) =>
+        s.title.toLowerCase().includes(q) ||
+        s.artist.toLowerCase().includes(q) ||
+        (s.lyrics && s.lyrics.toLowerCase().includes(q))
+      ))
       fetchArtists(q)
       fetchPlaylists(q)
       fetchUsers(q)
@@ -114,7 +118,7 @@ export default function SearchPage() {
       <div className="relative mb-6 max-w-md">
         <SearchIcon size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400" />
         <Input
-          placeholder="Şarkı, sanatçı, liste veya kullanıcı ara..."
+          placeholder="Şarkı, sanatçı, söz veya liste ara..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-11 pr-10 h-11"

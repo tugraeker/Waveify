@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { formatDuration } from '@/lib/utils'
@@ -7,12 +7,13 @@ import type { Song } from '@/types'
 import { Button, Input } from '@/components/ui'
 import ContextMenu from '@/components/ContextMenu'
 import AddToPlaylistModal from '@/components/AddToPlaylistModal'
-import { Play, Pause, Music, Clock, Flame, Heart, TrendingUp, AudioWaveform, Trash2, X, Users, Search, Plus, ListMusic } from 'lucide-react'
+import { Play, Pause, Music, Clock, Flame, Heart, TrendingUp, AudioWaveform, Trash2, X, Users, Search, Plus, ListMusic, Share2 } from 'lucide-react'
 import { emitToast } from '@/hooks/useToast'
 
 export default function PlaylistPage() {
   const navigate = useNavigate()
-  const { activePlaylist, setQueue, setCurrentSong, currentSong, isPlaying, user } = useStore()
+  const [searchParams] = useSearchParams()
+  const { activePlaylist, setActivePlaylist, setQueue, setCurrentSong, currentSong, isPlaying, user } = useStore()
   const [songs, setSongs] = useState<Song[]>([])
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [isCollab, setIsCollab] = useState(false)
@@ -24,6 +25,12 @@ export default function PlaylistPage() {
   const [addPlaylistSong, setAddPlaylistSong] = useState<Song | null>(null)
 
   useEffect(() => {
+    const pid = searchParams.get('id')
+    if (pid && (!activePlaylist || activePlaylist.id !== pid)) {
+      supabase.from('playlists').select('*').eq('id', pid).maybeSingle().then(({ data }) => {
+        if (data) setActivePlaylist(data)
+      })
+    }
     if (!activePlaylist) return
     if (activePlaylist.type === 'auto') fetchAutoPlaylist(activePlaylist.auto_type!)
     else if (activePlaylist.type === 'custom') {
@@ -157,6 +164,15 @@ export default function PlaylistPage() {
     }
   }
 
+  function sharePlaylist() {
+    if (!activePlaylist) return
+    const base = import.meta.env.VITE_PUBLIC_URL || 'https://waveify.app'
+    const link = `${base}/playlist?id=${activePlaylist.id}`
+    navigator.clipboard.writeText(link).then(() => {
+      emitToast('Paylaşım linki kopyalandı', 'success')
+    }).catch(() => {})
+  }
+
   const playAll = () => { if (songs.length === 0) return; setQueue(songs); setCurrentSong(songs[0]) }
   const playSong = (song: Song) => { setQueue(songs); setCurrentSong(song) }
 
@@ -182,7 +198,24 @@ export default function PlaylistPage() {
     <div className="overflow-y-auto h-full scrollbar-thin">
       <div className="bg-gradient-to-b from-surface-900 to-surface-950 p-8">
         <div className="flex items-end gap-6 mb-6">
-          <div className="w-52 h-52 rounded-2xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 flex items-center justify-center shadow-2xl flex-shrink-0">{getIcon()}</div>
+          <div className="w-52 h-52 rounded-2xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 flex items-center justify-center shadow-2xl flex-shrink-0 overflow-hidden">
+            {isCustom && songs.length > 0 ? (
+              <div className="w-full h-full grid grid-cols-2 grid-rows-2">
+                {[0, 1, 2, 3].map((i) => {
+                  const s = songs[i]
+                  return s?.cover_url ? (
+                    <img key={i} src={s.cover_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div key={i} className="w-full h-full bg-surface-800 flex items-center justify-center">
+                      <Music size={20} className="text-surface-600" />
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              getIcon()
+            )}
+          </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs uppercase font-semibold tracking-widest text-surface-500">{activePlaylist.type === 'auto' ? 'Otomatik Liste' : 'Çalma Listesi'}</p>
             <h1 className="text-4xl font-extrabold mt-2 mb-2">{activePlaylist.name}</h1>
@@ -199,6 +232,9 @@ export default function PlaylistPage() {
                   </button>
                 </>
               )}
+              <button onClick={sharePlaylist} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-surface-800 text-surface-300 border-surface-700 hover:text-wave-400 hover:border-wave-500/30">
+                <Share2 size={15} /> Paylaş
+              </button>
             </div>
             {collaborators.length > 0 && (
               <div className="flex items-center gap-1 mt-3">

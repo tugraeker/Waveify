@@ -9,7 +9,7 @@ import {
   Music, Flame, Clock, Heart, TrendingUp,
   Plus, List, Disc3, User, Radio,
   History, Sun, Moon, Globe, Settings as SettingsIcon,
-  BarChart3, Shield, MessageSquare, Sparkles, Award, Trophy,
+  BarChart3, Shield, MessageSquare, Sparkles, Award, Trophy, Waves,
 } from 'lucide-react'
 
 const navItems = [
@@ -80,6 +80,7 @@ export default function Sidebar() {
             { icon: Disc3, label: 'Şimdi Çalıyor', path: '/now-playing' },
             { icon: User, label: 'Profilim', path: '/profile' },
             { icon: Radio, label: 'Birlikte Dinle', path: '/sync-room', highlight: true },
+            { icon: Waves, label: 'Ses Manzaraları', path: '/soundscapes' },
             { icon: History, label: 'Geçmiş', path: '/history' },
             { icon: BarChart3, label: 'İstatistik', path: '/stats' },
             { icon: Award, label: 'Rozetler', path: '/badges' },

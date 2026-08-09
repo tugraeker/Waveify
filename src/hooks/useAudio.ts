@@ -4,12 +4,13 @@ import { audioEngine } from '@/lib/audioEngine'
 import { supabase } from '@/lib/supabase'
 import { trackListen, trackRadioPlay, trackEffectsUse, updateStreak, awardXp } from '@/lib/achievements'
 import { fetchRadioBatch } from '@/lib/radio'
+import { resolveAudioUrl } from '@/lib/offline'
 import type { Song } from '@/types'
 
 export function useAudio() {
   const {
     currentSong, isPlaying, currentTime, volume,
-    shuffle, repeat, queue, equalizer, audioEffects, sleepTimer,
+    shuffle, repeat, queue, equalizer, audioEffects, playbackRate, sleepTimer,
     setIsPlaying, setCurrentTime, setCurrentSong, addToHistory,
   } = useStore()
 
@@ -81,11 +82,16 @@ export function useAudio() {
     }
     prevSongId.current = currentSong.id
     const state = useStore.getState()
-    if (state.crossfade && state.isPlaying && audioEngine.isPlayingState) {
-      audioEngine.crossfade(currentSong.audio_url, state.crossfadeDuration || 3)
-    } else {
-      audioEngine.play(currentSong.audio_url)
-    }
+    ;(async () => {
+      let url = currentSong.audio_url
+      url = await resolveAudioUrl(url)
+      if (state.crossfade && state.isPlaying && audioEngine.isPlayingState) {
+        audioEngine.crossfade(url, state.crossfadeDuration || 3)
+      } else {
+        audioEngine.play(url)
+      }
+    })()
+    audioEngine.setPlaybackRate(state.playbackRate)
     setIsPlaying(true)
     setDuration(currentSong.duration || 0)
     setCurrentTime(0)
@@ -112,6 +118,9 @@ export function useAudio() {
     const id = setTimeout(() => audioEngine.setEffects(audioEffects), 50)
     return () => clearTimeout(id)
   }, [audioEffects])
+
+  // Playback rate
+  useEffect(() => { audioEngine.setPlaybackRate(playbackRate) }, [playbackRate])
 
   // Equalizer
   useEffect(() => {
@@ -170,8 +179,9 @@ export function useAudio() {
     setCurrentTime(time)
   }, [setCurrentTime])
 
-  const nextSong = useCallback(() => {
+const nextSong = useCallback(() => {
     if (queue.length === 0) return
+    try { if (typeof navigator.vibrate === 'function') navigator.vibrate(12) } catch {}
     const ci = queue.findIndex((s) => s.id === currentSong?.id)
     let ni = ci + 1
     if (shuffle) { ni = Math.floor(Math.random() * queue.length) }
@@ -179,14 +189,28 @@ export function useAudio() {
     setCurrentSong(queue[ni])
   }, [queue, currentSong?.id, shuffle, repeat, setCurrentSong])
 
-  const prevSong = useCallback(() => {
+const prevSong = useCallback(() => {
     if (queue.length === 0) return
+    try { if (typeof navigator.vibrate === 'function') navigator.vibrate(12) } catch {}
     const ci = queue.findIndex((s) => s.id === currentSong?.id)
     if (currentTime > 3) { seek(0); return }
     const pi = ci - 1
     if (pi < 0) { if (repeat === 'all') setCurrentSong(queue[queue.length - 1]); return }
     setCurrentSong(queue[pi])
   }, [queue, currentSong?.id, currentTime, repeat, setCurrentSong, seek])
+
+  // Tray + media keys (electron)
+  useEffect(() => {
+    const api = (window as any).electronAPI
+    if (!api?.onGlobalPlayPause) return
+    api.onGlobalPlayPause(() => {
+      useStore.getState().setIsPlaying(audioEngine.isPlaying())
+      togglePlay()
+    })
+    api.onGlobalNext(() => nextSong())
+    api.onGlobalPrev(() => prevSong())
+    return () => {}
+  }, [togglePlay, nextSong, prevSong])
 
   return {
     isPlaying, currentTime, duration, volume,

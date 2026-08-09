@@ -5,6 +5,8 @@ import { useAudio } from '@/hooks/useAudio'
 import { audioEngine } from '@/lib/audioEngine'
 import { formatDuration } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { cacheAudio, removeCachedAudio, isAudioCached } from '@/lib/offline'
+import { emitToast } from '@/hooks/useToast'
 import { Slider } from '@/components/ui'
 import Visualizer from '@/components/Visualizer'
 import SyncedLyrics from '@/components/SyncedLyrics'
@@ -15,7 +17,7 @@ import {
   Volume2, ChevronDown, Heart, Music2, Disc3, X,
   BarChart3, Waves, Circle, Flame, Radio,
   Maximize2, Share2, Star, Pencil, Info, ListPlus,
-  Palette, Plus, Check, FileText, Save, Zap, Volume1, Landmark,
+  Palette, Plus, Check, FileText, Save, Zap, Volume1, Landmark, Download, XCircle,
 } from 'lucide-react'
 
 const VISUALIZER_MODES: { key: VisualizerMode; label: string; icon: typeof BarChart3 }[] = [
@@ -211,6 +213,30 @@ export default function NowPlaying() {
   useEffect(() => {
     audioEngine.setEffects(audioEffects)
   }, [audioEffects])
+
+  const [cached, setCached] = useState(false)
+  const [caching, setCaching] = useState(false)
+
+  useEffect(() => {
+    if (!currentSong?.audio_url) return
+    let cancelled = false
+    isAudioCached(currentSong.audio_url).then((v) => { if (!cancelled) setCached(v) })
+    return () => { cancelled = true }
+  }, [currentSong?.id, cached])
+
+  async function handleCache() {
+    if (!currentSong?.audio_url) return
+    setCaching(true)
+    if (cached) {
+      const ok = await removeCachedAudio(currentSong.audio_url)
+      if (ok) { setCached(false); emitToast('Önbellekten kaldırıldı', 'info') }
+    } else {
+      const ok = await cacheAudio(currentSong.audio_url)
+      if (ok) { setCached(true); emitToast('İndirildi — çevrimdışı dinlenebilir', 'success') }
+      else emitToast('İndirme başarısız', 'error')
+    }
+    setCaching(false)
+  }
 
   const currentRating = currentSong ? songRatings[currentSong.id] || 0 : 0
   const currentNote = currentSong ? songNotes[currentSong.id] || '' : ''
@@ -451,6 +477,14 @@ export default function NowPlaying() {
                 </button>
                 <button onClick={() => { setShowShare(!showShare); setShowShare(true) }} className="text-surface-500 hover:text-wave-400 transition-colors" title="Paylaş">
                   <Share2 size={15} />
+                </button>
+                <button
+                  onClick={handleCache}
+                  disabled={caching || !currentSong.audio_url}
+                  className={`transition-colors disabled:opacity-50 ${cached ? 'text-emerald-400' : 'text-surface-500 hover:text-emerald-400'}`}
+                  title={cached ? 'Önbellekten kaldır' : 'Çevrimdışı için indir'}
+                >
+                  {cached ? <XCircle size={15} /> : <Download size={15} />}
                 </button>
                 <button onClick={() => setShowInfo(!showInfo)} className={`transition-colors ${showInfo ? 'text-wave-400' : 'text-surface-500 hover:text-wave-400'}`} title="Bilgi">
                   <Info size={15} />

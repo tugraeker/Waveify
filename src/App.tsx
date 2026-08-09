@@ -44,6 +44,7 @@ const BadgeGallery = lazy(() => import('@/pages/BadgeGallery'))
 const PodcastPage = lazy(() => import('@/pages/Podcast'))
 const RadioPage = lazy(() => import('@/pages/Radio'))
 const Charts = lazy(() => import('@/pages/Charts'))
+const Soundscapes = lazy(() => import('@/pages/Soundscapes'))
 
 const accentPalettes: Record<AccentColor, Record<string, string>> = {
   wave:   { '50': '238 251 250', '100': '213 245 242', '200': '174 234 229', '300': '106 217 210', '400': '34 199 192', '500': '15 171 166', '600': '9 139 136', '700': '12 111 109', '800': '15 89 88', '900': '18 74 73', '950': '3 45 45' },
@@ -155,16 +156,47 @@ export default function App() {
         }, () => {})
     }
 
+    const handlePlaylistId = (playlistId: string) => {
+      supabase
+        .from('playlists')
+        .select('*')
+        .eq('id', playlistId)
+        .maybeSingle()
+        .then(async ({ data }) => {
+          if (!data) return
+          useStore.getState().setActivePlaylist(data)
+          try {
+            const { data: rows } = await supabase
+              .from('playlist_songs')
+              .select('songs(*)')
+              .eq('playlist_id', playlistId)
+              .order('position', { ascending: true })
+            const list = (rows || []).map((r: any) => r.songs).filter(Boolean) as Song[]
+            if (list.length > 0) {
+              useStore.getState().setQueue(list)
+              useStore.getState().setCurrentSong(list[0])
+            }
+          } catch {}
+          navigate('/playlist')
+        })
+    }
+
+    const handleDeepLinkUrl = (url: string) => {
+      const song = url.match(/^waveify:\/\/song\/([0-9a-fA-F-]{36})/i)
+      const playlist = url.match(/^waveify:\/\/playlist\/([0-9a-fA-F-]{36})/i)
+      if (song) handleSongId(song[1])
+      else if (playlist) handlePlaylistId(playlist[1])
+    }
+
     const api = (window as any).electronAPI
-    if (api?.onDeepLinkSong) {
+    if (api?.onDeepLink) {
       api.deepLinkReady()
-      api.onDeepLinkSong(handleSongId)
+      api.onDeepLink(handleDeepLinkUrl)
     }
 
     const onAppUrlOpen = (e: any) => {
       const url: string = e?.detail?.url || ''
-      const m = url.match(/^waveify:\/\/song\/([0-9a-fA-F-]{36})/i)
-      if (m) handleSongId(m[1])
+      handleDeepLinkUrl(url)
     }
     window.addEventListener('appUrlOpen', onAppUrlOpen)
     return () => window.removeEventListener('appUrlOpen', onAppUrlOpen)
@@ -244,6 +276,7 @@ export default function App() {
               <Route path="/podcast" element={<PodcastPage />} />
               <Route path="/radio" element={<RadioPage />} />
               <Route path="/charts" element={<Charts />} />
+              <Route path="/soundscapes" element={<Soundscapes />} />
               <Route path="/auth" element={<Auth />} />
             </Routes>
           </Suspense>

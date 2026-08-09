@@ -27,30 +27,24 @@ autoUpdater.autoInstallOnAppQuit = true
 const isDev = !app.isPackaged
 
 const WAVEIFY_SCHEME = 'waveify'
-let pendingSongId: string | null = null
+let pendingDeepLink: string | null = null
 
-function extractSongIdFromUrl(url: string): string | null {
-  const match = url.match(/^waveify:\/\/song\/([0-9a-fA-F-]{36})/i)
-  return match ? match[1] : null
-}
-
-function extractSongIdFromArgv(argv: string[]): string | null {
-  const url = argv.find((a) => a.startsWith('waveify://'))
-  return url ? extractSongIdFromUrl(url) : null
-}
-
-function queueSongId(songId: string) {
-  pendingSongId = songId
+function queueDeepLink(url: string) {
+  pendingDeepLink = url
   if (mainWindow && !mainWindow.webContents.isLoading()) {
-    mainWindow.webContents.send('deep-link:song', songId)
-    pendingSongId = null
+    mainWindow.webContents.send('deep-link:url', url)
+    pendingDeepLink = null
   }
 }
 
+function extractDeepLinkFromArgv(argv: string[]): string | null {
+  return argv.find((a) => a.startsWith('waveify://')) || null
+}
+
 ipcMain.on('deep-link:ready', () => {
-  if (pendingSongId && mainWindow && !mainWindow.webContents.isLoading()) {
-    mainWindow.webContents.send('deep-link:song', pendingSongId)
-    pendingSongId = null
+  if (pendingDeepLink && mainWindow && !mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.send('deep-link:url', pendingDeepLink)
+    pendingDeepLink = null
   }
 })
 
@@ -73,13 +67,12 @@ app.on('second-instance', (_event, argv) => {
     mainWindow.show()
     mainWindow.focus()
   }
-  const songId = extractSongIdFromArgv(argv)
-  if (songId) queueSongId(songId)
+  const deepLink = extractDeepLinkFromArgv(argv)
+  if (deepLink) queueDeepLink(deepLink)
 })
 
 app.on('open-url', (_event, url) => {
-  const songId = extractSongIdFromUrl(url)
-  if (songId) queueSongId(songId)
+  if (url.startsWith(WAVEIFY_SCHEME + '://')) queueDeepLink(url)
 })
 
 autoUpdater.on('checking-for-update', () => {
@@ -327,8 +320,8 @@ app.whenReady().then(() => {
   initDiscordRPC()
   createTray()
   registerGlobalShortcuts()
-  const initialSongId = extractSongIdFromArgv(process.argv)
-  if (initialSongId) queueSongId(initialSongId)
+  const initialDeepLink = extractDeepLinkFromArgv(process.argv)
+  if (initialDeepLink) queueDeepLink(initialDeepLink)
 })
 
 app.on('will-quit', () => {

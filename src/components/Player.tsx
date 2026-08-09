@@ -9,10 +9,12 @@ import { useAudio } from '@/hooks/useAudio'
 import ShortcutsModal from '@/components/ShortcutsModal'
 import CrossfadeControls from '@/components/CrossfadeControls'
 import Visualizer from '@/components/Visualizer'
+import { cacheAudio, removeCachedAudio, isAudioCached } from '@/lib/offline'
+import { emitToast } from '@/hooks/useToast'
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
   Volume2, Music2, List, Maximize2, Heart,
-  Timer, Keyboard, Minimize2, Star, ArrowUpDown,
+  Timer, Keyboard, Minimize2, Star, ArrowUpDown, Download, XCircle,
 } from 'lucide-react'
 
 export default function Player() {
@@ -31,6 +33,29 @@ export default function Player() {
   const [liked, setLiked] = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
   const [showEq, setShowEq] = useState(false)
+  const [cached, setCached] = useState(false)
+  const [caching, setCaching] = useState(false)
+
+  useEffect(() => {
+    if (!currentSong) return
+    let cancelled = false
+    isAudioCached(currentSong.audio_url || '').then((v) => { if (!cancelled) setCached(v) })
+    return () => { cancelled = true }
+  }, [currentSong?.id, cached])
+
+  async function handleCache() {
+    if (!currentSong?.audio_url) return
+    setCaching(true)
+    if (cached) {
+      const ok = await removeCachedAudio(currentSong.audio_url)
+      if (ok) { setCached(false); emitToast('Önbellekten kaldırıldı', 'info') }
+    } else {
+      const ok = await cacheAudio(currentSong.audio_url)
+      if (ok) { setCached(true); emitToast('İndirildi — artık çevrimdışı dinlenebilir', 'success') }
+      else emitToast('İndirme başarısız', 'error')
+    }
+    setCaching(false)
+  }
 
   useEffect(() => {
     if (!currentSong || !user) { setLiked(false); return }
@@ -185,6 +210,14 @@ export default function Player() {
         </div>
         <button onClick={toggleLike} className={`transition-colors flex-shrink-0 ${liked ? 'text-red-400' : 'text-surface-500 hover:text-red-400'}`}>
           <Heart size={15} fill={liked ? 'currentColor' : 'none'} />
+        </button>
+        <button
+          onClick={handleCache}
+          disabled={caching || !currentSong.audio_url}
+          className={`transition-colors flex-shrink-0 ${cached ? 'text-emerald-400' : 'text-surface-500 hover:text-emerald-400'} disabled:opacity-50`}
+          title={cached ? 'Önbellekten kaldır' : 'Çevrimdışı için indir'}
+        >
+          {cached ? <XCircle size={15} /> : <Download size={15} />}
         </button>
       </div>
 

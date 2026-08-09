@@ -7,8 +7,9 @@ import { SongSkeleton, CardSkeleton } from '@/components/Skeleton'
 import ContextMenu from '@/components/ContextMenu'
 import AddToPlaylistModal from '@/components/AddToPlaylistModal'
 import { generateMoodPlaylist, MOODS } from '@/lib/moods'
+import { getFollowedArtists } from '@/lib/artists'
 import type { Song } from '@/types'
-import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic, Award, Sparkles } from 'lucide-react'
+import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic, Award, Sparkles, Users, Radio } from 'lucide-react'
 import { computeLevel } from '@/types'
 import { getStats, getXpTotal } from '@/lib/achievements'
 
@@ -28,6 +29,47 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [ctxMenu, setCtxMenu] = useState<{ song: Song; x: number; y: number } | null>(null)
   const [addPlaylistSong, setAddPlaylistSong] = useState<Song | null>(null)
+  const [followedSongs, setFollowedSongs] = useState<Song[]>([])
+  const [friendActivity, setFriendActivity] = useState<{ user: any; song: Song; at: string }[]>([])
+
+  useEffect(() => {
+    const followed = getFollowedArtists()
+    if (followed.length > 0) {
+      supabase.from('songs').select('*').in('artist', followed).order('likes_count', { ascending: false }).limit(6).then(({ data }) => {
+        if (data) setFollowedSongs(data as Song[])
+      })
+    }
+    if (user) {
+      ;(async () => {
+        try {
+          const { data: friends } = await supabase.from('friends').select('friend_id').eq('user_id', user.id).eq('status', 'accepted')
+          const ids = (friends || []).map((f: any) => f.friend_id)
+          if (ids.length === 0) return
+          const { data: plays } = await supabase.from('listen_history')
+            .select('user_id, listened_at, song_id')
+            .in('user_id', ids)
+            .order('listened_at', { ascending: false })
+            .limit(30)
+          if (!plays || plays.length === 0) return
+          const songIds = [...new Set(plays.map((p: any) => p.song_id))]
+          const { data: songs } = await supabase.from('songs').select('*').in('id', songIds)
+          const songMap = new Map((songs as Song[] || []).map((s) => [s.id, s]))
+          const { data: profiles } = await supabase.from('users').select('id, username, avatar_url').in('id', ids)
+          const userMap = new Map((profiles || []).map((p: any) => [p.id, p]))
+          const seen = new Set<string>()
+          const items: { user: any; song: Song; at: string }[] = []
+          for (const p of plays as any[]) {
+            const song = songMap.get(p.song_id)
+            if (!song || seen.has(p.song_id)) continue
+            seen.add(p.song_id)
+            items.push({ user: userMap.get(p.user_id), song, at: p.listened_at })
+            if (items.length >= 5) break
+          }
+          setFriendActivity(items)
+        } catch {}
+      })()
+    }
+  }, [user?.id])
 
   useEffect(() => {
     const h = new Date().getHours()
@@ -128,6 +170,74 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {friendActivity.length > 0 && (
+        <section className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <Users size={16} className="text-emerald-400" />
+            <h2 className="text-lg font-semibold text-surface-200">Arkadaşların Dinliyor</h2>
+          </div>
+          <div className="flex flex-col gap-1">
+            {friendActivity.map((item, i) => (
+              <div key={i} onClick={() => playSong(item.song)} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 cursor-pointer transition-all group">
+                {item.user?.avatar_url ? (
+                  <img src={item.user.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover border border-emerald-500/30" />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-xs font-bold text-white">
+                    {item.user?.username?.[0]?.toUpperCase() || '?'}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate">
+                    <span className="text-emerald-400 font-semibold">{item.user?.username || 'Arkadaş'}</span>
+                    <span className="text-surface-500"> dinliyor: </span>
+                    <span className="text-white group-hover:text-wave-400 transition-colors">{item.song.title}</span>
+                  </p>
+                  <p className="text-[11px] text-surface-500 truncate">{item.song.artist}</p>
+                </div>
+                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Play size={14} fill="currentColor" className="text-wave-400" />
+                </div>
+                <span className="text-[10px] text-surface-600 flex-shrink-0">
+                  {new Date(item.at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {followedSongs.length > 0 && (
+        <section className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <Radio size={16} className="text-pink-400" />
+            <h2 className="text-lg font-semibold text-surface-200">Takip Ettiklerin</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-1.5">
+            {followedSongs.map((song) => (
+              <div key={song.id} onClick={() => playSong(song)} className="song-row group flex items-center gap-3.5 p-2.5 rounded-xl cursor-pointer transition-all duration-200 card-hover">
+                <div className="relative w-10 h-10 flex-shrink-0">
+                  {song.cover_url ? (
+                    <img src={song.cover_url} alt="" className="w-full h-full rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-full h-full rounded-lg bg-surface-800 border border-surface-700 flex items-center justify-center">
+                      <Music size={16} className="text-surface-500" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Play size={14} fill="white" className="text-white ml-0.5" />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium truncate ${currentSong?.id === song.id ? 'text-wave-400' : 'text-white'}`}>{song.title}</p>
+                  <p className="text-xs text-surface-400 truncate">{song.artist}</p>
+                </div>
+                <span className="text-xs text-surface-500 tabular-nums flex-shrink-0">{formatDuration(song.duration)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section>
         <div className="flex items-center justify-between mb-5">

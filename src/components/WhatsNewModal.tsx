@@ -1,18 +1,20 @@
 import { useState } from 'react'
-import { Sparkles, X, Radio, Zap, Palette, Mic2, Trophy, ListMusic, Users, Gauge } from 'lucide-react'
+import { Sparkles, X, Gauge, AudioWaveform, Heart, Users, Search, Share2, CloudDownload, Wind, Vibrate, Music4 } from 'lucide-react'
 
-const VERSION = '4.0.0'
+const VERSION = '5.0.0'
 const STORAGE_KEY = 'waveify_seen_whatsnew'
 
 const FEATURES = [
-  { icon: Radio, title: 'Şarkı Radyosu', desc: 'Çalan şarkıya benzer şarkılarla sonsuz müzik akışı. Radyo modu asla bitmez.' },
-  { icon: Zap, title: 'Ses Efektleri', desc: 'Bas geliştirme, yankı (reverb) ve 3D genişlik efektleriyle sesini kişiselleştir.' },
-  { icon: Palette, title: 'Akıllı Temalar', desc: 'Çalan şarkının kapak rengine göre arayüz otomatik ambiyans renkleri alır.' },
-  { icon: Mic2, title: 'Karaoke Geliştirmesi', desc: 'Sözlere dokun/tıkla, şarkı o satırdan başlasın. Tap-to-seek.' },
-  { icon: Trophy, title: 'Haftalık Chart & Liderlik', desc: 'Haftanın en çok dinlenen şarkıları ve en aktif dinleyicileri sıralamada.' },
-  { icon: Gauge, title: 'Ruh Hali Karışımları', desc: 'Odak, Enerji, Rahatlama, Parti ve daha fazlası — anlık karışım başlat.' },
-  { icon: ListMusic, title: 'Kuyruğu Kaydet', desc: 'Sırandaki şarkıları tek tıkla çalma listesine dönüştür.' },
-  { icon: Users, title: 'İşbirlikçi Playlistler', desc: 'Playlistlerini arkadaşlarınla birlikte oluştur ve düzenle.' },
+  { icon: Gauge, title: 'Çalma Hızı', desc: "%50 yavaştan 2x hıza kadar — podcast'ler, dersler ve pratik için." },
+  { icon: AudioWaveform, title: 'Ses Manzaraları', desc: 'Yağmur, okyanus, rüzgar, kamp ateşi, orman ve uyku sesleri. Anlık ambiyans.' },
+  { icon: CloudDownload, title: 'Çevrimdışı İndirme', desc: 'Şarkıları cihazına indir, internet olmadan da çal.' },
+  { icon: Heart, title: 'Sanatçı Takibi', desc: 'Sanatçıları takip et; ana sayfada takip ettiğin sanatçıların şarkıları öne çıksın.' },
+  { icon: Users, title: 'Arkadaş Aktiviteleri', desc: 'Arkadaşlarının şu anda ne dinlediğini ana sayfada gör.' },
+  { icon: Search, title: 'Sözlerde Arama', desc: 'Arama artık şarkı sözlerinde de geziyor — bir satırla şarkıyı bul.' },
+  { icon: Share2, title: 'Playlist Paylaşımı', desc: 'Tek tıkla link kopyala; açıldığında şarkı veya playlist anında çalar.' },
+  { icon: Wind, title: 'Kapak Kolajı', desc: 'Playlist kapakları artık ilk 4 şarkının kapağıyla otomatik kolaj.' },
+  { icon: Vibrate, title: 'Haptik Titreşim', desc: 'Mobilde şarkı geçişlerinde kısa dokunsal geri bildirim.' },
+  { icon: Music4, title: 'Tepsi & Kısayollar Onarımı', desc: 'Sistem tepsisindeki Çal/Duraklat ve medya tuşları artık uygulamayı gerçekten kontrol ediyor.' },
 ]
 
 export default function WhatsNewModal() {
@@ -34,7 +36,7 @@ export default function WhatsNewModal() {
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-bold text-white">Waveify {VERSION}</h2>
-            <p className="text-xs text-surface-400">Devasa güncelleme! Yeni özellikler seni bekliyor</p>
+            <p className="text-xs text-surface-400">Sürümde yenilikler</p>
           </div>
           <button onClick={dismiss} className="text-surface-400 hover:text-white transition-colors p-1"><X size={18} /></button>
         </div>

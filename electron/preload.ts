@@ -20,9 +20,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onUpdateDownloaded: (cb: any) => { ipcRenderer.on('update:downloaded', cb) },
   onUpdateError: (cb: any) => { ipcRenderer.on('update:error', (_e: any, msg: any) => cb(msg)) },
 
+  // Global media controls (tray + shortcuts)
+  onGlobalPlayPause: (cb: any) => { ipcRenderer.on('global:play-pause', () => cb()) },
+  onGlobalNext: (cb: any) => { ipcRenderer.on('global:next', () => cb()) },
+  onGlobalPrev: (cb: any) => { ipcRenderer.on('global:prev', () => cb()) },
+
   // Deep link
   deepLinkReady: () => ipcRenderer.send('deep-link:ready'),
-  onDeepLinkSong: (cb: any) => { ipcRenderer.on('deep-link:song', (_e: any, songId: string) => cb(songId)) },
+  onDeepLink: (cb: any) => { ipcRenderer.on('deep-link:url', (_e: any, url: string) => cb(url)) },
 
   // Offline cache
   cacheSave: (songId: string, audioUrl: string) => ipcRenderer.invoke('cache:save', songId, audioUrl),
