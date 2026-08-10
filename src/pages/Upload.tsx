@@ -146,7 +146,7 @@ export default function UploadPage() {
             <AudioWaveform size={20} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Şarkı Yükle</h1>
+            <h1 className="text-2xl font-display font-bold">Şarkı Yükle</h1>
             <p className="text-sm text-surface-400">MP3 dosyanı sürükle veya seç</p>
           </div>
         </div>

@@ -3,7 +3,8 @@ import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { formatDuration } from '@/lib/utils'
 import { trackPlaylist } from '@/lib/achievements'
-import { Music2, X, Play, GripVertical, Save } from 'lucide-react'
+import { emitToast } from '@/hooks/useToast'
+import { Music2, X, Play, GripVertical, Save, Shuffle, Star, Sparkles } from 'lucide-react'
 import type { Song } from '@/types'
 
 export default function QueuePage() {
@@ -13,6 +14,7 @@ export default function QueuePage() {
   const [saving, setSaving] = useState(false)
   const [saveName, setSaveName] = useState('')
   const [saved, setSaved] = useState(false)
+  const [mystery, setMystery] = useState(false)
 
   const playSong = (song: Song) => {
     const idx = queue.findIndex((s) => s.id === song.id)
@@ -20,6 +22,29 @@ export default function QueuePage() {
   }
 
   const clearQueue = () => setQueue([])
+
+  // Hype: Mystery queue — shuffle button that also surprises
+  const toggleMystery = async () => {
+    if (queue.length === 0) return
+    setMystery(!mystery)
+    if (!mystery) {
+      try {
+        const { data } = await supabase.from('songs').select('*')
+        if (data && data.length > 0) {
+          const pool = (data as Song[]).filter((s) => s.id !== currentSong?.id && !queue.some((q) => q.id === s.id))
+          const picks: Song[] = []
+          for (let i = 0; i < 3 && pool.length > 0; i++) {
+            const r = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]
+            if (r) picks.push(r)
+          }
+          setQueue([...queue, ...picks])
+          emitToast('🎰 Gizemli sıra eklendi — ne çıkarsa', 'info')
+        }
+      } catch {}
+    } else {
+      emitToast('👻 Gizemli sıra kapatıldı', 'info')
+    }
+  }
 
   function handleDragStart(i: number) {
     setDragIdx(i)
@@ -70,16 +95,21 @@ export default function QueuePage() {
   return (
     <div className="p-6 overflow-y-auto h-full scrollbar-thin animate-fade-in">
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold">Sıradaki</h1>
+        <h1 className="text-2xl font-display font-bold">Sıradaki</h1>
         <div className="flex items-center gap-2">
           {queue.length > 0 && !saved && (
             <>
-              <input
-                type="text" value={saveName}
-                onChange={(e) => setSaveName(e.target.value)}
-                placeholder="Liste adı (opsiyonel)"
-                className="h-9 w-44 rounded-xl bg-surface-800 border border-surface-700 px-3 text-sm text-white placeholder:text-surface-500 focus:outline-none focus:border-wave-400/50"
-              />
+              <button
+                onClick={toggleMystery}
+                className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold transition-all ${
+                  mystery
+                    ? 'bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/40'
+                    : 'bg-surface-800/60 border border-surface-700 text-surface-300 hover:text-white'
+                }`}
+                title="3 rastgele sürpriz şarkı daha ekle"
+              >
+                <Shuffle size={13} className={mystery ? 'animate-spin-slow' : ''} /> Gizemli Sıra
+              </button>
               <button
                 onClick={saveQueue}
                 disabled={saving || !user}

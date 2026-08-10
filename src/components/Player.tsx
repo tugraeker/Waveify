@@ -15,12 +15,13 @@ import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
   Volume2, Music2, List, Maximize2, Heart,
   Timer, Keyboard, Minimize2, Star, ArrowUpDown, Download, XCircle,
+  RotateCcw, FastForward,
 } from 'lucide-react'
 
 export default function Player() {
   const navigate = useNavigate()
   const { currentSong, user, volume, shuffle, repeat, queue, sleepTimer, playbackRate, miniPlayer,
-    crossfade, crossfadeDuration, songRatings, equalizer, visualizerMode,
+    crossfade, crossfadeDuration, songRatings, equalizer, visualizerMode, seekStep,
     setVolume, setShuffle, setRepeat, setSleepTimer, setPlaybackRate, setMiniPlayer,
     setCrossfade, setCrossfadeDuration, setShowEqInPlayer, showEqInPlayer } = useStore()
   const { isPlaying, currentTime, duration, togglePlay, seek, nextSong, prevSong, analyserData } = useAudio()
@@ -35,6 +36,8 @@ export default function Player() {
   const [showEq, setShowEq] = useState(false)
   const [cached, setCached] = useState(false)
   const [caching, setCaching] = useState(false)
+  const [loopA, setLoopA] = useState<number | null>(null)
+  const [loopB, setLoopB] = useState<number | null>(null)
 
   useEffect(() => {
     if (!currentSong) return
@@ -95,11 +98,22 @@ export default function Player() {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
+  // A-B loop enforcement
+  useEffect(() => {
+    if (loopA === null || loopB === null || loopA >= loopB) return
+    if (currentTime >= loopB) seek(loopA)
+  }, [currentTime, loopA, loopB, seek])
+
+  // Reset A-B marks on song change
+  useEffect(() => {
+    setLoopA(null); setLoopB(null)
+  }, [currentSong?.id])
+
   if (!currentSong) {
     return (
-      <div className="hidden md:flex h-22 bg-surface-950 border-t border-surface-800/30 items-center px-5">
+      <div className="hidden md:flex h-22 bg-surface-950/70 backdrop-blur-2xl border-t border-white/10 items-center px-5">
         <div className="flex items-center gap-4 text-surface-500">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-800/50 flex items-center justify-center shadow-sm">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-white/10 flex items-center justify-center shadow-sm">
             <Music2 size={22} className="opacity-40" />
           </div>
           <div>
@@ -113,12 +127,13 @@ export default function Player() {
 
   const displayTime = isSeeking ? seekValue : currentTime
   const progress = duration > 0 ? (displayTime / duration) * 100 : 0
+  const energyHue = Math.max(24, 258 - progress * 1.75)
   const currentRating = songRatings[currentSong.id] || 0
 
   // Enhanced mini player with visualizer (Feature 5)
   if (miniPlayer) {
     return (
-      <div className="hidden md:block fixed bottom-4 right-4 z-[100] bg-surface-900 border border-surface-700 rounded-2xl shadow-2xl p-3 w-[340px] animate-fade-in">
+      <div className="hidden md:block fixed bottom-4 right-4 z-[100] glass border border-surface-700/60 rounded-2xl shadow-2xl shadow-wave-500/10 p-3 w-[340px] animate-fade-in">
         <div className="flex items-center gap-3 mb-2">
           <div className="relative flex-shrink-0">
             {currentSong.cover_url ? (
@@ -130,11 +145,11 @@ export default function Player() {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{currentSong.title}</p>
+            <p className="text-sm font-display font-semibold text-white truncate">{currentSong.title}</p>
             <p className="text-xs text-surface-400 truncate">{currentSong.artist}</p>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={togglePlay} className="bg-wave-500 text-white rounded-full p-2 hover:scale-105 transition-all">
+            <button onClick={togglePlay} className="bg-gradient-to-br from-wave-500 to-fuchsia-500 text-white rounded-full p-2 hover:scale-105 transition-all shadow-lg shadow-wave-500/25">
               {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
             </button>
             <button onClick={() => setMiniPlayer(false)} className="text-surface-400 hover:text-white transition-colors">
@@ -144,14 +159,14 @@ export default function Player() {
         </div>
         <Visualizer analyserData={analyserData} isPlaying={isPlaying} className="w-full h-8 rounded-lg" />
         <div className="mt-1.5 h-1 bg-surface-700 rounded-full overflow-hidden">
-          <div className="h-full bg-wave-500 transition-all" style={{ width: `${progress}%` }} />
+          <div className="h-full bg-gradient-to-r from-wave-500 to-fuchsia-400 transition-all" style={{ width: `${progress}%` }} />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="hidden md:flex h-22 bg-surface-950 border-t border-surface-800/30 items-center px-4 gap-3 z-50">
+    <div className="hidden md:flex h-22 bg-surface-950/70 backdrop-blur-2xl border-t border-white/10 items-center px-4 gap-3 z-50 shadow-[0_-10px_40px_-12px_rgba(139,92,246,0.15)]">
       {/* Song info with tooltip (Feature 2) */}
       <div className="flex items-center gap-3 w-[280px] min-w-0"
         onMouseEnter={() => setShowTooltip(true)}
@@ -162,14 +177,14 @@ export default function Player() {
           onClick={() => navigate('/now-playing')}
         >
           {currentSong.cover_url ? (
-            <img src={currentSong.cover_url} alt="" className="w-12 h-12 rounded-full object-cover shadow-lg" />
+            <img src={currentSong.cover_url} alt="" className="w-12 h-12 rounded-xl object-cover shadow-lg shadow-wave-500/10 ring-1 ring-white/10" />
           ) : (
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 flex items-center justify-center">
               <Music2 size={20} className="text-surface-500" />
             </div>
           )}
           {isPlaying && (
-            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-wave-500 rounded-full flex items-center justify-center shadow-lg">
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-br from-wave-500 to-fuchsia-500 rounded-full flex items-center justify-center shadow-lg shadow-wave-500/40">
               <div className="flex items-end gap-[2px] h-2.5">
                 {[1,2,3].map(i => (
                   <div key={i} className="w-0.5 bg-white rounded-full animate-wave" style={{ animationDelay: `${i * 0.15}s`, height: `${40 + i * 20}%` }} />
@@ -182,7 +197,7 @@ export default function Player() {
           className="min-w-0 cursor-pointer relative"
           onClick={() => navigate('/now-playing')}
         >
-          <p className="text-sm font-medium text-white truncate hover:text-wave-400 transition-colors">{currentSong.title}</p>
+          <p className="text-sm font-display font-semibold text-white truncate hover:text-wave-400 transition-colors">{currentSong.title}</p>
           <p className="text-xs text-surface-400 truncate">{currentSong.artist}</p>
           {/* Rating display (Feature 4) */}
           {currentRating > 0 && (
@@ -223,20 +238,26 @@ export default function Player() {
 
       {/* Center controls */}
       <div className="flex-1 max-w-[560px] mx-auto">
-        <div className="flex items-center justify-center gap-3 mb-1.5">
+        <div className="flex items-center gap-3 mb-1.5">
           <button onClick={() => setShuffle(!shuffle)} className={`transition-colors ${shuffle ? 'text-wave-400' : 'text-surface-400 hover:text-white'}`}>
             <Shuffle size={15} />
           </button>
-          <button onClick={prevSong} className="text-surface-400 hover:text-white transition-colors">
+          <button onClick={prevSong} className="text-surface-400 hover:text-white transition-colors" title="Önceki">
             <SkipBack size={17} />
+          </button>
+          <button onClick={() => seek(Math.max(0, (isSeeking ? seekValue : currentTime) - seekStep))} className="text-surface-400 hover:text-wave-400 transition-colors" title={`-${seekStep}sn`}>
+            <RotateCcw size={15} />
           </button>
           <button
             onClick={togglePlay}
-            className="bg-white text-surface-950 rounded-full p-2.5 hover:scale-105 transition-all shadow-lg hover:shadow-white/10 active:scale-95"
+            className="bg-gradient-to-br from-wave-500 to-fuchsia-500 text-white rounded-full p-2.5 hover:scale-105 transition-all shadow-lg shadow-wave-500/30 hover:shadow-fuchsia-500/30 active:scale-95"
           >
             {isPlaying ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" className="ml-0.5" />}
           </button>
-          <button onClick={nextSong} className="text-surface-400 hover:text-white transition-colors">
+          <button onClick={() => seek(Math.min(duration, (isSeeking ? seekValue : currentTime) + seekStep))} className="text-surface-400 hover:text-wave-400 transition-colors" title={`+${seekStep}sn`}>
+            <FastForward size={15} />
+          </button>
+          <button onClick={nextSong} className="text-surface-400 hover:text-white transition-colors" title="Sonraki">
             <SkipForward size={17} />
           </button>
           <button
@@ -249,15 +270,29 @@ export default function Player() {
               <span className="absolute -top-1.5 -right-1.5 bg-wave-400 text-surface-950 text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center shadow">1</span>
             )}
           </button>
+          <button
+            onClick={() => {
+              if (loopA === null) setLoopA(Math.max(0, currentTime))
+              else if (loopB === null) { setLoopB(Math.max(currentTime, (loopA || 0) + 1)); emitToast('A-B aralığı belirlendi', 'success') }
+              else { setLoopA(null); setLoopB(null); emitToast('A-B döngüsü kapatıldı', 'info') }
+            }}
+            className={`relative transition-colors text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${loopB !== null ? 'text-amber-300 border border-amber-400/40' : loopA !== null ? 'text-wave-400 border border-wave-500/30' : 'text-surface-400 hover:text-white border border-transparent'}`}
+            title={loopB !== null ? 'Döngüyü kapat' : loopA !== null ? 'B noktasını işaretle' : 'A noktasını işaretle'}
+          >
+            {loopB !== null ? 'A↔B' : loopA !== null ? 'B?' : 'A-B'}
+          </button>
         </div>
         <div className="flex items-center gap-2.5">
           <span className="text-[11px] text-surface-500 w-9 text-right font-mono tabular-nums">{formatDuration(displayTime)}</span>
           <div className="flex-1 relative h-1.5 group">
             <div className="absolute inset-0 rounded-full bg-surface-700/50" />
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-white/60 group-hover:bg-wave-400 transition-all duration-75"
-              style={{ width: `${progress}%` }}
+              className="absolute inset-y-0 left-0 rounded-full transition-all duration-75"
+              style={{ width: `${progress}%`, background: `linear-gradient(90deg, hsl(${energyHue}, 82%, 60%), hsl(${Math.max(24, energyHue - 40)}, 90%, 52%))`, boxShadow: `0 0 10px hsla(${energyHue}, 90%, 60%, 0.55)` }}
             />
+            {isPlaying && (
+              <div className="absolute -right-0.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full" style={{ background: `hsl(${energyHue}, 95%, 65%)`, boxShadow: `0 0 12px hsla(${energyHue}, 95%, 65%, 0.9)` }} />
+            )}
             <input
               type="range" min={0} max={duration || 100} step={0.1}
               value={displayTime}

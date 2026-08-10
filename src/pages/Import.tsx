@@ -93,7 +93,7 @@ export default function Import() {
             <Globe size={20} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">İçe Aktar</h1>
+            <h1 className="text-2xl font-display font-bold">İçe Aktar</h1>
             <p className="text-sm text-surface-400">YouTube'dan otomatik içe aktar</p>
           </div>
         </div>

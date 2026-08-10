@@ -142,7 +142,7 @@ export default function BadgeGallery() {
             <Trophy size={28} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Rozet Galerisi</h1>
+            <h1 className="text-2xl font-display font-bold">Rozet Galerisi</h1>
             <p className="text-sm text-surface-400">{badges.length} / {BADGE_DEFS.length} rozet kazanıldı</p>
           </div>
         </div>

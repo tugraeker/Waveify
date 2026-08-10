@@ -142,7 +142,7 @@ export default function AdminPage() {
             <Shield size={20} className="text-wave-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Admin Paneli</h1>
+            <h1 className="text-2xl font-display font-bold">Admin Paneli</h1>
             <p className="text-sm text-surface-400">{me.username} — Yönetici</p>
           </div>
         </div>

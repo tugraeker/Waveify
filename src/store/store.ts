@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { User, Song, Playlist, EqualizerSettings, AudioEffects, RadioState, SyncRoom, VisualizerMode, SleepTimer, AccentColor, Activity, Badge, EqPreset, VisualizerColorTheme, SongNote, SongRating } from '@/types'
+import type { User, Song, Playlist, EqualizerSettings, AudioEffects, RadioState, SyncRoom, VisualizerMode, SleepTimer, AccentColor, Activity, Badge, EqPreset, VisualizerColorTheme, SongNote, SongRating, CoverStyle } from '@/types'
 import { defaultEqBands, EQ_PRESETS } from '@/types'
 
 interface AppState {
@@ -81,6 +81,20 @@ interface AppState {
   setSongRating: (songId: string, rating: number) => void
   songNotes: Record<string, string>
   setSongNote: (songId: string, note: string) => void
+  seekStep: number
+  setSeekStep: (s: number) => void
+  smartShuffle: boolean
+  setSmartShuffle: (v: boolean) => void
+  normalize: boolean
+  setNormalize: (v: boolean) => void
+  coverStyle: CoverStyle
+  setCoverStyle: (s: CoverStyle) => void
+  retroMode: boolean
+  setRetroMode: (v: boolean) => void
+  lowLightMode: boolean
+  setLowLightMode: (v: boolean) => void
+  cdMode: boolean
+  setCdMode: (v: boolean) => void
 }
 
 function loadJson<T>(key: string, fallback: T): T {
@@ -116,7 +130,7 @@ export const useStore = create<AppState>((set) => ({
   equalizer: { ...defaultEqualizer, bands: loadJson<number[]>('waveify_eq_bands', defaultEqBands()) },
   setEqualizer: (eq) => set({ equalizer: eq }),
   resetEqualizer: () => set({ equalizer: { ...defaultEqualizer, bands: defaultEqBands() } }),
-  audioEffects: loadJson<AudioEffects>('waveify_audio_effects', { bass: 0, reverb: 0, spatial: 0 }),
+  audioEffects: loadJson<AudioEffects>('waveify_audio_effects', { bass: 0, reverb: 0, spatial: 0, vocal: 0, vocalIso: false, eightD: 0, room: 'hall' }),
   setAudioEffects: (fx) => { localStorage.setItem('waveify_audio_effects', JSON.stringify(fx)); set({ audioEffects: fx }) },
   radio: { active: false, seedId: null },
   setRadio: (radio) => set({ radio }),
@@ -188,10 +202,24 @@ export const useStore = create<AppState>((set) => ({
     localStorage.setItem('waveify_song_ratings', JSON.stringify(ratings))
     return { songRatings: ratings }
   }),
-  songNotes: loadJson<Record<string, string>>('waveify_song_notes', {}),
+songNotes: loadJson<Record<string, string>>('waveify_song_notes', {}),
   setSongNote: (songId, note) => set((state) => {
     const notes = { ...state.songNotes, [songId]: note }
     localStorage.setItem('waveify_song_notes', JSON.stringify(notes))
     return { songNotes: notes }
   }),
+  seekStep: loadJson<number>('waveify_seek_step', 15),
+  setSeekStep: (s) => { localStorage.setItem('waveify_seek_step', JSON.stringify(s)); set({ seekStep: s }) },
+  smartShuffle: loadJson<boolean>('waveify_smart_shuffle', true),
+  setSmartShuffle: (v) => { localStorage.setItem('waveify_smart_shuffle', JSON.stringify(v)); set({ smartShuffle: v }) },
+  normalize: loadJson<boolean>('waveify_normalize', false),
+  setNormalize: (v) => { localStorage.setItem('waveify_normalize', JSON.stringify(v)); set({ normalize: v }) },
+  coverStyle: loadJson<CoverStyle>('waveify_cover_style', 'vinyl'),
+  setCoverStyle: (s) => { localStorage.setItem('waveify_cover_style', s); set({ coverStyle: s }) },
+  retroMode: loadJson<boolean>('waveify_retro_mode', false),
+  setRetroMode: (v) => { localStorage.setItem('waveify_retro_mode', JSON.stringify(v)); set({ retroMode: v }) },
+  lowLightMode: loadJson<boolean>('waveify_low_light', false),
+  setLowLightMode: (v) => { localStorage.setItem('waveify_low_light', JSON.stringify(v)); set({ lowLightMode: v }) },
+  cdMode: loadJson<boolean>('waveify_cd_mode', false),
+  setCdMode: (v) => { localStorage.setItem('waveify_cd_mode', JSON.stringify(v)); set({ cdMode: v }) },
 }))

@@ -2,15 +2,36 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useStore } from '@/store/store'
 import { audioEngine } from '@/lib/audioEngine'
 import { supabase } from '@/lib/supabase'
-import { trackListen, trackRadioPlay, trackEffectsUse, updateStreak, awardXp } from '@/lib/achievements'
+import { trackListen, trackRadioPlay, trackEffectsUse, updateStreak, awardXp, trackFullListen } from '@/lib/achievements'
 import { fetchRadioBatch } from '@/lib/radio'
 import { resolveAudioUrl } from '@/lib/offline'
+import { emitToast } from '@/hooks/useToast'
 import type { Song } from '@/types'
+
+// Hype: Combo burst — quick song changes build a combo
+let lastTrackAt = 0
+let comboCount = 1
+function bumpCombo() {
+  const now = Date.now()
+  if (now - lastTrackAt < 12000 && lastTrackAt > 0) {
+    comboCount += 1
+  } else {
+    comboCount = 1
+  }
+  lastTrackAt = now
+  return comboCount
+}
+
+function smartShufflePick(list: Song[], current: Song | null, excludeArtist: string[]): Song {
+  const candidates = list.filter((s) => !excludeArtist.includes(s.artist))
+  if (candidates.length === 0) return list[Math.floor(Math.random() * list.length)]
+  return candidates[Math.floor(Math.random() * candidates.length)]
+}
 
 export function useAudio() {
   const {
     currentSong, isPlaying, currentTime, volume,
-    shuffle, repeat, queue, equalizer, audioEffects, playbackRate, sleepTimer,
+    shuffle, repeat, queue, equalizer, audioEffects, playbackRate, sleepTimer, normalize,
     setIsPlaying, setCurrentTime, setCurrentSong, addToHistory,
   } = useStore()
 
@@ -26,8 +47,8 @@ export function useAudio() {
     })
     audioEngine.setOnEnded(() => {
       const state = useStore.getState()
-      const { queue: q, currentSong: cs, shuffle: sh, repeat: rp, sleepTimer: st } = state
-      console.log('[onEnded] repeat:', rp, 'queue:', q.length, 'song:', cs?.title, 'audio_url:', cs?.audio_url)
+      const { queue: q, currentSong: cs, shuffle: sh, repeat: rp, sleepTimer: st, smartShuffle } = state
+      if (cs) trackFullListen()
       if (st.active && st.endOfSong) {
         audioEngine.pause()
         state.setIsPlaying(false)
@@ -36,7 +57,6 @@ export function useAudio() {
       }
       if (q.length === 0) return
       if (rp === 'one' && cs?.audio_url) {
-        console.log('[onEnded] repeat-one, replaying')
         audioEngine.play(cs.audio_url)
         state.setIsPlaying(true)
         state.setCurrentTime(0)
@@ -45,7 +65,15 @@ export function useAudio() {
       const ci = q.findIndex((s) => s.id === cs?.id)
       let ni = ci + 1
       if (sh) {
-        ni = Math.floor(Math.random() * q.length)
+        if (smartShuffle) {
+          const recentArtists = q.slice(Math.max(0, ni - 2), ni).map((s) => s.artist)
+          const next = smartShufflePick(q, cs, recentArtists)
+          const idx = q.findIndex((s) => s.id === next.id)
+          if (idx >= 0) ni = idx
+          else ni = Math.floor(Math.random() * q.length)
+        } else {
+          ni = Math.floor(Math.random() * q.length)
+        }
       } else if (ni >= q.length) {
         if (rp === 'all') ni = 0
         else if (state.radio.active && cs) {
@@ -108,10 +136,28 @@ export function useAudio() {
     if (state.user) {
       supabase.from('listen_history').insert({ user_id: state.user!.id, song_id: currentSong.id }).then(() => {}, () => {})
     }
+    // Song serenade: every 5th play of the same song
+    try {
+      const counts = JSON.parse(localStorage.getItem('waveify_song_plays') || '{}')
+      counts[currentSong.id] = (counts[currentSong.id] || 0) + 1
+      const n = counts[currentSong.id]
+      localStorage.setItem('waveify_song_plays', JSON.stringify(counts))
+      if (n > 0 && n % 5 === 0) {
+        setTimeout(() => emitToast(`🎵 Bu şarkıyla ${n}. buluşman — anılar canlanıyor`, 'info'), 900)
+      }
+    } catch {}
+    // Combo burst: quick song changes build a combo
+    const combo = bumpCombo()
+    if (combo >= 3 && combo % 2 === 1) {
+      setTimeout(() => emitToast(`🔥 ${combo} combo! Serin tutuyorsun`, 'info'), 500)
+    }
   }, [currentSong?.id])
 
   // Volume
   useEffect(() => { audioEngine.setVolume(volume) }, [volume])
+
+  // Normalization
+  useEffect(() => { audioEngine.setNormalize(normalize) }, [normalize])
 
   // Effects
   useEffect(() => {

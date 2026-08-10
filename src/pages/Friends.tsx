@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
-import { UserPlus, UserCheck, Clock, X, Users, Search, Trash2, Ban, Circle } from 'lucide-react'
+import { UserPlus, UserCheck, Clock, X, Users, Search, Trash2, Ban, Circle, Siren, Send } from 'lucide-react'
 import { trackFriend, awardXp } from '@/lib/achievements'
+import { emitToast } from '@/hooks/useToast'
+import { sendTroll, TROLL_TEMPLATES, type TrollMessage } from '@/lib/troll'
+import type { User } from '@/types'
 
 interface FriendUser { id: string; username: string; email?: string; last_seen?: string }
 interface PendingReq { id: string; user_id: string; friend_id: string; status: string; created_at: string; user?: { id: string; username: string } }
@@ -20,6 +23,10 @@ export default function FriendsPage() {
   const [error, setError] = useState('')
   const [blockedUsers, setBlockedUsers] = useState<FriendUser[]>([])
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
+  const [trollTarget, setTrollTarget] = useState<FriendUser | null>(null)
+  const [trollText, setTrollText] = useState('')
+  const [trollTone, setTrollTone] = useState('scary')
+  const [sendingTroll, setSendingTroll] = useState(false)
 
   useEffect(() => { if (user) { fetchFriends(); fetchBlocked() } }, [user])
 
@@ -102,9 +109,23 @@ export default function FriendsPage() {
     return onlineUsers.has(userId)
   }
 
+  async function handleSendTroll() {
+    if (!user || !trollTarget) return
+    const tmpl = TROLL_TEMPLATES.find((t) => t.text === trollText.trim()) || {
+      emoji: '🚨', text: trollText.trim() || TROLL_TEMPLATES[0].text,
+      tone: (['scary', 'cute', 'warning', 'party'].includes(trollTone) ? (trollTone === 'scary' ? 'red' : trollTone === 'cute' ? 'pink' : trollTone === 'warning' ? 'amber' : 'cyan') : 'red') as TrollMessage['tone'],
+    }
+    setSendingTroll(true)
+    sendTroll(trollTarget.id, tmpl.emoji, tmpl.text, tmpl.tone, user.username || 'Biri')
+    setSendingTroll(false)
+    emitToast(`📢 ${trollTarget.username}'a uyarı gönderildi!`, 'success')
+    setTrollTarget(null)
+    setTrollText('')
+  }
+
   return (
     <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
-      <h1 className="text-2xl font-bold mb-6">Arkadaşlar</h1>
+      <h1 className="text-2xl font-display font-bold mb-6">Arkadaşlar</h1>
       <div className="max-w-xl space-y-6">
         <div className="flex gap-2">
           <Input placeholder="İsim veya e-posta ile ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchUser()} />
@@ -161,6 +182,9 @@ export default function FriendsPage() {
                   <p className="text-sm font-medium text-white truncate">{f.username}</p>
                   {f.email && <p className="text-xs text-surface-500 truncate">{f.email}</p>}
                 </div>
+                <button onClick={() => setTrollTarget(f)} className="p-2 rounded-lg text-red-400/70 hover:text-red-300 hover:bg-red-500/10 transition-all animate-pulse" title="Ekran uyarısı gönder (troll)">
+                  <Siren size={14} />
+                </button>
                 <button onClick={() => handleBlock(f.id)} className="p-2 rounded-lg text-surface-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all" title="Engelle">
                   <Ban size={14} />
                 </button>
@@ -188,6 +212,65 @@ export default function FriendsPage() {
           </section>
         )}
       </div>
+
+      {trollTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md mx-4 glass rounded-3xl p-6 animate-pop-in border border-red-500/20 shadow-2xl shadow-red-500/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-red-500/15 flex items-center justify-center animate-pulse"><Siren size={20} className="text-red-400" /></div>
+                <div>
+                  <h3 className="font-bold text-white">Ekran Uyarısı Gönder</h3>
+                  <p className="text-xs text-surface-500"><strong className="text-red-400">{trollTarget.username}</strong>'ın ekranı tam ekran sirene döner 🔥</p>
+                </div>
+              </div>
+              <button onClick={() => setTrollTarget(null)} className="text-surface-500 hover:text-white transition-colors"><X size={18} /></button>
+            </div>
+
+            <div className="mb-3">
+              <p className="text-[11px] text-surface-500 mb-1.5 font-medium">Hazır uyarılar</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {TROLL_TEMPLATES.map((t) => (
+                  <button key={t.text} onClick={() => setTrollText(t.text)}
+                    className={`text-left text-[11px] px-2.5 py-2 rounded-lg border transition-all ${trollText === t.text ? 'bg-red-500/10 border-red-500/40 text-red-300' : 'bg-surface-800/60 border-surface-700 text-surface-300 hover:border-surface-500'}`}>
+                    {t.text}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <p className="text-[11px] text-surface-500 mb-1.5 font-medium">Ton</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {(['scary', 'cute', 'warning', 'party'] as const).map((tone) => (
+                  <button key={tone} onClick={() => setTrollTone(tone)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border ${trollTone === tone ? 'bg-red-500/10 border-red-500/40 text-red-300' : 'bg-surface-800/60 border-surface-700 text-surface-400 hover:text-white'}`}>
+                    {tone === 'scary' ? '👻 Korkunç' : tone === 'cute' ? '🧸 Sevimli' : tone === 'warning' ? '⚠️ Uyarı' : '🎉 Parti'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <textarea
+              value={trollText}
+              onChange={(e) => setTrollText(e.target.value)}
+              placeholder="Kendi mesajını yaz (opsiyonel)"
+              rows={2}
+              maxLength={160}
+              className="w-full bg-surface-800/80 border border-surface-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-surface-500 focus:outline-none focus:border-red-400/50 resize-none mb-4"
+            />
+
+            <button
+              onClick={handleSendTroll}
+              disabled={sendingTroll}
+              className="w-full h-11 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white text-sm font-bold flex items-center justify-center gap-2 hover:brightness-110 transition-all shadow-lg shadow-red-500/25 disabled:opacity-50"
+            >
+              {sendingTroll ? <Clock size={15} className="animate-spin" /> : <Send size={15} />}
+              Şimdi Gönder 🚨
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

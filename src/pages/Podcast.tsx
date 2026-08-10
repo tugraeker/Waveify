@@ -44,7 +44,7 @@ export default function PodcastPage() {
     <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
       <div className="flex items-center gap-3 mb-6">
         <Headphones size={24} className="text-wave-400" />
-        <h1 className="text-2xl font-bold">Podcast'ler</h1>
+        <h1 className="text-2xl font-display font-bold">Podcast'ler</h1>
       </div>
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="relative flex-1 max-w-md">

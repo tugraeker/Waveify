@@ -4,8 +4,9 @@ import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
 import OfflineMode from '@/components/OfflineMode'
-import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity, PaintBucket, Trash2, Bell, Monitor, Moon, RotateCcw } from 'lucide-react'
-import type { AccentColor } from '@/types'
+import { emitToast } from '@/hooks/useToast'
+import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity, PaintBucket, Trash2, Bell, Monitor, Moon, RotateCcw, Sliders, Download, Upload, Square, Sparkles, Waves, FolderOutput } from 'lucide-react'
+import type { AccentColor, CoverStyle } from '@/types'
 
 const accentColors: { key: AccentColor; label: string; color: string }[] = [
   { key: 'wave', label: 'Turkuaz', color: '#14b8a6' },
@@ -18,7 +19,12 @@ const accentColors: { key: AccentColor; label: string; color: string }[] = [
 ]
 
 export default function Settings() {
-  const { user, theme, accentColor, customAccentColor, setTheme, setAccentColor, setCustomAccentColor, setUser } = useStore()
+  const {
+    user, theme, accentColor, customAccentColor, setTheme, setAccentColor, setCustomAccentColor, setUser,
+    seekStep, setSeekStep, normalize, setNormalize, smartShuffle, setSmartShuffle,
+    coverStyle, setCoverStyle, retroMode, setRetroMode, lowLightMode, setLowLightMode,
+    crossfade, setCrossfade, crossfadeDuration, setCrossfadeDuration,
+  } = useStore()
   const navigate = useNavigate()
   const [username, setUsername] = useState(user?.username || '')
   const [bio, setBio] = useState('')
@@ -31,6 +37,57 @@ export default function Settings() {
   const [bgColor, setBgColor] = useState(localStorage.getItem('waveify_bg_color') || '')
   const [customAccentInput, setCustomAccentInput] = useState(customAccentColor || '')
   const [appVersion] = useState(__APP_VERSION__)
+
+  const coverStyles: { key: CoverStyle; label: string }[] = [
+    { key: 'vinyl', label: '💿 Plak' },
+    { key: 'cd', label: '💽 CD' },
+    { key: 'cassette', label: '📼 Kaset' },
+    { key: 'polaroid', label: '📷 Polaroid' },
+  ]
+
+  function exportBackup() {
+    const data: Record<string, string> = {}
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith('waveify_')) data[k] = localStorage.getItem(k) || ''
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `waveify-yedek-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(a.href)
+    emitToast('Yedek indirildi', 'success')
+  }
+
+  function importBackup() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(String(reader.result))
+          let n = 0
+          for (const [k, v] of Object.entries(data)) {
+            if (k.startsWith('waveify_') && typeof v === 'string') {
+              localStorage.setItem(k, v)
+              n++
+            }
+          }
+          emitToast(`✅ ${n} ayar geri yüklendi — yeniden başlatılıyor`, 'success')
+          setTimeout(() => window.location.reload(), 1500)
+        } catch {
+          emitToast('Hatalı yedek dosyası', 'error')
+        }
+      }
+      reader.readAsText(file)
+    }
+    input.click()
+  }
 
   async function saveProfile() {
     if (!user) return
@@ -107,7 +164,7 @@ export default function Settings() {
   return (
     <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-8">Ayarlar</h1>
+        <h1 className="text-2xl font-display font-bold mb-8">Ayarlar</h1>
 
         {message && <div className="mb-4 bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-sm text-green-400">{message}</div>}
         {error && <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-400">{error}</div>}
@@ -205,6 +262,101 @@ export default function Settings() {
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-wave-500/10 flex items-center justify-center"><Sliders size={18} className="text-wave-400" /></div>
+              <h2 className="text-lg font-semibold">Oynatma & Sahneler</h2>
+            </div>
+            <div className="space-y-5">
+              <div>
+                <label className="text-xs text-surface-400 font-medium mb-2 block">İleri/Geri Zıplama Adımı</label>
+                <div className="flex items-center gap-2">
+                  {[5, 10, 15, 30].map((s) => (
+                    <button key={s} onClick={() => setSeekStep(s)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border ${seekStep === s ? 'bg-wave-500/10 text-wave-400 border-wave-500/20' : 'bg-surface-800 text-surface-400 border-surface-700 hover:text-white'}`}>{s}sn</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-surface-400 font-medium mb-2 block">Kapak Tarzı</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {coverStyles.map((c) => (
+                    <button key={c.key} onClick={() => setCoverStyle(c.key)} className={`px-3 py-2 rounded-xl text-xs font-medium transition-all border ${coverStyle === c.key ? 'bg-wave-500/10 text-wave-400 border-wave-500/20' : 'bg-surface-800 text-surface-400 border-surface-700 hover:text-white'}`}>{c.label}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-surface-300">Ses Normalleştirme</span>
+                <button onClick={() => setNormalize(!normalize)} className={`w-11 h-6 rounded-full transition-all ${normalize ? 'bg-wave-500' : 'bg-surface-700'} relative`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${normalize ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-surface-300">Akıllı Karıştırma <span className="text-[10px] text-surface-500">(aynı sanatçıya takılmaz)</span></span>
+                <button onClick={() => setSmartShuffle(!smartShuffle)} className={`w-11 h-6 rounded-full transition-all ${smartShuffle ? 'bg-wave-500' : 'bg-surface-700'} relative`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${smartShuffle ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+              <div>
+                <label className="text-xs text-surface-400 font-medium mb-2 block">Geçiş (Crossfade)</label>
+                <div className="flex items-center justify-between gap-3">
+                  <button onClick={() => setCrossfade(!crossfade)} className={`w-11 h-6 rounded-full transition-all ${crossfade ? 'bg-wave-500' : 'bg-surface-700'} relative flex-shrink-0`}>
+                    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${crossfade ? 'left-[22px]' : 'left-0.5'}`} />
+                  </button>
+                  <input
+                    type="range" min={0} max={8} step={1} value={crossfadeDuration}
+                    onChange={(e) => setCrossfadeDuration(Number(e.target.value))}
+                    disabled={!crossfade}
+                    className="flex-1 accent-wave-400 disabled:opacity-30"
+                  />
+                  <span className="text-xs text-wave-400 font-mono tabular-nums w-10 text-right">{crossfadeDuration}sn</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-surface-300">Retro 2006 Modu <span className="text-[10px] text-surface-500">(eski okul hissi)</span></span>
+                <button onClick={() => setRetroMode(!retroMode)} className={`w-11 h-6 rounded-full transition-all ${retroMode ? 'bg-amber-500' : 'bg-surface-700'} relative`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${retroMode ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-surface-300">Düşük Işık <span className="text-[10px] text-surface-500">(göz dostu gece)</span></span>
+                <button onClick={() => setLowLightMode(!lowLightMode)} className={`w-11 h-6 rounded-full transition-all ${lowLightMode ? 'bg-indigo-500' : 'bg-surface-700'} relative`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${lowLightMode ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center"><FolderOutput size={18} className="text-emerald-400" /></div>
+              <h2 className="text-lg font-semibold">Yedekle & Geri Yükle</h2>
+            </div>
+            <p className="text-xs text-surface-400 mb-3">Tüm yerel ayarlarını JSON dosyası olarak yedekler / geri yükler.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={exportBackup}><Download size={14} /> Yedekle</Button>
+              <Button variant="outline" onClick={importBackup}><Upload size={14} /> Geri Yükle</Button>
+            </div>
+          </div>
+
+          <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-fuchsia-500/10 flex items-center justify-center"><Sparkles size={18} className="text-fuchsia-400" /></div>
+              <h2 className="text-lg font-semibold">Versiyon Merkezi</h2>
+            </div>
+            <p className="text-xs text-surface-400 mb-3">Waveify v{appVersion} — Aurora Yeniden Doğuş</p>
+            <ul className="text-xs text-surface-300 space-y-1.5">
+              {[
+                '✦ Kökten yeniden tasarım: cam paneller + aurora sahne sistemi',
+                '✦ Konser modu, plak/kaset/CD arşiv, 8D ses, oda sahneleri',
+                '✦ Zombi modu, yıl tahmini, beat maker ve perde düellosu',
+                '✦ Gizemli sıra, şarkı serenadı, combo patlama, canlı ısı sayacı',
+                '✦ Troll uyarı sistemi: arkadaşlarına koca ekran sürprizi',
+              ].map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
           </div>
 
           <OfflineMode />

@@ -144,7 +144,7 @@ export default function SyncRoom() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">{syncRoom.name}</h1>
+                <h1 className="text-2xl font-display font-bold">{syncRoom.name}</h1>
                 {isHost && (
                   <span className="text-[10px] font-semibold uppercase tracking-wider bg-wave-500/10 text-wave-400 border border-wave-500/20 rounded-full px-2.5 py-0.5">Ev Sahibi</span>
                 )}
@@ -318,7 +318,7 @@ export default function SyncRoom() {
             <Users size={20} className="text-wave-400" />
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold">Birlikte Dinle</h1>
+            <h1 className="text-2xl font-display font-bold">Birlikte Dinle</h1>
           </div>
           <div className="flex items-center gap-2 text-xs">
             {connected ? (

@@ -13,6 +13,7 @@ export const SOUNDSCAPES: Soundscape[] = [
   { key: 'fire', label: 'Şömine', emoji: '🔥', gradient: 'from-orange-500 to-red-700', desc: 'Çıtırdayan ateş sesleri' },
   { key: 'forest', label: 'Orman', emoji: '🌲', gradient: 'from-green-600 to-emerald-900', desc: 'Kuş cıvıltıları ve yaprak hışırtısı' },
   { key: 'sleep', label: 'Uyku', emoji: '🌙', gradient: 'from-indigo-700 to-slate-900', desc: 'Derin uykuya dalma frekansları' },
+  { key: 'lofi', label: 'Lo-Fi Beat', emoji: '🎧', gradient: 'from-violet-700 to-fuchsia-900', desc: 'Sonsuz üretilen rahat lo-fi ritmi' },
 ]
 
 let ctx: AudioContext | null = null
@@ -200,6 +201,118 @@ function startSleep(c: AudioContext) {
   activeNodes.push({ stop: () => { src.stop(); lfo.stop() } })
 }
 
+// ---- Lo-Fi beat generator ----
+const LOFI_BASS = [55, 87.31, 65.41, 98]           // A1, F2, C2, G2
+const LOFI_CHORDS: number[][] = [                   // Am7, Fmaj7, Cmaj7, G7 (soft chords)
+  [110, 130.81, 164.81, 196],
+  [87.31, 130.81, 164.81, 220],
+  [130.81, 164.81, 196, 246.94],
+  [98, 130.81, 155.56, 196],
+]
+
+function tone(c: AudioContext, freq: number, type: OscillatorType, dur: number, peak: number, lowpass = 0, detune = 0): OscillatorNode {
+  const osc = c.createOscillator()
+  osc.type = type
+  osc.frequency.value = freq
+  osc.detune.value = detune
+  const g = c.createGain()
+  g.gain.setValueAtTime(0, c.currentTime)
+  g.gain.linearRampToValueAtTime(peak, c.currentTime + 0.01)
+  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur)
+  let tail: AudioNode = osc
+  if (lowpass > 0) {
+    const f = c.createBiquadFilter()
+    f.type = 'lowpass'; f.frequency.value = lowpass
+    osc.connect(f); tail = f
+  }
+  tail.connect(g); g.connect(master!)
+  osc.start(); osc.stop(c.currentTime + dur + 0.05)
+  return osc
+}
+
+function noiseHit(c: AudioContext, ms: number, filterType: BiquadFilterType, freq: number, q: number, peak: number): AudioBufferSourceNode {
+  const src = c.createBufferSource()
+  const length = Math.floor(c.sampleRate * (ms / 1000))
+  const buf = c.createBuffer(1, length, c.sampleRate)
+  const data = buf.getChannelData(0)
+  for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1
+  src.buffer = buf
+  const f = c.createBiquadFilter()
+  f.type = filterType; f.frequency.value = freq; f.Q.value = q
+  const g = c.createGain()
+  g.gain.setValueAtTime(peak, c.currentTime)
+  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + ms / 1000)
+  src.connect(f); f.connect(g); g.connect(master!)
+  src.start()
+  return src
+}
+
+function startLofi(c: AudioContext) {
+  // Vinyl crackle bed
+  const vinyl = loopNoise(c, 'brown')
+  const clp = c.createBiquadFilter()
+  clp.type = 'lowpass'; clp.frequency.value = 3500
+  const vg = c.createGain(); vg.gain.value = 0.035
+  vinyl.connect(clp); clp.connect(vg); vg.connect(master!)
+  vinyl.start()
+  activeNodes.push({ stop: () => vinyl.stop() })
+
+  const stepMs = 60000 / 76 / 2   // 76 BPM, 8th notes
+  let bar = 0
+  let step = 0
+
+  const schedule = () => {
+    if (activeKey !== 'lofi') return
+    const t0 = c.currentTime
+
+    // Kick: every 8th, stronger on beat 1 & 3
+    if (step % 8 === 0 || step % 4 === 2) {
+      const osc = c.createOscillator()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(120, t0)
+      osc.frequency.exponentialRampToValueAtTime(42, t0 + 0.11)
+      const g = c.createGain()
+      g.gain.setValueAtTime(0.5, t0)
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16)
+      osc.connect(g); g.connect(master!)
+      osc.start(t0); osc.stop(t0 + 0.2)
+    }
+    // Hi-hat: on odd 8ths, softer on even
+    if (step % 2 === 1) {
+      noiseHit(c, 24, 'highpass', 9000, 1, step % 8 === 1 ? 0.09 : 0.045)
+    } else if (Math.random() < 0.5) {
+      noiseHit(c, 24, 'highpass', 9000, 1, 0.03)
+    }
+    // Snare: beat 2 & 4
+    if (step % 8 === 4) {
+      noiseHit(c, 70, 'bandpass', 1900, 0.9, 0.16)
+      tone(c, 190, 'triangle', 0.09, 0.12, 0)
+    }
+    // Bass: on beat 1, sometimes re-hits
+    if (step % 8 === 0 || (step % 8 === 6 && Math.random() < 0.35)) {
+      const f = LOFI_BASS[bar % 4]
+      tone(c, f, 'sine', 0.42, 0.34, 260)
+      tone(c, f * 2, 'sine', 0.22, 0.07, 400)
+    }
+    // Chord: every bar, soft & detuned
+    if (step % 8 === 0) {
+      LOFI_CHORDS[bar % 4].forEach((f, i) => {
+        tone(c, f, 'triangle', 3.4, 0.028, 1800, i % 2 === 0 ? 4 : -5)
+      })
+    }
+    // Occasional click (dust)
+    if (Math.random() < 0.03) {
+      noiseHit(c, 4, 'highpass', 6000, 1, 0.08)
+    }
+
+    step++
+    if (step % 8 === 0) bar++
+    const t = window.setTimeout(schedule, stepMs)
+    timers.push(t)
+  }
+  schedule()
+}
+
 const STARTERS: Record<string, (c: AudioContext) => void> = {
   rain: startRain,
   ocean: startOcean,
@@ -207,6 +320,7 @@ const STARTERS: Record<string, (c: AudioContext) => void> = {
   fire: startFire,
   forest: startForest,
   sleep: startSleep,
+  lofi: startLofi,
 }
 
 export function startSoundscape(key: string): boolean {

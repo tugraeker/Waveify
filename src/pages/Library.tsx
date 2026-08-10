@@ -8,7 +8,7 @@ import AddToPlaylistModal from '@/components/AddToPlaylistModal'
 import { SongSkeleton } from '@/components/Skeleton'
 import { emitToast } from '@/hooks/useToast'
 import type { Song } from '@/types'
-import { Play, Music, AudioWaveform, Heart, Plus, ListMusic, SlidersHorizontal, ArrowUpDown } from 'lucide-react'
+import { Play, Music, AudioWaveform, Heart, Plus, ListMusic, SlidersHorizontal, ArrowUpDown, Grid2x2, List } from 'lucide-react'
 import { trackLike, awardXp, trackSongLiked } from '@/lib/achievements'
 
 export default function Library() {
@@ -23,6 +23,7 @@ export default function Library() {
   const [sortBy, setSortBy] = useState<'date' | 'title' | 'artist' | 'duration'>('date')
   const [loading, setLoading] = useState(true)
   const [ctxMenu, setCtxMenu] = useState<{ song: Song; x: number; y: number } | null>(null)
+  const [view, setView] = useState<'list' | 'mosaic'>('list')
 
   const genres = [...new Set(songs.map((s) => s.genre).filter(Boolean))]
   const artists = [...new Set(songs.map((s) => s.artist).filter(Boolean))]
@@ -82,10 +83,16 @@ export default function Library() {
   return (
     <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Kitaplık</h1>
-        <button onClick={() => setShowFilters(!showFilters)} className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${showFilters || filterText || filterGenre || filterArtist ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20' : 'text-surface-500 hover:text-white border border-transparent'}`}>
-          <SlidersHorizontal size={13} /> Filtrele
-        </button>
+        <h1 className="text-2xl font-display font-bold">Kitaplık</h1>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-surface-900/50 border border-white/10 rounded-xl p-1">
+            <button onClick={() => setView('list')} className={`p-1.5 rounded-lg transition-all ${view === 'list' ? 'bg-wave-500/15 text-wave-400' : 'text-surface-500 hover:text-white'}`} title="Liste görünümü"><List size={14} /></button>
+            <button onClick={() => setView('mosaic')} className={`p-1.5 rounded-lg transition-all ${view === 'mosaic' ? 'bg-wave-500/15 text-wave-400' : 'text-surface-500 hover:text-white'}`} title="Kapak mozaik duvar"><Grid2x2 size={14} /></button>
+          </div>
+          <button onClick={() => setShowFilters(!showFilters)} className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${showFilters || filterText || filterGenre || filterArtist ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20' : 'text-surface-500 hover:text-white border border-transparent'}`}>
+            <SlidersHorizontal size={13} /> Filtrele
+          </button>
+        </div>
       </div>
 
       {showFilters && (
@@ -126,6 +133,29 @@ export default function Library() {
             <p className="text-sm mt-1 text-surface-500">Şarkı yüklemek için "Yükle" bölümüne gidin</p>
             <button onClick={() => navigate('/upload')} className="mt-4 text-sm text-wave-400 hover:text-wave-300 font-medium transition-colors">Şarkı Yükle</button>
           </div>
+      ) : view === 'mosaic' ? (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-2">
+          {filteredSongs.map((song) => (
+            <div key={song.id} onClick={() => playSong(song)} onContextMenu={(e) => handleContextMenu(e, song)} className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer hover:scale-[1.04] hover:z-10 transition-all duration-200 hover:shadow-2xl shadow-black/40">
+              {song.cover_url ? (
+                <img src={song.cover_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-surface-800 to-surface-900 flex items-center justify-center">
+                  <Music size={20} className="text-surface-500" />
+                </div>
+              )}
+              <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 ${currentSong?.id === song.id ? 'opacity-100 ring-2 ring-wave-400' : ''}`}>
+                <p className="text-[11px] font-semibold text-white truncate">{song.title}</p>
+                <p className="text-[10px] text-surface-300 truncate">{song.artist}</p>
+              </div>
+              {currentSong?.id === song.id && (
+                <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-wave-500 flex items-center justify-center shadow-lg">
+                  <Play size={10} fill="white" className="text-white ml-0.5" />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="flex flex-col gap-1">
           {filteredSongs.map((song) => (

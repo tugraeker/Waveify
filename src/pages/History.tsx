@@ -44,7 +44,7 @@ export default function History() {
   return (
     <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Dinleme Geçmişi</h1>
+        <h1 className="text-2xl font-display font-bold">Dinleme Geçmişi</h1>
         {history.length > 0 && (
           <button onClick={clearHistory} className="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1">
             <Trash2 size={12} /> Temizle

@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { useStore } from '@/store/store'
 import { useAudio } from '@/hooks/useAudio'
 import { formatDuration } from '@/lib/utils'
-import { Trophy, Crown, Medal, Music2, TrendingUp, Heart, Play } from 'lucide-react'
+import { Trophy, Crown, Medal, Music2, TrendingUp, Heart, Play, CalendarDays } from 'lucide-react'
 import type { Song } from '@/types'
 
 interface LeaderEntry {
@@ -21,6 +21,10 @@ export default function Charts() {
   const [leaderboard, setLeaderboard] = useState<LeaderEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'songs' | 'listeners'>('songs')
+  const [year, setYear] = useState<number>(new Date().getFullYear())
+  const [allSongs, setAllSongs] = useState<Song[]>([])
+
+  const years = [...new Set(allSongs.map((s) => s.year).filter((y): y is number => !!y))].sort((a, b) => b - a)
 
   useEffect(() => {
     ;(async () => {
@@ -65,10 +69,15 @@ export default function Charts() {
         }
       } catch {}
       setLoading(false)
+      try {
+        const { data: songs } = await supabase.from('songs').select('*')
+        if (songs) setAllSongs(songs)
+      } catch {}
     })()
   }, [])
 
   const medals = [Crown, Medal, Medal]
+  const yearSongs = year === new Date().getFullYear() ? weekly : allSongs.filter((s) => s.year === year)
 
   function playAll(songs: Song[], start?: Song) {
     if (songs.length === 0) return
@@ -91,10 +100,27 @@ export default function Charts() {
           <Trophy size={20} className="text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gradient">Haftalık Charts</h1>
+          <h1 className="text-2xl font-display font-bold text-gradient">Haftalık Charts</h1>
           <p className="text-xs text-surface-400">Son 7 günün en çok beğenilen şarkıları ve en aktif dinleyicileri</p>
         </div>
       </div>
+
+      {years.length > 0 && (
+        <div className="flex items-center gap-2 mb-5 flex-wrap">
+          <CalendarDays size={14} className="text-amber-400" />
+          <span className="text-[11px] text-surface-500 mr-1">Yıl Zaman Makinesi:</span>
+          {years.slice(0, 12).map((y) => (
+            <button key={y} onClick={() => setYear(y)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border ${
+                year === y
+                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10'
+                  : 'bg-surface-800/60 text-surface-400 border-surface-700 hover:text-white'
+              }`}>
+              {y}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex gap-2 mb-5">
         <button onClick={() => setTab('songs')} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${tab === 'songs' ? 'bg-wave-500/15 text-wave-400 border border-wave-500/30' : 'text-surface-400 hover:text-white border border-transparent'}`}>
@@ -112,20 +138,20 @@ export default function Charts() {
       ) : (
         <div className="max-w-3xl">
           {tab === 'songs' ? (
-            weekly.length === 0 ? (
+            yearSongs.length === 0 ? (
               <div className="text-center py-16 text-surface-500">
                 <Music2 size={40} className="mx-auto mb-3 opacity-40" />
-                <p className="text-sm">Bu hafta henüz beğeni verisi yok</p>
+                <p className="text-sm">{year === new Date().getFullYear() ? 'Bu hafta henüz beğeni verisi yok' : `${year} yılına ait şarkı bulunamadı`}</p>
               </div>
             ) : (
               <div className="space-y-1">
                 <div className="flex items-center gap-3 mb-4">
-                  <button onClick={() => playAll(weekly)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-wave-500 to-purple-500 text-white text-sm font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-wave-500/20">
+                  <button onClick={() => playAll(yearSongs)} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-wave-500 to-purple-500 text-white text-sm font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-wave-500/20">
                     <Play size={16} fill="currentColor" />Hepsini Çal
                   </button>
-                  {user && <span className="text-xs text-surface-500">Top {weekly.length} şarkı</span>}
+                  {user && <span className="text-xs text-surface-500">Top {yearSongs.length} şarkı · {year}</span>}
                 </div>
-                {weekly.map((song, i) => (
+                {yearSongs.map((song, i) => (
                   <div key={song.id} onClick={() => playSong(song)} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-all group">
                     <div className="w-8 text-center flex-shrink-0">
                       {i < 3 ? (

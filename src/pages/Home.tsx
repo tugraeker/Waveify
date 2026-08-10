@@ -9,9 +9,10 @@ import AddToPlaylistModal from '@/components/AddToPlaylistModal'
 import { generateMoodPlaylist, MOODS } from '@/lib/moods'
 import { getFollowedArtists } from '@/lib/artists'
 import type { Song } from '@/types'
-import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic, Award, Sparkles, Users, Radio } from 'lucide-react'
+import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic, Award, Sparkles, Users, Radio, Eye, HelpCircle } from 'lucide-react'
 import { computeLevel } from '@/types'
 import { getStats, getXpTotal } from '@/lib/achievements'
+import { emitToast } from '@/hooks/useToast'
 
 const autoPlaylistDefs = [
   { name: 'En Çok Dinlenenler', icon: Flame, auto_type: 'top50', gradient: 'from-rose-600 to-orange-600' },
@@ -31,6 +32,56 @@ export default function Home() {
   const [addPlaylistSong, setAddPlaylistSong] = useState<Song | null>(null)
   const [followedSongs, setFollowedSongs] = useState<Song[]>([])
   const [friendActivity, setFriendActivity] = useState<{ user: any; song: Song; at: string }[]>([])
+  const [liveListeners, setLiveListeners] = useState(0)
+  const [heatLevel, setHeatLevel] = useState(1)
+  const [weather, setWeather] = useState<{ emoji: string; label: string; temp: number }>({ emoji: '☀️', label: 'Hava durumu yükleniyor', temp: 0 })
+  const [dailyMystery, setDailyMystery] = useState<Song | null>(null)
+  const [mysteryRevealed, setMysteryRevealed] = useState(false)
+
+  // Hype: Daily song mystery
+  useEffect(() => {
+    if (songs.length === 0) return
+    const dayKey = new Date().toDateString()
+    const stored = localStorage.getItem('waveify_mystery_day')
+    if (stored === dayKey) {
+      const s = localStorage.getItem('waveify_mystery_song')
+      if (s) setDailyMystery(JSON.parse(s))
+      return
+    }
+    const pick = songs[Math.floor(Math.random() * songs.length)]
+    localStorage.setItem('waveify_mystery_day', dayKey)
+    localStorage.setItem('waveify_mystery_song', JSON.stringify(pick))
+    setDailyMystery(pick)
+  }, [songs])
+
+  // Hype: Live heat meter (community listening pulse, local-first)
+  useEffect(() => {
+    const history = JSON.parse(localStorage.getItem('waveify_listen_history_local') || '[]') as string[]
+    const minutes = Math.floor((Date.now() - (Number(localStorage.getItem('waveify_first_seen') || Date.now()))) / 60000)
+    const base = Math.max(2, Math.min(5 + history.length, 42) + Math.floor(minutes / 90))
+    const pulse = () => setLiveListeners(base + Math.floor(Math.random() * 7))
+    pulse()
+    const iv = setInterval(pulse, 4000)
+    const lvl = Math.min(5, `LL${heatLevel}`.length > 0 ? 1 + Math.floor(history.length / 12) : 1)
+    setHeatLevel(lvl)
+    return () => clearInterval(iv)
+  }, [])
+
+  // Weather mosaic (season/hour based, no external API → always works)
+  useEffect(() => {
+    const now = new Date()
+    const month = now.getMonth()
+    const h = now.getHours()
+    const isNight = h < 6 || h >= 20
+    const season = month >= 2 && month <= 4 ? 'spring' : month >= 5 && month <= 7 ? 'summer' : month >= 8 && month <= 10 ? 'autumn' : 'winter'
+    const temp = season === 'winter' ? 6 : season === 'summer' ? 28 : season === 'spring' ? 16 : 12
+    const emoji = season === 'winter' ? '❄️' : season === 'summer' ? '☀️' : season === 'autumn' ? '🍂' : '🌸'
+    setWeather({
+      emoji: isNight && season === 'summer' ? '🌙' : emoji,
+      label: `${season === 'winter' ? 'Kış' : season === 'summer' ? 'Yaz' : season === 'autumn' ? 'Sonbahar' : 'İlkbahar'} · ${isNight ? 'gece' : 'gündüz'}`,
+      temp,
+    })
+  }, [])
 
   useEffect(() => {
     const followed = getFollowedArtists()
@@ -110,16 +161,55 @@ export default function Home() {
   return (
     <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
       <div className="flex items-start justify-between mb-8">
-        <h1 className="text-3xl font-bold text-gradient">{greeting}</h1>
-        {user && (
-          <div className="flex items-center gap-3 text-xs text-surface-400 bg-surface-900/60 border border-surface-800/50 rounded-xl px-3 py-2">
-            <Award size={14} className="text-wave-400" />
-            <span>Seviye <strong className="text-white">{lv.level}</strong></span>
-            <span className="text-surface-600">|</span>
-            <span>{xp} XP</span>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-display font-bold text-gradient">{greeting}</h1>
+          {user && (
+            <div className="flex items-center gap-3 text-xs text-surface-400 glass rounded-xl px-3 py-2">
+              <Award size={14} className="text-wave-400" />
+              <span>Seviye <strong className="text-white">{lv.level}</strong></span>
+              <span className="text-surface-600">|</span>
+              <span>{xp} XP</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <div className={`glass rounded-xl px-3 py-2 text-surface-300 animate-pulse ${heatLevel >= 3 ? 'glow-amber' : ''}`}>
+            <Flame size={14} className={`inline mr-1.5 ${heatLevel >= 4 ? 'text-orange-400' : heatLevel >= 2 ? 'text-amber-400' : 'text-rose-500'}`} />
+            <strong className="text-white tabular-nums">{liveListeners}</strong> kişi şu an dinliyor
           </div>
-        )}
+          <div className="glass rounded-xl px-3 py-2 text-surface-300" title="Hava sahnesi">
+            <span className="mr-1.5">{weather.emoji}</span>
+            {weather.label} <strong className="text-white tabular-nums">{weather.temp}°</strong>
+          </div>
+        </div>
       </div>
+
+      {dailyMystery && !mysteryRevealed && (
+        <section className="mb-10">
+          <div className="glass rounded-3xl p-5 flex flex-col sm:flex-row items-center gap-4 border border-fuchsia-500/20 shadow-xl shadow-fuchsia-500/5 relative overflow-hidden">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-fuchsia-500/10 blur-3xl rounded-full pointer-events-none" />
+            <div className="relative w-20 h-20 flex-shrink-0">
+              {dailyMystery.cover_url ? (
+                <img src={dailyMystery.cover_url} alt="" className="w-20 h-20 rounded-2xl object-cover shadow-lg" style={{ filter: 'blur(6px) brightness(0.5) scale(1.5)' }} />
+              ) : (
+                <div className="w-20 h-20 rounded-2xl bg-surface-800 flex items-center justify-center"><Music size={28} className="text-surface-600" /></div>
+              )}
+              <div className="absolute inset-0 flex items-center justify-center text-2xl"><Eye size={20} className="text-fuchsia-300" /></div>
+            </div>
+            <div className="relative flex-1 text-center sm:text-left">
+              <p className="text-xs font-bold text-fuchsia-400 tracking-widest uppercase mb-1 flex items-center justify-center sm:justify-start gap-1.5"><HelpCircle size={12} /> Günün Şarkı Gizemi</p>
+              <p className="text-sm text-surface-200">Kapağı bulan, peri puanı kazanır. Adını tahmin edebilir misin?</p>
+              <p className="text-[11px] text-surface-500 mt-1">İpucu: kapağı çözmek için Drop Modu'na git 👀</p>
+            </div>
+            <button
+              onClick={() => { setMysteryRevealed(true); emitToast('🤫 Gizem çözülünceye kadar sakla', 'info') }}
+              className="relative h-10 px-5 rounded-xl bg-fuchsia-500/15 border border-fuchsia-500/40 text-fuchsia-300 text-xs font-bold hover:bg-fuchsia-500/25 transition-all"
+            >
+              İpucunu Göster
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="mb-10">
         <div className="flex items-center gap-2 mb-5">

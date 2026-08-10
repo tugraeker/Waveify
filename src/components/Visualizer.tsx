@@ -44,6 +44,8 @@ export default function Visualizer({ analyserData, isPlaying, className = '' }: 
         case 'spectrum': drawSpectrum(ctx, canvas, data, colorTheme); break
         case 'particles': drawParticles(ctx, canvas, data, colorTheme); break
         case 'dual': drawDual(ctx, canvas, data, colorTheme); break
+        case 'stars': drawStars(ctx, canvas, data, colorTheme); break
+        case 'concert': drawConcert(ctx, canvas, data, colorTheme); break
       }
     }
 
@@ -213,6 +215,69 @@ function drawParticles(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement,
   ctx.globalAlpha = 1
 }
 
+// Feature: Stars mode (music galaxy — every band is a star)
+let starField: { x: number; y: number; s: number }[] | null = null
+function ensureStarField(canvas: HTMLCanvasElement) {
+  if (!starField || starField.length !== 90) {
+    starField = Array.from({ length: 90 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      s: Math.random() * 1.2 + 0.3,
+    }))
+  }
+  return starField
+}
+
+function drawStars(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: Uint8Array, theme: string) {
+  const field = ensureStarField(canvas)
+  const time = Date.now() / 1000
+  // Static deep-space dust
+  for (const s of field) {
+    const tw = 0.35 + 0.25 * Math.sin(time * 0.8 + s.x * 0.13)
+    ctx.beginPath()
+    ctx.arc(s.x, s.y, s.s, 0, Math.PI * 2)
+    ctx.fillStyle = `rgba(255,255,255,${tw * 0.35})`
+    ctx.fill()
+  }
+  // Nebula glow from average energy
+  const avg = Array.from(data).reduce((a, b) => a + b, 0) / data.length / 255
+  const neb = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 2, canvas.width / 2, canvas.height / 2, canvas.height * 0.9)
+  neb.addColorStop(0, `rgba(139,92,246,${0.12 + avg * 0.22})`)
+  neb.addColorStop(0.6, `rgba(217,70,239,${0.05 + avg * 0.1})`)
+  neb.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = neb
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  // Music stars: one per band
+  const bands = 28
+  for (let i = 0; i < bands; i++) {
+    const v = data[Math.floor(i * data.length / bands)] / 255
+    const sx = ((i + 0.5) / bands) * canvas.width + Math.sin(i * 12.9898) * 3
+    const sy = canvas.height / 2 + (Math.sin(i * 78.233) * 0.32 + (v - 0.5) * 0.9) * canvas.height
+    const r = 1 + v * 4.2
+    const [c1, c2] = getColors(theme, v)
+    ctx.beginPath()
+    ctx.arc(sx, sy, r, 0, Math.PI * 2)
+    ctx.fillStyle = c1
+    ctx.shadowColor = c2
+    ctx.shadowBlur = 4 + v * 14
+    ctx.fill()
+    ctx.shadowBlur = 0
+    // Beam for hot stars
+    if (v > 0.7) {
+      ctx.beginPath()
+      ctx.moveTo(sx, sy - r)
+      ctx.lineTo(sx + (v - 0.7) * 14, sy - r - 6)
+      ctx.lineTo(sx - (v - 0.7) * 14, sy - r - 6)
+      ctx.closePath()
+      ctx.globalAlpha = 0.5
+      ctx.fillStyle = c2
+      ctx.fill()
+      ctx.globalAlpha = 1
+    }
+  }
+}
+
 // Feature 1: Dual mode (bars on top half, wave on bottom)
 function drawDual(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: Uint8Array, theme: string) {
   const halfH = canvas.height / 2
@@ -229,4 +294,66 @@ function drawDual(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data
   ctx.translate(0, 0)
   drawWave(ctx, canvas, data, theme)
   ctx.restore()
+}
+
+// Hype: Concert mode — searchlight beams + spark rain
+function drawConcert(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, data: Uint8Array, theme: string) {
+  const time = Date.now() / 1000
+  const avg = Array.from(data).reduce((a, b) => a + b, 0) / data.length / 255
+
+  // Dark stage haze
+  const haze = ctx.createLinearGradient(0, 0, 0, canvas.height)
+  haze.addColorStop(0, 'rgba(10,8,30,0.55)')
+  haze.addColorStop(1, 'rgba(20,10,40,0.3)')
+  ctx.fillStyle = haze
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  // Searchlight beams from top corners (energy-driven sweep)
+  const beams = 3
+  for (let i = 0; i < beams; i++) {
+    const v = data[Math.floor(i * data.length * 0.3 / beams)] / 255
+    const angle = Math.sin(time * 0.5 + i * 2.2) * 0.35 + (i - 1) * 0.5
+    const len = canvas.height * (0.7 + v * 0.6)
+    const x0 = (i / (beams - 1)) * canvas.width
+    const x1 = x0 + Math.sin(angle) * len
+    const [c1, c2] = getColors(theme, 0.4 + v * 0.5)
+    const grad = ctx.createLinearGradient(x0, 0, x1, canvas.height)
+    grad.addColorStop(0, c1.replace(/[\d.]+\)$/, `${0.25 + v * 0.35})`))
+    grad.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.beginPath()
+    ctx.moveTo(x0 - 2, 0)
+    ctx.lineTo(x0 + 2, 0)
+    ctx.lineTo(x1, canvas.height)
+    ctx.lineTo(x0, canvas.height)
+    ctx.closePath()
+    ctx.fillStyle = grad
+    ctx.fill()
+  }
+
+  // Crowd shimmer dots on the floor
+  for (let i = 0; i < 46; i++) {
+    const v = data[Math.floor(i * data.length / 46)] / 255
+    const x = (i / 46) * canvas.width + Math.sin(time + i) * 2
+    const y = canvas.height - 2 - Math.abs(Math.sin(time * 1.3 + i * 0.7)) * 3
+    const [c1] = getColors(theme, v)
+    ctx.globalAlpha = 0.25 + v * 0.5
+    ctx.fillStyle = c1
+    ctx.fillRect(x, y, 3, 2)
+  }
+  ctx.globalAlpha = 1
+
+  // Energy floor line
+  const line = ctx.createLinearGradient(0, 0, canvas.width, 0)
+  const [lc1, lc2] = getColors(theme, avg)
+  line.addColorStop(0, lc1)
+  line.addColorStop(1, lc2)
+  ctx.strokeStyle = line
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  for (let x = 0; x <= canvas.width; x += 6) {
+    const v = data[Math.floor(x * data.length / canvas.width)] / 255
+    const y = canvas.height - 6 - v * canvas.height * 0.25
+    x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+  }
+  ctx.stroke()
 }

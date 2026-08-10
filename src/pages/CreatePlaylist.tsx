@@ -68,7 +68,7 @@ export default function CreatePlaylist() {
 
   return (
     <div className="p-6 overflow-y-auto h-full scrollbar-thin">
-      <h1 className="text-2xl font-bold mb-6">Yeni Çalma Listesi</h1>
+      <h1 className="text-2xl font-display font-bold mb-6">Yeni Çalma Listesi</h1>
 
       <div className="max-w-lg space-y-4 mb-6">
         <Input

@@ -34,7 +34,7 @@ export default function Soundscapes() {
           <Waves size={20} className="text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gradient">Ses Manzaraları</h1>
+          <h1 className="text-2xl font-display font-bold text-gradient">Ses Manzaraları</h1>
           <p className="text-xs text-surface-400">Tamamen tarayıcıda üretilen ortam sesleri — internet ve dosya gerekmez</p>
         </div>
       </div>

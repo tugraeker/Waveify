@@ -14,8 +14,11 @@ import MobilePlayer from '@/components/MobilePlayer'
 import ToastContainer from '@/components/ToastContainer'
 import UpdateBanner from '@/components/UpdateBanner'
 import WhatsNewModal from '@/components/WhatsNewModal'
+import TrollScreen from '@/components/TrollScreen'
 import { useAchievementsInit } from '@/hooks/useAchievements'
 import { getAmbientColors } from '@/lib/ambient'
+import { popLocalTroll, type TrollMessage } from '@/lib/troll'
+import { confettiBurst } from '@/lib/party'
 import { Trophy } from 'lucide-react'
 import type { AccentColor, Song } from '@/types'
 
@@ -45,6 +48,9 @@ const PodcastPage = lazy(() => import('@/pages/Podcast'))
 const RadioPage = lazy(() => import('@/pages/Radio'))
 const Charts = lazy(() => import('@/pages/Charts'))
 const Soundscapes = lazy(() => import('@/pages/Soundscapes'))
+const Trivia = lazy(() => import('@/pages/Trivia'))
+const BeatMaker = lazy(() => import('@/pages/BeatMaker'))
+const PitchGame = lazy(() => import('@/pages/PitchGame'))
 
 const accentPalettes: Record<AccentColor, Record<string, string>> = {
   wave:   { '50': '238 251 250', '100': '213 245 242', '200': '174 234 229', '300': '106 217 210', '400': '34 199 192', '500': '15 171 166', '600': '9 139 136', '700': '12 111 109', '800': '15 89 88', '900': '18 74 73', '950': '3 45 45' },
@@ -63,12 +69,37 @@ function hexToRgb(hex: string): string {
   return `${r} ${g} ${b}`
 }
 
+const AURORA_SCENES: Record<string, [string, string, string]> = {
+  '/': ['99 102 241', '34 211 238', '236 72 153'],
+  '/search': ['34 211 238', '236 72 153', '99 102 241'],
+  '/library': ['236 72 153', '245 158 11', '99 102 241'],
+  '/playlist': ['245 158 11', '99 102 241', '34 211 238'],
+  '/song': ['245 158 11', '236 72 153', '34 211 238'],
+  '/now-playing': ['139 92 246', '217 70 239', '245 158 11'],
+  '/trivia': ['139 92 246', '236 72 153', '34 211 238'],
+  '/soundscapes': ['16 185 129', '34 211 238', '99 102 241'],
+  '/stats': ['34 211 238', '99 102 241', '139 92 246'],
+  '/sync-room': ['249 115 22', '236 72 153', '99 102 241'],
+  '/discover': ['217 70 239', '34 211 238', '139 92 246'],
+  '/charts': ['245 158 11', '34 211 238', '236 72 153'],
+  '/beatmaker': ['16 185 129', '245 158 11', '34 211 238'],
+  '/pitch-game': ['217 70 239', '16 185 129', '99 102 241'],
+  '/settings': ['99 102 241', '139 92 246', '34 211 238'],
+  '/admin': ['34 211 238', '99 102 241', '139 92 246'],
+}
+
+function isNightWindow(): boolean {
+  const h = new Date().getHours()
+  return h >= 0 && h < 5
+}
+
 export default function App() {
-  const { user, theme, accentColor, customAccentColor, setUser, setPlaylists, currentSong } = useStore()
+  const { user, theme, accentColor, customAccentColor, setUser, setPlaylists, currentSong, retroMode, lowLightMode } = useStore()
   const navigate = useNavigate()
   const location = useLocation()
   const [mounted, setMounted] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
+  const [troll, setTroll] = useState<TrollMessage | null>(null)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
@@ -78,6 +109,20 @@ export default function App() {
       document.documentElement.style.setProperty('--custom-bg', savedBg)
     }
   }, [theme])
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (retroMode) {
+      root.style.filter = 'contrast(1.15) saturate(1.2)'
+    } else {
+      root.style.filter = ''
+    }
+  }, [retroMode])
+
+  useEffect(() => {
+    const root = document.documentElement
+    root.style.setProperty('--low-light', lowLightMode ? '1' : '0')
+  }, [lowLightMode])
 
   useEffect(() => {
     const palette = accentPalettes[accentColor]
@@ -102,6 +147,35 @@ export default function App() {
   useMediaSession()
   const { showLevelUp, newLevel } = useAchievementsInit()
 
+  // Aurora scene per route (with night override)
+  useEffect(() => {
+    const root = document.documentElement
+    const scene = AURORA_SCENES[location.pathname] || AURORA_SCENES['/']
+    let c1 = scene[0], c2 = scene[1], c3 = scene[2]
+    if (isNightWindow()) {
+      c1 = '76 29 149'
+      c2 = '30 27 75'
+      c3 = '236 72 153'
+    }
+    root.style.setProperty('--aurora-1', c1)
+    root.style.setProperty('--aurora-2', c2)
+    root.style.setProperty('--aurora-3', c3)
+  }, [location.pathname])
+
+  // Console easter egg: type "waveify" or "konfeti"
+  useEffect(() => {
+    let typed = ''
+    const handler = (e: KeyboardEvent) => {
+      typed = (typed + e.key).toLowerCase().slice(-12)
+      if (typed.includes('waveify') || typed.includes('konfeti')) {
+        confettiBurst()
+        typed = ''
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -123,7 +197,7 @@ export default function App() {
 
   async function restoreUser(authUser: any) {
     let profile: any = null
-    try { const r = await supabase.from('users').select('id,username,avatar_url,bio').eq('id', authUser.id).maybeSingle(); profile = r.data } catch {}
+    try { const r = await supabase.from('users').select('id,username,avatar_url,bio,display_settings').eq('id', authUser.id).maybeSingle(); profile = r.data } catch {}
     let isAdmin = false
     try { const r = await supabase.from('users').select('is_admin').eq('id', authUser.id).single(); isAdmin = r.data?.is_admin === true } catch {}
     setUser({
@@ -135,6 +209,12 @@ export default function App() {
       is_admin: isAdmin,
       created_at: authUser.created_at,
     })
+    const inbox: TrollMessage[] = Array.isArray(profile?.display_settings?.trollInbox) ? profile.display_settings.trollInbox : []
+    if (inbox.length > 0) {
+      const [first, ...rest] = inbox
+      setTroll(first)
+      supabase.from('users').update({ display_settings: { ...(profile?.display_settings || {}), trollInbox: rest } }).eq('id', authUser.id).then(() => {}, () => {})
+    }
     try {
       const { data } = await supabase.from('playlists').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false })
       if (data) setPlaylists(data)
@@ -210,6 +290,28 @@ export default function App() {
 
   useEffect(() => { setMounted(true) }, [])
 
+  // Troll inbox polling (local queue → immediate display, Supabase → cross-device)
+  useEffect(() => {
+    if (!user) return
+    const check = () => {
+      if (!useStore.getState().user) return
+      const local = popLocalTroll()
+      if (local) { setTroll(local); return }
+      supabase.from('users').select('display_settings').eq('id', user.id).maybeSingle()
+        .then(({ data }) => {
+          const q: TrollMessage[] = Array.isArray(data?.display_settings?.trollInbox) ? data.display_settings.trollInbox : []
+          if (q.length > 0) {
+            const [first, ...rest] = q
+            setTroll(first)
+            supabase.from('users').update({ display_settings: { ...(data!.display_settings || {}), trollInbox: rest } }).eq('id', user.id).then(() => {}, () => {})
+          }
+        }, () => {})
+    }
+    const id = window.setInterval(check, 6000)
+    check()
+    return () => window.clearInterval(id)
+  }, [user?.id])
+
   useEffect(() => {
     if (!currentSong?.cover_url) return
     let cancelled = false
@@ -234,7 +336,7 @@ export default function App() {
   if (!user) return <Auth />
 
   return (
-    <div className="h-screen flex flex-col bg-surface-950 relative overflow-hidden">
+    <div className={`h-screen flex flex-col bg-surface-950 relative overflow-hidden ${retroMode ? 'scanlines' : ''} ${lowLightMode ? 'brightness-[0.6] saturate-[0.9] contrast-[1.05]' : ''}`}>
       <div className="ambient-glow" />
       <div className="hidden md:block">
         <TitleBar />
@@ -244,7 +346,13 @@ export default function App() {
         <div className="hidden md:flex">
           <Sidebar />
         </div>
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className="relative flex-1 flex flex-col overflow-hidden">
+          <div className="aurora-layer">
+            <div className="aurora-blob aurora-blob-1" />
+            <div className="aurora-blob aurora-blob-2" />
+            <div className="aurora-blob aurora-blob-3" />
+          </div>
+          <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
           <Suspense fallback={
             <div className="flex-1 flex items-center justify-center">
               <div className="w-8 h-8 border-2 border-wave-400 border-t-transparent rounded-full animate-spin" />
@@ -277,9 +385,13 @@ export default function App() {
               <Route path="/radio" element={<RadioPage />} />
               <Route path="/charts" element={<Charts />} />
               <Route path="/soundscapes" element={<Soundscapes />} />
+              <Route path="/trivia" element={<Trivia />} />
+              <Route path="/beatmaker" element={<BeatMaker />} />
+              <Route path="/pitch-game" element={<PitchGame />} />
               <Route path="/auth" element={<Auth />} />
             </Routes>
           </Suspense>
+          </div>
         </main>
       </div>
       <div className="hidden md:block">
@@ -290,14 +402,15 @@ export default function App() {
       <ToastContainer />
       <UpdateBanner />
       <WhatsNewModal />
+      {troll && <TrollScreen message={troll} onClose={() => setTroll(null)} />}
       {showLevelUp && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => {}}>
           <div className="text-center animate-level-up">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-yellow-500/30 animate-bounce">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-yellow-500/30 animate-bounce glow-amber">
               <Trophy size={48} className="text-white" />
             </div>
-            <h2 className="text-3xl font-bold text-white mb-1">Seviye Atladın!</h2>
-            <p className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 mb-2">Seviye {newLevel}</p>
+            <h2 className="text-3xl font-display font-bold text-white mb-1 text-glow">Seviye Atladın!</h2>
+            <p className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-fuchsia-400 to-cyan-400 mb-2">Seviye {newLevel}</p>
             <p className="text-surface-400 text-sm">Tebrikler! Yeni bir seviyeye ulaştın.</p>
           </div>
         </div>

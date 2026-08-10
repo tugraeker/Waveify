@@ -115,7 +115,7 @@ export default function Stats() {
 
   return (
     <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
-      <h1 className="text-2xl font-bold mb-8">İstatistikler</h1>
+      <h1 className="text-2xl font-display font-bold mb-8">İstatistikler</h1>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         {[

@@ -120,7 +120,7 @@ export default function Discover() {
     <div className="p-6 overflow-y-auto h-full scrollbar-thin animate-fade-in space-y-8">
       <div className="flex items-center gap-3 mb-2">
         <Sparkles size={24} className="text-wave-400" />
-        <h1 className="text-2xl font-bold">Keşfet</h1>
+        <h1 className="text-2xl font-display font-bold">Keşfet</h1>
       </div>
 
       <div>

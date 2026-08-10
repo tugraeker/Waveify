@@ -95,6 +95,20 @@ export function trackEffectsUse() {
   return s
 }
 
+export function trackTriviaPlay() {
+  const s = getStats()
+  s.triviaPlays = (s.triviaPlays || 0) + 1
+  saveStats(s)
+  return s
+}
+
+export function trackFullListen() {
+  const s = getStats()
+  s.fullListens = (s.fullListens || 0) + 1
+  saveStats(s)
+  return s
+}
+
 export function updateStreak() {
   const s = getStats()
   const today = new Date().toDateString()
@@ -134,6 +148,8 @@ export function getDailyQuests(): Quest[] {
     { id: 'daily_upload', label: 'Şarkı Yükle', type: 'upload', target: 1, reward: 10, progress: Math.min(stats.songsUploaded % 10, 1), completed: false, claimed: false },
     { id: 'daily_radio', label: 'Radyo Modunda Dinle', type: 'radio', target: 5, reward: 8, progress: Math.min(stats.radioPlays % 50, 5), completed: false, claimed: false },
     { id: 'daily_effects', label: 'Efektli Şarkı Dinle', type: 'effects', target: 3, reward: 6, progress: Math.min(stats.effectsUsed % 30, 3), completed: false, claimed: false },
+    { id: 'daily_trivia', label: 'Şarkı Tahmini Yap', type: 'trivia', target: 1, reward: 5, progress: Math.min((stats.triviaPlays || 0) % 10, 1), completed: false, claimed: false },
+    { id: 'daily_full', label: 'Şarkıyı Sonuna Kadar Dinle', type: 'full_listen', target: 3, reward: 10, progress: Math.min((stats.fullListens || 0) % 20, 3), completed: false, claimed: false },
   ]
   quests.forEach(q => q.completed = q.progress >= q.target)
   localStorage.setItem(QUESTS_KEY, JSON.stringify({ date: today, quests }))

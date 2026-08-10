@@ -1,20 +1,17 @@
 import { useState } from 'react'
-import { Sparkles, X, Gauge, AudioWaveform, Heart, Users, Search, Share2, CloudDownload, Wind, Vibrate, Music4 } from 'lucide-react'
+import { Sparkles, X, Palette, Mic2, AudioWaveform, Headphones, Star, Flag, Type } from 'lucide-react'
 
-const VERSION = '5.0.0'
+const VERSION = '6.0.0'
 const STORAGE_KEY = 'waveify_seen_whatsnew'
 
 const FEATURES = [
-  { icon: Gauge, title: 'Çalma Hızı', desc: "%50 yavaştan 2x hıza kadar — podcast'ler, dersler ve pratik için." },
-  { icon: AudioWaveform, title: 'Ses Manzaraları', desc: 'Yağmur, okyanus, rüzgar, kamp ateşi, orman ve uyku sesleri. Anlık ambiyans.' },
-  { icon: CloudDownload, title: 'Çevrimdışı İndirme', desc: 'Şarkıları cihazına indir, internet olmadan da çal.' },
-  { icon: Heart, title: 'Sanatçı Takibi', desc: 'Sanatçıları takip et; ana sayfada takip ettiğin sanatçıların şarkıları öne çıksın.' },
-  { icon: Users, title: 'Arkadaş Aktiviteleri', desc: 'Arkadaşlarının şu anda ne dinlediğini ana sayfada gör.' },
-  { icon: Search, title: 'Sözlerde Arama', desc: 'Arama artık şarkı sözlerinde de geziyor — bir satırla şarkıyı bul.' },
-  { icon: Share2, title: 'Playlist Paylaşımı', desc: 'Tek tıkla link kopyala; açıldığında şarkı veya playlist anında çalar.' },
-  { icon: Wind, title: 'Kapak Kolajı', desc: 'Playlist kapakları artık ilk 4 şarkının kapağıyla otomatik kolaj.' },
-  { icon: Vibrate, title: 'Haptik Titreşim', desc: 'Mobilde şarkı geçişlerinde kısa dokunsal geri bildirim.' },
-  { icon: Music4, title: 'Tepsi & Kısayollar Onarımı', desc: 'Sistem tepsisindeki Çal/Duraklat ve medya tuşları artık uygulamayı gerçekten kontrol ediyor.' },
+  { icon: Palette, title: 'Yeni Tasarım Sistemi', desc: 'Mor-amber palet, Space Grotesk tipografi, premium derinlik ve yeni ambient glow. Tamamen yeniden cilalandı.' },
+  { icon: Mic2, title: 'Karaoke Modu', desc: 'Gerçek zamanlı vokal kaldırma (mid-side işleme). Şarkıyı enstrümantal yap ya da tersine sadece vokali izole et.' },
+  { icon: Headphones, title: 'Drop Modu', desc: '3 saniyelik kesitle şarkı tahmin oyunu. Doğru tahmin serisi yaklaştıkça puan artar, XP kazanırsın.' },
+  { icon: AudioWaveform, title: 'Lo-Fi Beat Üreteci', desc: 'Ses manzaralarına sonsuz üretilen lo-fi ritim eklendi — kick, hat, bas ve vinil çıtırtısı anında senin için çalınıyor.' },
+  { icon: Star, title: 'Yıldız Haritası', desc: 'Her frekans bandı bir yıldıza dönüşüyor: şarkının enerjisine göre değişen mini müzik galaksisi visualizer.' },
+  { icon: Flag, title: 'Tam Dinleme Serisi', desc: 'Şarkıyı sonuna kadar dinleme görevi — parçayı bitirenlere günlük görev ve XP.' },
+  { icon: Type, title: 'Premium Tipografi', desc: 'Tüm sayfa başlıkları ferah Space Grotesk ile yeniden dizildi.' },
 ]
 
 export default function WhatsNewModal() {
@@ -30,13 +27,13 @@ export default function WhatsNewModal() {
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in" onClick={dismiss}>
       <div className="glass rounded-3xl border border-surface-800/60 shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden animate-fade-in" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-surface-800/40 bg-gradient-to-r from-wave-500/15 via-transparent to-purple-500/15">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-wave-400 to-purple-500 flex items-center justify-center shadow-lg shadow-wave-500/30">
+        <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-surface-800/40 bg-gradient-to-r from-wave-500/15 via-fuchsia-500/10 to-amber-400/10">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-wave-400 via-fuchsia-500 to-amber-400 flex items-center justify-center shadow-lg shadow-wave-500/30">
             <Sparkles size={22} className="text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-white">Waveify {VERSION}</h2>
-            <p className="text-xs text-surface-400">Sürümde yenilikler</p>
+            <h2 className="text-xl font-display font-bold text-white">Waveify {VERSION}</h2>
+            <p className="text-xs text-surface-400">Tasarım yenilendi + devasa özellik seti</p>
           </div>
           <button onClick={dismiss} className="text-surface-400 hover:text-white transition-colors p-1"><X size={18} /></button>
         </div>
@@ -59,7 +56,7 @@ export default function WhatsNewModal() {
         </div>
 
         <div className="px-6 py-4 border-t border-surface-800/40">
-          <button onClick={dismiss} className="w-full py-3 rounded-2xl bg-gradient-to-r from-wave-500 to-purple-500 text-white font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-wave-500/20">
+          <button onClick={dismiss} className="w-full py-3 rounded-2xl bg-gradient-to-r from-wave-500 via-fuchsia-500 to-amber-400 text-white font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-wave-500/20">
             Keşfetmeye Başla
           </button>
         </div>

@@ -98,7 +98,20 @@ export interface AudioEffects {
   bass: number
   reverb: number
   spatial: number
+  vocal?: number
+  vocalIso?: boolean
+  eightD?: number
+  room?: 'hall' | 'cathedral' | 'garage' | 'canyon'
 }
+
+export const ROOM_PRESETS: { key: 'hall' | 'cathedral' | 'garage' | 'canyon'; label: string; decay: number; mix: number }[] = [
+  { key: 'hall', label: 'Konser Salonu', decay: 1.6, mix: 0.35 },
+  { key: 'cathedral', label: 'Katedral', decay: 3.2, mix: 0.5 },
+  { key: 'garage', label: 'Garaj', decay: 0.7, mix: 0.25 },
+  { key: 'canyon', label: 'Kanyon', decay: 2.3, mix: 0.4 },
+]
+
+export type CoverStyle = 'vinyl' | 'cassette' | 'cd' | 'polaroid'
 
 export interface RadioState {
   active: boolean
@@ -129,7 +142,7 @@ export interface EqPreset extends EqualizerSettings {
   bands: number[]
 }
 
-export type VisualizerMode = 'bars' | 'wave' | 'circle' | 'fire' | 'party' | 'spectrum' | 'particles' | 'dual'
+export type VisualizerMode = 'bars' | 'wave' | 'circle' | 'fire' | 'party' | 'spectrum' | 'particles' | 'dual' | 'stars' | 'concert'
 
 export type VisualizerColorTheme = 'wave' | 'rainbow' | 'fire' | 'ice' | 'neon' | 'pastel' | 'mono'
 

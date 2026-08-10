@@ -10,14 +10,14 @@ import { emitToast } from '@/hooks/useToast'
 import { Slider } from '@/components/ui'
 import Visualizer from '@/components/Visualizer'
 import SyncedLyrics from '@/components/SyncedLyrics'
-import type { Song, VisualizerMode, VisualizerColorTheme } from '@/types'
-import { EQ_PRESETS, EQ_BAND_FREQS, defaultEqBands } from '@/types'
+import type { Song, VisualizerMode, VisualizerColorTheme, CoverStyle } from '@/types'
+import { EQ_PRESETS, EQ_BAND_FREQS, defaultEqBands, ROOM_PRESETS } from '@/types'
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
   Volume2, ChevronDown, Heart, Music2, Disc3, X,
   BarChart3, Waves, Circle, Flame, Radio,
   Maximize2, Share2, Star, Pencil, Info, ListPlus,
-  Palette, Plus, Check, FileText, Save, Zap, Volume1, Landmark, Download, XCircle,
+  Palette, Plus, Check, FileText, Save, Zap, Volume1, Landmark, Download, XCircle, Mic2,
 } from 'lucide-react'
 
 const VISUALIZER_MODES: { key: VisualizerMode; label: string; icon: typeof BarChart3 }[] = [
@@ -29,6 +29,15 @@ const VISUALIZER_MODES: { key: VisualizerMode; label: string; icon: typeof BarCh
   { key: 'spectrum', label: 'Spektrum', icon: BarChart3 },
   { key: 'particles', label: 'Parçacık', icon: Circle },
   { key: 'dual', label: 'Çift', icon: Waves },
+  { key: 'stars', label: 'Yıldız', icon: Star },
+  { key: 'concert', label: 'Konser', icon: Zap },
+]
+
+const COVER_STYLES: { key: CoverStyle; label: string; emoji: string }[] = [
+  { key: 'vinyl', label: 'Plak', emoji: '💿' },
+  { key: 'cassette', label: 'Kaset', emoji: '📼' },
+  { key: 'cd', label: 'CD', emoji: '💽' },
+  { key: 'polaroid', label: 'Polaroid', emoji: '📷' },
 ]
 
 const VIZ_COLOR_THEMES: { key: VisualizerColorTheme; label: string }[] = [
@@ -43,14 +52,15 @@ const VIZ_COLOR_THEMES: { key: VisualizerColorTheme; label: string }[] = [
 
 export default function NowPlaying() {
   const navigate = useNavigate()
-  const { currentSong, volume, shuffle, repeat, equalizer, user, visualizerMode,
+  const {
+    currentSong, volume, shuffle, repeat, equalizer, user, visualizerMode,
     visualizerColorTheme, visualizerSensitivity, crossfade, crossfadeDuration,
     eqPresets, saveEqPreset, deleteEqPreset, loadEqPreset,
     setVolume, setShuffle, setRepeat, setEqualizer, resetEqualizer, setVisualizerMode,
     setVisualizerColorTheme, setVisualizerSensitivity, setQueue, setCurrentSong,
     setCrossfade, setCrossfadeDuration, songRatings, setSongRating,
     songNotes, setSongNote, playlists, audioEffects, setAudioEffects,
-    radio, setRadio, queue } = useStore()
+    radio, setRadio, queue, coverStyle, setCoverStyle } = useStore()
   const { isPlaying, currentTime, duration, togglePlay, seek, nextSong, prevSong, analyserData } = useAudio()
   const [showEq, setShowEq] = useState(false)
   const [liked, setLiked] = useState(false)
@@ -268,16 +278,72 @@ export default function NowPlaying() {
         <div className="flex flex-col items-center gap-5 py-4">
           {/* Cover art */}
           <div className="relative flex-shrink-0 group">
+            <div className="absolute -inset-3 rounded-full bg-gradient-to-br from-wave-500/25 via-fuchsia-500/15 to-amber-400/20 blur-2xl pointer-events-none" />
             {currentSong.cover_url ? (
-              <img src={currentSong.cover_url} alt="" className={`w-72 h-72 md:w-80 md:h-80 rounded-full shadow-2xl object-cover ${isPlaying ? 'animate-spin-slow' : ''}`} />
+              <>
+                {coverStyle === 'vinyl' && (
+                  <img src={currentSong.cover_url} alt="" className={`relative w-72 h-72 md:w-80 md:h-80 rounded-full shadow-2xl shadow-wave-500/10 ring-1 ring-white/15 object-cover ${isPlaying ? 'animate-spin-slow' : ''}`} />
+                )}
+                {coverStyle === 'cd' && (
+                  <div className={`relative w-72 h-72 md:w-80 md:h-80 rounded-full shadow-2xl shadow-cyan-500/10 overflow-hidden ${isPlaying ? 'animate-spin-slow' : ''}`}>
+                    <img src={currentSong.cover_url} alt="" className="w-full h-full object-cover rounded-full" style={{ clipPath: 'circle(46% at 50% 50%)' }} />
+                    <div className="absolute inset-0 rounded-full" style={{ background: 'repeating-radial-gradient(circle at 50% 50%, rgba(220,240,255,0.12) 0px, rgba(220,240,255,0.12) 1.5px, transparent 2px, transparent 4px)' }} />
+                    <div className="absolute inset-[38%] rounded-full bg-gradient-to-br from-slate-200 via-white to-slate-400 shadow-inner" />
+                    <div className="absolute inset-[44%] rounded-full bg-surface-950" />
+                  </div>
+                )}
+                {coverStyle === 'cassette' && (
+                  <div className="relative w-72 h-72 md:w-80 md:h-80 rotate-1 rounded-2xl border border-surface-700 shadow-2xl shadow-fuchsia-500/10 overflow-hidden" style={{ background: '#15151f' }}>
+                    <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-r from-fuchsia-600 via-amber-500 to-cyan-500 opacity-80" />
+                    <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-r from-cyan-500 via-fuchsia-500 to-amber-500 opacity-80" />
+                    <img src={currentSong.cover_url} alt="" className="absolute inset-x-5 top-14 bottom-14 rounded-md object-cover" />
+                    <div className="absolute inset-x-0 top-[44%] h-8 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-6 rounded-sm bg-white/80" />
+                        <div className="w-4 h-6 rounded-sm bg-white/80" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {coverStyle === 'polaroid' && (
+                  <div className="relative w-72 h-72 md:w-80 md:h-80 -rotate-2 rounded-md bg-gradient-to-br from-white to-slate-200 p-3 pb-10 shadow-2xl shadow-amber-500/10">
+                    <img src={currentSong.cover_url} alt="" className="w-full h-full rounded-sm object-cover" />
+                    <p className="absolute bottom-2 inset-x-0 text-center text-[10px] font-display tracking-[0.2em] text-surface-800 uppercase">waveify · {currentSong.title.split(' ')[0] || 'anı'}</p>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="w-72 h-72 md:w-80 md:h-80 rounded-full bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 flex items-center justify-center">
+              <div className="relative w-72 h-72 md:w-80 md:h-80 rounded-full bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 flex items-center justify-center">
                 <Music2 size={64} className="text-surface-500" />
+              </div>
+            )}
+            {isPlaying && currentSong.cover_url && coverStyle !== 'polaroid' && coverStyle !== 'cassette' && (
+              <div className="absolute inset-0 rounded-full pointer-events-none flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-surface-950/70 backdrop-blur-sm border-2 border-white/25 shadow-xl shadow-black/40 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded-full bg-black/50 border border-white/20" />
+                </div>
               </div>
             )}
             <button onClick={() => setEditingCover(!editingCover)} className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm rounded-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity text-white">
               <Pencil size={14} />
             </button>
+          </div>
+
+          {/* Cover style picker */}
+          <div className="flex items-center gap-1.5">
+            {COVER_STYLES.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setCoverStyle(s.key)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                  coverStyle === s.key
+                    ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20'
+                    : 'text-surface-500 hover:text-white border border-transparent'
+                }`}
+              >
+                {s.emoji} {s.label}
+              </button>
+            ))}
           </div>
 
           {editingCover && (
@@ -304,7 +370,7 @@ export default function NowPlaying() {
               </div>
             ) : (
               <>
-                <h1 className="text-2xl font-bold truncate">{currentSong.title}</h1>
+                <h1 className="text-3xl font-display font-bold truncate">{currentSong.title}</h1>
                 <p className="text-sm text-surface-400 mt-1.5 truncate">{currentSong.artist}</p>
                 {currentSong.album && <p className="text-xs text-surface-500 mt-0.5">{currentSong.album}</p>}
               </>
@@ -689,7 +755,48 @@ export default function NowPlaying() {
                         onChange={(e) => setAudioEffects({ ...audioEffects, spatial: Number(e.target.value) })}
                         className="w-full accent-wave-400" />
                     </div>
-                    <button onClick={() => setAudioEffects({ bass: 0, reverb: 0, spatial: 0 })}
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-surface-300 flex items-center gap-1"><Mic2 size={12} />Karaoke — Vokal Kaldır</span>
+                        <span className="text-[10px] text-fuchsia-400 font-mono">{audioEffects.vocal ? `${Math.round((audioEffects.vocal || 0) * 100)}%` : '%0'}</span>
+                      </div>
+                      <input type="range" min={0} max={1} step={0.05} value={audioEffects.vocal || 0}
+                        onChange={(e) => setAudioEffects({ ...audioEffects, vocal: Number(e.target.value), vocalIso: false })}
+                        className="w-full accent-fuchsia-400" />
+                    </div>
+                    <label className="flex items-center justify-between text-xs text-surface-300 cursor-pointer select-none">
+                      <span className="flex items-center gap-1"><Zap size={12} />Vokal İzolasyon (sadece vokal)</span>
+                      <input type="checkbox" checked={!!audioEffects.vocalIso}
+                        onChange={(e) => setAudioEffects({ ...audioEffects, vocalIso: e.target.checked })}
+                        className="accent-fuchsia-400 w-3.5 h-3.5" />
+                    </label>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-surface-300 flex items-center gap-1"><Disc3 size={12} />8D Ses (baş dönme seviyesi)</span>
+                        <span className="text-[10px] text-emerald-400 font-mono">%{Math.round((audioEffects.eightD || 0) * 100)}</span>
+                      </div>
+                      <input type="range" min={0} max={1} step={0.05} value={audioEffects.eightD || 0}
+                        onChange={(e) => setAudioEffects({ ...audioEffects, eightD: Number(e.target.value) })}
+                        className="w-full accent-emerald-400" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-xs text-surface-300 flex items-center gap-1"><Landmark size={12} />Oda Sahnesi</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {ROOM_PRESETS.map((r) => (
+                          <button key={r.key} onClick={() => setAudioEffects({ ...audioEffects, room: r.key })}
+                            className={`px-1.5 py-1.5 rounded-lg text-[10px] font-medium transition-all border ${
+                              (audioEffects.room || 'hall') === r.key
+                                ? 'bg-wave-500/15 text-wave-300 border-wave-500/40 shadow-sm'
+                                : 'bg-surface-800/60 text-surface-500 border-surface-700/60 hover:text-surface-300'
+                            }`}>
+                            {r.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={() => setAudioEffects({ bass: 0, reverb: 0, spatial: 0, vocal: 0, vocalIso: false, eightD: 0, room: 'hall' })}
                       className="text-[11px] text-surface-500 hover:text-white transition-colors">
                       Efektleri Sıfırla
                     </button>

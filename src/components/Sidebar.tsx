@@ -10,6 +10,7 @@ import {
   Plus, List, Disc3, User, Radio,
   History, Sun, Moon, Globe, Settings as SettingsIcon,
   BarChart3, Shield, MessageSquare, Sparkles, Award, Trophy, Waves,
+  Headphones, Music4, Ear,
 } from 'lucide-react'
 
 const navItems = [
@@ -61,12 +62,15 @@ export default function Sidebar() {
               key={view}
               onClick={() => handleNav(view, path)}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 no-drag',
+                'relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 no-drag overflow-hidden',
                 sidebarView === view
-                  ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20 shadow-sm shadow-wave-500/10'
+                  ? 'text-white bg-gradient-to-r from-wave-500/20 via-wave-500/10 to-transparent border border-wave-500/25 shadow-sm shadow-wave-500/10'
                   : 'text-surface-400 hover:text-white hover:bg-white/5 border border-transparent'
               )}
             >
+              {sidebarView === view && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-3/4 w-0.5 rounded-full bg-gradient-to-b from-wave-400 to-fuchsia-400 shadow-[0_0_8px_rgba(167,139,250,0.8)]" />
+              )}
               <Icon size={18} className={sidebarView === view ? 'text-wave-400' : ''} />
               {label}
             </button>
@@ -81,6 +85,9 @@ export default function Sidebar() {
             { icon: User, label: 'Profilim', path: '/profile' },
             { icon: Radio, label: 'Birlikte Dinle', path: '/sync-room', highlight: true },
             { icon: Waves, label: 'Ses Manzaraları', path: '/soundscapes' },
+            { icon: Headphones, label: 'Drop Modu', path: '/trivia', highlight: true },
+            { icon: Music4, label: 'Beat Maker', path: '/beatmaker', highlight: true },
+            { icon: Ear, label: 'Perde Oyunu', path: '/pitch-game' },
             { icon: History, label: 'Geçmiş', path: '/history' },
             { icon: BarChart3, label: 'İstatistik', path: '/stats' },
             { icon: Award, label: 'Rozetler', path: '/badges' },
@@ -103,7 +110,7 @@ export default function Sidebar() {
         </div>
 
         <div className="mt-3 flex items-center justify-between px-1">
-          <span className="text-[11px] font-semibold text-surface-500 uppercase tracking-[0.1em]">Listelerin</span>
+          <span className="text-[11px] font-display font-semibold text-surface-500 uppercase tracking-[0.14em]">Listelerin</span>
           <button onClick={() => navigate('/create-playlist')} className="text-surface-500 hover:text-wave-400 no-drag transition-colors">
             <Plus size={14} />
           </button>

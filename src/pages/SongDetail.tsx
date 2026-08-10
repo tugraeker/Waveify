@@ -93,7 +93,7 @@ export default function SongDetail() {
           )}
           <div className="flex-1">
             <p className="text-xs uppercase font-semibold tracking-wider text-surface-500">Şarkı</p>
-            <h1 className="text-3xl font-bold mt-1">{song.title}</h1>
+            <h1 className="text-3xl font-display font-bold mt-1">{song.title}</h1>
             <p className="text-lg text-surface-400 mt-1">{song.artist}</p>
             <div className="flex items-center gap-4 mt-4">
               <Button variant="primary" size="lg" onClick={playSong}>
