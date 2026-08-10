@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useStore } from '@/store/store'
+import { resolveAudioUrl } from '@/lib/offline'
 import { trackTriviaPlay, awardXp } from '@/lib/achievements'
 import { emitToast } from '@/hooks/useToast'
 import { confettiBurst } from '@/lib/party'
-import { Headphones, ChevronRight, RotateCcw, Volume2, Sparkles, Music2, Trophy, Timer, Skull, History, Zap } from 'lucide-react'
+import { Headphones, ChevronRight, RotateCcw, Volume2, Sparkles, Music2, Trophy, Timer, Skull, History, Zap, AlertTriangle } from 'lucide-react'
 
 interface Song {
   id: string
@@ -50,6 +52,7 @@ export default function Trivia() {
   const [bestStreak, setBestStreak] = useState(0)
   const [roundNo, setRoundNo] = useState(0)
   const [zombieSpeed, setZombieSpeed] = useState(1)
+  const [loadError, setLoadError] = useState('')
   const timerRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -65,14 +68,33 @@ export default function Trivia() {
 
   async function loadRound() {
     setPhase('loading')
+    setLoadError('')
     stopSnippet()
-    const { data } = await supabase
-      .from('songs')
-      .select('id,title,artist,cover_url,audio_url,year')
-      .not('audio_url', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(400)
+    let data: any[] | null = null
+    const stored = useStore.getState().songs
+    if (stored.length >= 4) {
+      data = stored
+    } else {
+      try {
+        // NOTE: never select `year` — the live songs table has no such column and
+        // PostgREST would fail the whole load (400), breaking trivia entirely.
+        const res = await supabase.from('songs')
+          .select('id,title,artist,cover_url,audio_url')
+          .not('audio_url', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(400)
+        data = res.data
+        if (res.error) throw res.error
+        if (data?.length) useStore.getState().setSongs(data)
+      } catch (e: any) {
+        console.error('[Trivia] catalog fetch failed:', e)
+        setLoadError(`Şarkı kataloğu yüklenemedi: ${e?.message || 'bilinmeyen hata'}`)
+        setPhase('idle')
+        return
+      }
+    }
     if (!data || data.length < 4) {
+      setLoadError(`Katalogda yeterli şarkı yok (en az 4 gerekiyor, bulunan: ${data?.length || 0}) — önce Yükle sayfasından şarkı ekle.`)
       setPhase('idle')
       return
     }
@@ -89,25 +111,9 @@ export default function Trivia() {
     setPhase('idle')
   }
 
-  function playSnippet() {
-    if (!correct?.audio_url) return
-    stopSnippet()
-    const audio = new Audio()
-    snippetAudio = audio
-    audio.crossOrigin = 'anonymous'
-    audio.preload = 'auto'
-    audio.src = correct.audio_url
-    audio.load()
-    audio.addEventListener('loadedmetadata', () => {
-      if (!snippetAudio) return
-      const dur = audio.duration || 30
-      const startFrom = Math.max(1, Math.min(dur - SNIPPET_SECONDS - 1, dur * (0.25 + Math.random() * 0.5)))
-      audio.currentTime = startFrom
-      audio.play().catch(() => {})
-    }, { once: true })
-    if (mode === 'zombi') audio.playbackRate = zombieSpeed
+  function startTimer() {
+    if (timerRef.current) clearInterval(timerRef.current)
     setSecondsLeft(SNIPPET_SECONDS)
-    setPhase('listening')
     timerRef.current = window.setInterval(() => {
       setSecondsLeft((s) => {
         if (s <= 1) {
@@ -119,6 +125,46 @@ export default function Trivia() {
         return s - 1
       })
     }, 1000)
+  }
+
+  function playSnippet() {
+    if (!correct?.audio_url) return
+    stopSnippet()
+    const audio = new Audio()
+    snippetAudio = audio
+    audio.crossOrigin = 'anonymous'
+    audio.preload = 'auto'
+    if (mode === 'zombi') audio.playbackRate = zombieSpeed
+    resolveAudioUrl(correct.audio_url).then((url) => {
+      if (snippetAudio !== audio) return
+      audio.src = url
+      audio.load()
+    })
+    // Media errors are visible, not silent
+    audio.addEventListener('error', () => {
+      if (snippetAudio !== audio) return
+      if (timerRef.current) clearInterval(timerRef.current)
+      setPhase('idle')
+      setLoadError('Kesit oynatılamadı (media hatası) — yeni tur dene ya da şarkıyı yeniden yükle.')
+    }, { once: true })
+    audio.addEventListener('loadedmetadata', () => {
+      if (!snippetAudio || snippetAudio !== audio) return
+      const dur = audio.duration || 30
+      const startFrom = Math.max(1, Math.min(dur - SNIPPET_SECONDS - 1, dur * (0.25 + Math.random() * 0.5)))
+      try { audio.currentTime = startFrom } catch {}
+      audio.play()
+        .then(() => {
+          if (!snippetAudio || snippetAudio !== audio) return
+          setPhase('listening')
+          startTimer()
+        })
+        .catch((e) => {
+          console.warn('[Trivia] autoplay blocked:', e)
+          if (timerRef.current) clearInterval(timerRef.current)
+          setPhase('idle')
+          setLoadError('Tarayıcı otomatik oynatmayı engelledi — "Çal" butonuna tekrar dokun.')
+        })
+    }, { once: true })
   }
 
   function answer(id: string) {
@@ -163,6 +209,14 @@ export default function Trivia() {
           </span>
         </div>
         <p className="text-sm text-surface-400 mb-6">3 saniyelik kesiti dinle, çalan şarkıyı tahmin et. Seri yaklaştıkça puan artar.</p>
+
+        {loadError && (
+          <div className="flex items-center gap-2 mb-4 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs animate-fade-in">
+            <AlertTriangle size={14} className="flex-shrink-0" />
+            <span className="flex-1">{loadError}</span>
+            <button onClick={() => { setLoadError(''); if (mode) loadRound() }} className="text-red-200 underline hover:text-white flex-shrink-0">Tekrar dene</button>
+          </div>
+        )}
 
         {mode && mode !== 'klasik' && (
           <div className="flex items-center gap-2 mb-4">

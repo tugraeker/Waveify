@@ -89,7 +89,8 @@ class AudioEngine {
       this.eqFilters[this.eqFilters.length - 1].disconnect(this.gainNode!)
       this.eqFilters[this.eqFilters.length - 1].connect(this.bassFilter)
     }
-    this.bassFilter.connect(this.gainNode!)
+    // NOTE: bassFilter must NOT connect directly to gainNode — the vocal
+    // (mid/side) stage owns that path. Direct connect would bypass karaoke/iso.
     this.bassFilter.connect(convolver)
     convolver.connect(this.reverbWet)
     this.reverbWet.connect(this.gainNode!)
@@ -115,6 +116,9 @@ class AudioEngine {
     const halfR = ctx.createGain(); halfR.gain.value = 0.5
     const negR = ctx.createGain(); negR.gain.value = -0.5
     const out = ctx.createGain()
+    // Balance: the mid/side stage outputs L and R at 0.5 × original, so
+    // compensate with +6 dB to keep playback level identical to a direct path.
+    out.gain.value = 2
 
     // mid bus: both channels get (L + R) / 2
     splitter.connect(halfL, 0)

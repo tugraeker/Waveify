@@ -166,9 +166,9 @@ export default function Player() {
   }
 
   return (
-    <div className="hidden md:flex h-22 bg-surface-950/70 backdrop-blur-2xl border-t border-white/10 items-center px-4 gap-3 z-50 shadow-[0_-10px_40px_-12px_rgba(139,92,246,0.15)]">
-      {/* Song info with tooltip (Feature 2) */}
-      <div className="flex items-center gap-3 w-[280px] min-w-0"
+    <div className="hidden md:flex h-22 bg-surface-950/70 backdrop-blur-2xl border-t border-white/10 items-center px-4 gap-4 z-50 shadow-[0_-10px_40px_-12px_rgba(139,92,246,0.15)]">
+      {/* Song info (left, flexes equally so center stays truly centered) */}
+      <div className="flex-1 min-w-0 flex items-center gap-3"
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
@@ -236,9 +236,9 @@ export default function Player() {
         </button>
       </div>
 
-      {/* Center controls */}
-      <div className="flex-1 max-w-[560px] mx-auto">
-        <div className="flex items-center gap-3 mb-1.5">
+      {/* Center controls — fixed width, no flex-grow, so it rides the exact middle */}
+      <div className="flex-none w-full max-w-[560px]">
+        <div className="flex items-center justify-center gap-3 mb-1.5">
           <button onClick={() => setShuffle(!shuffle)} className={`transition-colors ${shuffle ? 'text-wave-400' : 'text-surface-400 hover:text-white'}`}>
             <Shuffle size={15} />
           </button>
@@ -309,7 +309,7 @@ export default function Player() {
       </div>
 
       {/* Right controls */}
-      <div className="w-[290px] flex items-center justify-end gap-2.5">
+      <div className="flex-1 min-w-0 flex items-center justify-end gap-2.5">
         <CrossfadeControls
           crossfade={crossfade}
           crossfadeDuration={crossfadeDuration}

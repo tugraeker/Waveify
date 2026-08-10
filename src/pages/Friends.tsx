@@ -10,13 +10,14 @@ import { sendTroll, TROLL_TEMPLATES, type TrollMessage } from '@/lib/troll'
 import type { User } from '@/types'
 
 interface FriendUser { id: string; username: string; email?: string; last_seen?: string }
-interface PendingReq { id: string; user_id: string; friend_id: string; status: string; created_at: string; user?: { id: string; username: string } }
+interface PendingReq { id: string; user_id: string; friend_id: string; status: string; created_at: string; user?: { id: string; username: string }; friend?: { id: string; username: string } }
 
 export default function FriendsPage() {
   const { user } = useStore()
   const navigate = useNavigate()
   const [friends, setFriends] = useState<FriendUser[]>([])
   const [pendingRequests, setPendingRequests] = useState<PendingReq[]>([])
+  const [outgoingRequests, setOutgoingRequests] = useState<PendingReq[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<FriendUser[]>([])
   const [searching, setSearching] = useState(false)
@@ -39,14 +40,18 @@ export default function FriendsPage() {
 
   async function fetchFriends() {
     try {
-      const { data: sent } = await supabase.from('friends').select('*, friend:friend_id(id, username, email, last_seen)').eq('user_id', user?.id).eq('status', 'accepted')
-      const { data: received } = await supabase.from('friends').select('*, user:user_id(id, username, email, last_seen)').eq('friend_id', user?.id).eq('status', 'accepted')
+      // NOTE: do not request `last_seen` — users table has no such column and PostgREST
+      // would fail the whole embed query (breaking the friend list silently).
+      const { data: sent } = await supabase.from('friends').select('*, friend:friend_id(id, username, email, avatar_url)').eq('user_id', user?.id).eq('status', 'accepted')
+      const { data: received } = await supabase.from('friends').select('*, user:user_id(id, username, email, avatar_url)').eq('friend_id', user?.id).eq('status', 'accepted')
       const { data: pending } = await supabase.from('friends').select('*, user:user_id(id, username)').eq('friend_id', user?.id).eq('status', 'pending')
+      const { data: outgoing } = await supabase.from('friends').select('*, friend:friend_id(id, username)').eq('user_id', user?.id).eq('status', 'pending')
       const allFriends: FriendUser[] = []
       sent?.forEach((f: any) => f.friend && allFriends.push(f.friend))
       received?.forEach((f: any) => f.user && allFriends.push(f.user))
       setFriends(allFriends)
       setPendingRequests((pending || []) as any)
+      setOutgoingRequests((outgoing || []) as any)
     } catch (err: any) { setError(err.message) }
   }
 
@@ -68,8 +73,20 @@ export default function FriendsPage() {
   async function sendRequest(friendId: string) {
     if (!user) return
     const { error: e } = await supabase.from('friends').insert({ user_id: user.id, friend_id: friendId, status: 'pending' })
-    if (e) { setError(e.code === '23505' ? 'Zaten istek gönderilmiş' : e.message); return }
+    if (e) {
+      if (e.code === '23505') setError('İstek zaten gönderilmiş — aşağıdaki "Gönderilen İstekler" bölümünde bekliyor.')
+      else setError(e.message)
+      return
+    }
+    emitToast('Arkadaşlık isteği gönderildi ✅', 'success')
     setSearchResults([]); setSearchQuery('')
+    fetchFriends()
+  }
+
+  async function cancelRequest(friendUserId: string) {
+    if (!user) return
+    await supabase.from('friends').delete().eq('user_id', user.id).eq('friend_id', friendUserId)
+    fetchFriends()
   }
 
   async function acceptRequest(friendUserId: string) {
@@ -150,7 +167,7 @@ export default function FriendsPage() {
         )}
         {pendingRequests.length > 0 && (
           <section>
-            <h2 className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-3 flex items-center gap-2"><Clock size={14} /> Bekleyen İstekler</h2>
+            <h2 className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-3 flex items-center gap-2"><Clock size={14} /> Gelen İstekler</h2>
             <div className="flex flex-col gap-2">
               {pendingRequests.map((req) => (
                 <div key={req.id} className="bg-surface-900/50 border border-surface-800 rounded-xl p-3 flex items-center justify-between">
@@ -162,6 +179,25 @@ export default function FriendsPage() {
                     <Button size="sm" variant="primary" onClick={() => acceptRequest(req.user_id)}><UserCheck size={14} /> Kabul</Button>
                     <Button size="sm" variant="ghost" onClick={() => rejectRequest(req.user_id)}><X size={14} /></Button>
                   </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        {outgoingRequests.length > 0 && (
+          <section>
+            <h2 className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-3 flex items-center gap-2"><UserPlus size={14} /> Gönderilen İstekler ({outgoingRequests.length})</h2>
+            <div className="flex flex-col gap-2">
+              {outgoingRequests.map((req) => (
+                <div key={req.id} className="bg-surface-900/30 border border-surface-800/50 rounded-xl p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/profile/${req.friend_id}`)}>
+                    <div className="w-8 h-8 rounded-full bg-surface-800 flex items-center justify-center text-xs font-bold text-surface-300">{req.friend?.username?.[0]?.toUpperCase() || '?'}</div>
+                    <div>
+                      <p className="text-sm text-white font-medium">{req.friend?.username || 'Bilinmeyen Kullanıcı'}</p>
+                      <p className="text-[10px] text-amber-400/80">⏳ Kabul bekleniyor</p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => cancelRequest(req.friend_id)}><X size={14} /> İptal</Button>
                 </div>
               ))}
             </div>

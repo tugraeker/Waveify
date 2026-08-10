@@ -43,6 +43,7 @@ export default function UploadPage() {
         resolve(Math.round(audio.duration))
         URL.revokeObjectURL(audio.src)
       }
+      audio.onerror = () => resolve(0)
       audio.src = URL.createObjectURL(file)
     })
   }
@@ -112,6 +113,12 @@ export default function UploadPage() {
         cover_url: coverUrl,
       }).select().single()
       if (dbError) throw new Error(`Veritabanı hatası: ${dbError.message}`)
+
+      // Make the new song immediately available (Library, Trivia pool, playlists)
+      if (song) {
+        const existing = useStore.getState().songs
+        useStore.getState().setSongs([song, ...existing.filter((s) => s.id !== song.id)])
+      }
 
       // Insert song_artists for selected users
       if (song && selectedUsers.length > 0) {
