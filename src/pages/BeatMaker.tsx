@@ -14,7 +14,9 @@ export default function BeatMaker() {
   const ctxRef = useRef<AudioContext | null>(null)
   const step = useRef(0)
   const timerRef = useRef<number>(0)
-  const [pattern, setPattern] = useState<boolean[][]>(() => TRACKS.map(() => Array(8).fill(false)))
+  const patternRef = useRef<boolean[][]>(TRACKS.map(() => Array(8).fill(false)))
+  const volumeRef = useRef(0.8)
+  const [pattern, setPattern] = useState<boolean[][]>(patternRef.current)
   const [playing, setPlaying] = useState(false)
   const [bpm, setBpm] = useState(120)
   const [volume, setVolume] = useState(0.8)
@@ -91,10 +93,9 @@ export default function BeatMaker() {
 
   function playStep(s: number) {
     const ctx = getCtx()
-    const interval = 60 / bpm / 2
     const t = ctx.currentTime + 0.02
-    pattern.forEach((track, ti) => {
-      if (track[s]) (sounds as any)[TRACKS[ti].id](ctx, t + s * interval, volume)
+    patternRef.current.forEach((track, ti) => {
+      if (track[s]) (sounds as any)[TRACKS[ti].id](ctx, t, volumeRef.current)
     })
   }
 
@@ -118,12 +119,14 @@ export default function BeatMaker() {
   }
 
   function toggleStep(ti: number, si: number) {
-    const next = pattern.map((t, i) => (i === ti ? t.map((v, j) => (j === si ? !v : v)) : t))
+    const next = patternRef.current.map((t, i) => (i === ti ? t.map((v, j) => (j === si ? !v : v)) : t))
+    patternRef.current = next
     setPattern(next)
   }
 
   function randomBeat() {
     const next = TRACKS.map((_, ti) => Array.from({ length: 8 }, () => Math.random() < (ti === 0 ? 0.6 : ti === 2 ? 0.5 : 0.3)))
+    patternRef.current = next
     setPattern(next)
     emitToast('🎲 Rastgele ritim üretildi', 'info')
   }
@@ -166,7 +169,7 @@ export default function BeatMaker() {
           </div>
           <div className="flex items-center gap-2 text-xs text-surface-300 flex-1 max-w-[300px]">
             <Volume2 size={14} className="text-wave-400" />
-            <input type="range" min={0} max={1} step={0.05} value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="flex-1 accent-wave-400" />
+            <input type="range" min={0} max={1} step={0.05} value={volume} onChange={(e) => { const v = Number(e.target.value); setVolume(v); volumeRef.current = v }} className="flex-1 accent-wave-400" />
             <span className="font-mono text-wave-300 tabular-nums w-9 text-right">%{Math.round(volume * 100)}</span>
           </div>
         </div>

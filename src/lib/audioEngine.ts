@@ -46,7 +46,7 @@ class AudioEngine {
     this.ensureCtx()
     const c = this.ctx!
     this.gainNode = c.createGain()
-    this.gainNode.gain.value = this._volume
+    this.gainNode.gain.value = this._volume * this._volume
     this.panner = c.createStereoPanner()
     this.panner.pan.value = 0
     this.analyserNode = c.createAnalyser()
@@ -209,7 +209,7 @@ class AudioEngine {
       const elapsed = (performance.now() - startTime) / 1000
       const progress = Math.min(elapsed / duration, 1)
       const eased = 1 - Math.pow(1 - progress, 3)
-      this.gainNode!.gain.value = start + (target - start) * eased
+      this.gainNode!.gain.value = start + (target * target - start) * eased
       if (progress < 1) { this._fadeFrame = requestAnimationFrame(step) }
       else { this._fadeFrame = 0; onDone?.() }
     }
@@ -368,7 +368,11 @@ class AudioEngine {
 
   setVolume(vol: number) {
     this._volume = vol
-    if (this.gainNode && !this._fadeFrame) this.gainNode.gain.value = vol
+    if (!this.gainNode) return
+    this.cancelFade()
+    const ctx = this.gainNode.context
+    this.gainNode.gain.cancelScheduledValues(ctx.currentTime)
+    this.gainNode.gain.setTargetAtTime(vol * vol, ctx.currentTime, 0.04)
   }
 
   setPlaybackRate(rate: number) {

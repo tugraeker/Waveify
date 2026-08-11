@@ -5,7 +5,8 @@ import { Button, Input } from '@/components/ui'
 import { BADGE_DEFS } from '@/types'
 import type { User, Song, Badge } from '@/types'
 import { emitToast } from '@/hooks/useToast'
-import { Shield, Search, Trash2, Plus, X, Crown, Music, Users, Activity, Clock, TrendingUp, Disc, UserX, RotateCcw } from 'lucide-react'
+import { sendTroll, TROLL_TEMPLATES, type TrollMessage } from '@/lib/troll'
+import { Shield, Search, Trash2, Plus, X, Crown, Music, Users, Activity, Clock, TrendingUp, Disc, UserX, RotateCcw, Siren, Send } from 'lucide-react'
 
 type Tab = 'users' | 'songs' | 'badges' | 'stats'
 
@@ -18,6 +19,9 @@ export default function AdminPage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ users: 0, songs: 0, plays: 0 })
+  const [trollTarget, setTrollTarget] = useState<User | null>(null)
+  const [trollText, setTrollText] = useState('')
+  const [trollTone, setTrollTone] = useState('scary')
 
   useEffect(() => {
     if (!me) return
@@ -114,6 +118,18 @@ export default function AdminPage() {
     emitToast(`${targetUser.username} profili sıfırlandı`, 'success')
   }
 
+  function handleSendTroll() {
+    if (!me || !trollTarget) return
+    const tmpl = TROLL_TEMPLATES.find((t) => t.text === trollText.trim()) || {
+      emoji: '🚨', text: trollText.trim() || TROLL_TEMPLATES[0].text,
+      tone: (['scary', 'cute', 'warning', 'party'].includes(trollTone) ? (trollTone === 'scary' ? 'red' : trollTone === 'cute' ? 'pink' : trollTone === 'warning' ? 'amber' : 'cyan') : 'red') as TrollMessage['tone'],
+    }
+    sendTroll(trollTarget.id, tmpl.emoji, tmpl.text, tmpl.tone, me.username || 'Admin')
+    emitToast(`📢 ${trollTarget.username}'a ekran uyarısı gönderildi!`, 'success')
+    setTrollTarget(null)
+    setTrollText('')
+  }
+
   async function getUserBadges(userId: string): Promise<Badge[]> {
     const { data } = await supabase.from('badges').select('*').eq('user_id', userId)
     return data || []
@@ -192,7 +208,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {filteredUsers.map((u) => (
-                    <UserRow key={u.id} user={u} onToggleAdmin={() => toggleAdmin(u)} onGrantBadge={(type) => grantBadge(u, type)} onRevokeBadge={(b) => revokeBadge(b)} onDelete={() => deleteUser(u)} onResetProfile={() => resetUserProfile(u)} />
+                    <UserRow key={u.id} user={u} onToggleAdmin={() => toggleAdmin(u)} onGrantBadge={(type) => grantBadge(u, type)} onRevokeBadge={(b) => revokeBadge(b)} onDelete={() => deleteUser(u)} onResetProfile={() => resetUserProfile(u)} onTroll={() => setTrollTarget(u)} />
                   ))}
                 </tbody>
               </table>
@@ -318,11 +334,69 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {trollTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md mx-4 glass rounded-3xl p-6 animate-pop-in border border-red-500/20 shadow-2xl shadow-red-500/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-red-500/15 flex items-center justify-center animate-pulse"><Siren size={20} className="text-red-400" /></div>
+                <div>
+                  <h3 className="font-bold text-white">Ekran Uyarısı Gönder</h3>
+                  <p className="text-xs text-surface-500"><strong className="text-red-400">{trollTarget.username}</strong>'ın ekranı tam ekran sirene döner 🔥</p>
+                </div>
+              </div>
+              <button onClick={() => setTrollTarget(null)} className="text-surface-500 hover:text-white transition-colors"><X size={18} /></button>
+            </div>
+
+            <div className="mb-3">
+              <p className="text-[11px] text-surface-500 mb-1.5 font-medium">Hazır uyarılar</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {TROLL_TEMPLATES.map((t) => (
+                  <button key={t.text} onClick={() => setTrollText(t.text)}
+                    className={`text-left text-[11px] px-2.5 py-2 rounded-lg border transition-all ${trollText === t.text ? 'bg-red-500/10 border-red-500/40 text-red-300' : 'bg-surface-800/60 border-surface-700 text-surface-300 hover:border-surface-500'}`}>
+                    {t.text}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <p className="text-[11px] text-surface-500 mb-1.5 font-medium">Ton</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {(['scary', 'cute', 'warning', 'party'] as const).map((tone) => (
+                  <button key={tone} onClick={() => setTrollTone(tone)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border ${trollTone === tone ? 'bg-red-500/10 border-red-500/40 text-red-300' : 'bg-surface-800/60 border-surface-700 text-surface-400 hover:text-white'}`}>
+                    {tone === 'scary' ? '👻 Korkunç' : tone === 'cute' ? '🧸 Sevimli' : tone === 'warning' ? '⚠️ Uyarı' : '🎉 Parti'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <textarea
+              value={trollText}
+              onChange={(e) => setTrollText(e.target.value)}
+              placeholder="Kendi mesajını yaz (opsiyonel)"
+              rows={2}
+              maxLength={160}
+              className="w-full bg-surface-800/80 border border-surface-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-surface-500 focus:outline-none focus:border-red-400/50 resize-none mb-4"
+            />
+
+            <button
+              onClick={handleSendTroll}
+              className="w-full h-11 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white text-sm font-bold flex items-center justify-center gap-2 hover:brightness-110 transition-all shadow-lg shadow-red-500/25"
+            >
+              <Send size={15} />
+              Şimdi Gönder 🚨
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function UserRow({ user, onToggleAdmin, onGrantBadge, onRevokeBadge, onDelete, onResetProfile }: { user: User; onToggleAdmin: () => void; onGrantBadge: (type: string) => void; onRevokeBadge: (b: Badge) => void; onDelete: () => void; onResetProfile: () => void }) {
+function UserRow({ user, onToggleAdmin, onGrantBadge, onRevokeBadge, onDelete, onResetProfile, onTroll }: { user: User; onToggleAdmin: () => void; onGrantBadge: (type: string) => void; onRevokeBadge: (b: Badge) => void; onDelete: () => void; onResetProfile: () => void; onTroll: () => void }) {
   const [badges, setBadges] = useState<Badge[]>([])
   const [showBadgePicker, setShowBadgePicker] = useState(false)
 
@@ -388,6 +462,9 @@ function UserRow({ user, onToggleAdmin, onGrantBadge, onRevokeBadge, onDelete, o
       </td>
       <td className="p-4 text-right">
         <div className="flex items-center justify-end gap-2">
+          <button onClick={onTroll} className="p-1.5 rounded-lg text-red-400/70 hover:text-red-300 hover:bg-red-500/10 transition-colors" title="Ekran uyarısı gönder (troll)">
+            <Siren size={13} />
+          </button>
           <button onClick={onResetProfile} className="p-1.5 rounded-lg text-surface-500 hover:text-orange-400 hover:bg-orange-500/10 transition-colors" title="Profili Sıfırla">
             <RotateCcw size={13} />
           </button>

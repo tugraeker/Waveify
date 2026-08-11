@@ -307,8 +307,8 @@ export function ClockMode({ open, onClose }: { open: boolean; onClose: () => voi
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
   }, [open, onClose])
-  if (!open) return null
   const w = WEATHER_META[useDailyWeather()]
+  if (!open) return null
   const hh = now.getHours(), mm = now.getMinutes(), ss = now.getSeconds()
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
   return (

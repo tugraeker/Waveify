@@ -242,7 +242,7 @@ export default function App() {
 
   async function restoreUser(authUser: any) {
     let profile: any = null
-    try { const r = await supabase.from('users').select('id,username,avatar_url,bio,display_settings').eq('id', authUser.id).maybeSingle(); profile = r.data } catch {}
+    try { const r = await supabase.from('users').select('id,username,avatar_url,bio').eq('id', authUser.id).maybeSingle(); profile = r.data } catch {}
     let isAdmin = false
     try { const r = await supabase.from('users').select('is_admin').eq('id', authUser.id).single(); isAdmin = r.data?.is_admin === true } catch {}
     setUser({
@@ -352,7 +352,7 @@ export default function App() {
           }
         }, () => {})
     }
-    const id = window.setInterval(check, 6000)
+    const id = window.setInterval(check, 60000)
     check()
     return () => window.clearInterval(id)
   }, [user?.id])

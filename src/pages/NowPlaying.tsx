@@ -10,7 +10,7 @@ import { emitToast } from '@/hooks/useToast'
 import { Slider } from '@/components/ui'
 import Visualizer from '@/components/Visualizer'
 import SyncedLyrics from '@/components/SyncedLyrics'
-import { WeatherOverlay, StrobeOverlay, Goniometer, EnergySegments, CommentDots, ClockMode, BookmarksPanel, TimestampCommentsPanel } from '@/components/NowPlayingExtras'
+import { StrobeOverlay, Goniometer, EnergySegments, CommentDots, ClockMode, BookmarksPanel, TimestampCommentsPanel } from '@/components/NowPlayingExtras'
 import type { Song, VisualizerMode, VisualizerColorTheme, CoverStyle } from '@/types'
 import { EQ_PRESETS, EQ_BAND_FREQS, defaultEqBands, ROOM_PRESETS } from '@/types'
 import {
@@ -271,7 +271,6 @@ export default function NowPlaying() {
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-surface-900 to-surface-950 overflow-hidden">
-      <WeatherOverlay />
       <StrobeOverlay />
       <div className="flex items-center p-5 flex-shrink-0">
         <button onClick={() => navigate(-1)} className="text-surface-400 hover:text-white transition-colors p-1">

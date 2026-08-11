@@ -9,7 +9,7 @@ import AddToPlaylistModal from '@/components/AddToPlaylistModal'
 import { generateMoodPlaylist, MOODS } from '@/lib/moods'
 import { getFollowedArtists } from '@/lib/artists'
 import type { Song } from '@/types'
-import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic, Award, Sparkles, Users, Radio, Eye, HelpCircle } from 'lucide-react'
+import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic, Award, Sparkles, Users, Radio, HelpCircle } from 'lucide-react'
 import { computeLevel } from '@/types'
 import { getStats, getXpTotal } from '@/lib/achievements'
 import { emitToast } from '@/hooks/useToast'
@@ -38,28 +38,10 @@ export default function Home() {
   const [liveListeners, setLiveListeners] = useState(0)
   const [heatLevel, setHeatLevel] = useState(1)
   const [weather, setWeather] = useState<{ emoji: string; label: string; temp: number }>({ emoji: '☀️', label: 'Hava durumu yükleniyor', temp: 0 })
-  const [dailyMystery, setDailyMystery] = useState<Song | null>(null)
-  const [mysteryRevealed, setMysteryRevealed] = useState(false)
   const [wheelAngle, setWheelAngle] = useState(0)
   const [wheelSpinning, setWheelSpinning] = useState(false)
 
   const wheelSegments = songs.length >= 8 ? songs.slice(0, 8) : songs
-
-  // Hype: Daily song mystery
-  useEffect(() => {
-    if (songs.length === 0) return
-    const dayKey = new Date().toDateString()
-    const stored = localStorage.getItem('waveify_mystery_day')
-    if (stored === dayKey) {
-      const s = localStorage.getItem('waveify_mystery_song')
-      if (s) setDailyMystery(JSON.parse(s))
-      return
-    }
-    const pick = songs[Math.floor(Math.random() * songs.length)]
-    localStorage.setItem('waveify_mystery_day', dayKey)
-    localStorage.setItem('waveify_mystery_song', JSON.stringify(pick))
-    setDailyMystery(pick)
-  }, [songs])
 
   // Hype: Live heat meter (community listening pulse, local-first)
   useEffect(() => {
@@ -190,33 +172,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      {dailyMystery && !mysteryRevealed && (
-        <section className="mb-10">
-          <div className="glass rounded-3xl p-5 flex flex-col sm:flex-row items-center gap-4 border border-fuchsia-500/20 shadow-xl shadow-fuchsia-500/5 relative overflow-hidden">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-fuchsia-500/10 blur-3xl rounded-full pointer-events-none" />
-            <div className="relative w-20 h-20 flex-shrink-0">
-              {dailyMystery.cover_url ? (
-                <img src={dailyMystery.cover_url} alt="" className="w-20 h-20 rounded-2xl object-cover shadow-lg" style={{ filter: 'blur(6px) brightness(0.5) scale(1.5)' }} />
-              ) : (
-                <div className="w-20 h-20 rounded-2xl bg-surface-800 flex items-center justify-center"><Music size={28} className="text-surface-600" /></div>
-              )}
-              <div className="absolute inset-0 flex items-center justify-center text-2xl"><Eye size={20} className="text-fuchsia-300" /></div>
-            </div>
-            <div className="relative flex-1 text-center sm:text-left">
-              <p className="text-xs font-bold text-fuchsia-400 tracking-widest uppercase mb-1 flex items-center justify-center sm:justify-start gap-1.5"><HelpCircle size={12} /> Günün Şarkı Gizemi</p>
-              <p className="text-sm text-surface-200">Kapağı bulan, peri puanı kazanır. Adını tahmin edebilir misin?</p>
-              <p className="text-[11px] text-surface-500 mt-1">İpucu: kapağı çözmek için Drop Modu'na git 👀</p>
-            </div>
-            <button
-              onClick={() => { setMysteryRevealed(true); emitToast('🤫 Gizem çözülünceye kadar sakla', 'info') }}
-              className="relative h-10 px-5 rounded-xl bg-fuchsia-500/15 border border-fuchsia-500/40 text-fuchsia-300 text-xs font-bold hover:bg-fuchsia-500/25 transition-all"
-            >
-              İpucunu Göster
-            </button>
-          </div>
-        </section>
-      )}
 
       <section className="mb-10">
         <div className="flex items-center gap-2 mb-5">

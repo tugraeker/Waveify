@@ -290,7 +290,7 @@ export default function Trivia() {
             {phase === 'answered' && (
               <div className="space-y-2.5">
                 {options.map((o) => {
-                  const isCorrect = o.id === correct.id
+                  const isCorrect = o.id === correct.id && guess !== null
                   const isPicked = o.id === guess
                   return (
                     <button
@@ -312,11 +312,20 @@ export default function Trivia() {
                       )}
                       <span className="flex-1 text-left truncate">{answerLabel(o)}</span>
                       {mode !== 'yillar' && <span className="text-xs text-surface-500 truncate max-w-[120px]">{o.artist}</span>}
-                      {o.id === correct.id && <ChevronRight size={16} className="text-emerald-400 flex-shrink-0" />}
+                      {o.id === correct.id && guess !== null && <ChevronRight size={16} className="text-emerald-400 flex-shrink-0" />}
                     </button>
                   )
                 })}
               </div>
+            )}
+
+            {phase === 'answered' && (
+              <button
+                onClick={loadRound}
+                className="w-full mt-3 px-4 py-2.5 rounded-xl bg-wave-500/15 border border-wave-500/40 text-wave-300 text-xs font-semibold flex items-center justify-center gap-2 hover:bg-wave-500/25 transition-colors"
+              >
+                <RotateCcw size={13} /> Sonraki Tur
+              </button>
             )}
 
             {phase === 'idle' && (
