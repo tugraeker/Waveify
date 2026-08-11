@@ -11,7 +11,7 @@
 
 - **Platformlar:** Windows (Electron portable), Android (Capacitor), Web (Vite + vercel)
 - **Backend:** Supabase (Postgres + Auth + Storage + PostgREST) + küçük Node/Socket.IO sunucusu (`server/`)
-- **Son sürüm:** v7.5.0 (bug-fix sürümü, 4 kritik hata düzeltildi)
+- **Son sürüm:** v8.1.0 (Glow-Up Paket 2, 30+ yeni özellik)
 - **UI dili:** Türkçe
 - **Depo:** https://github.com/tugraeker/Waveify (branch: main)
 - **Landing:** `website/index.html` → vercel (alias: `website-xi-self-26.vercel.app`)
@@ -193,6 +193,8 @@ npx tsc --noEmit            # tip hatası kontrolü
 | v6 | Yeni tasarım sistemi (mor-amber, Space Grotesk, ambient glow), karaoke (mid-side vokal kaldırma), Drop Modu, sonsuz lo-fi ritim üreteci, yıldız haritası visualizer, tam dinleme serisi görevi |
 | v7 | Aurora yeniden tasarım, glassmorphism sahneleri, konser modu, kapak arşivi (plak/CD/kaset/polaroid), 8D ses, oda sahneleri, Beat Maker, Perde Oyunu, zombi trivia, gizemli sıra, şarkı serenadı, combo patlama, canlı ısı sayacı, günlük gizem, yıl makinesi charts, troll ekranı, akıllı karıştırma, A-B döngü, normalize, yedekleme/geri yükleme |
 | **v7.5.0** | **Bug-fix sürümü:** (1) Arkadaşlar listesi `last_seen` şema hatası 400 → boş liste; düzeltildi + "Gönderilen İstekler" sekmesi. (2) Alt oynatma çubuğu sola kayıktı → sol/sağ `flex-1` denge ile gerçek ortalama. (3) Drop Modu çalışmıyordu → sorguda olmayan `year` kolonu PostgREST 400; çıkarıldı + snippet timer oynatma onayına bağlandı + tüm hatalar görünür. (4) Vokal kaldırma çalışmıyordu → bassFilter doğrudan gainNode'a bağlıydı (mid/side baypas); kaldırıldı, +6 dB denge eklendi. Ek: upload metadata takılması + anında store güncelleme |
+| **v8.0.0** | **Glow-Up Paket 1:** Arcade (11 mini oyun), Studio (11 araç), görsel temalar (CRT/Matrix/OLED/Neon/Pill), sosyal paket (uyum %, kişilik kartı, Top4), eğlence (fal/bilgi/çark/Konami), sistem (kısayol stüdyosu, çoklu profil, OBS overlay, akıllı önbellek) |
+| **v8.1.0** | **Glow-Up Paket 2:** Arcade +8 oyun (simon/blocks/flappy/escape/tamagotchi/abtest/dance/scratch + sezon liderliği), NowPlaying ekstraları (hava/strobe/gonyometre/enerji haritası/zaman damgalı yorum/yer imleri/tam ekran saat), Studio EQ çizim + MIDI, Topluluk sayfası, Haftalık Özet + Dinleme Analisti, Müzik Sözlüğü + Sanal Müzik Müzesi, Akıllı Akışlar (Sonsuz/Gün Dönümü/Tür Köprüsü/Zamanlı), Benzer Şarkılar, Arkadaş Blend'i, Kral Dinleyiciler, Zaman Makinesi, Zen (Nefes Odası + Meditasyon), yumuşak uyku zamanlayıcısı, Ekran Kaydedici, Bulut Senkron, Sistem Durumu, Görev Ağacı, Zaman Kapsülü, Ünvanlar, cam efektleri ayarı |
 
 ---
 
@@ -202,7 +204,7 @@ npx tsc --noEmit            # tip hatası kontrolü
 2. **users.last_seen ve songs.year YOK** — kodda asla sorgulama (canlı kanıt: 400 hatası). Trivia'da `year` bilinçli çıkarıldı; yıllar modu şarkıların yılı olmadan "Belirsiz" gösterir.
 3. **Canlı katalog 1 şarkı** — Drop Modu kullanılabilirliği şarkı eklenmesine bağlı; UI bunu artık söylüyor.
 4. **BOM tuzağı:** Android build.gradle PowerShell ile yazılırken BOM oluşursa "invalid manifest" hatası alınır → BOM'suz UTF-8 yazın.
-5. **WhatsNewModal** hâlâ 6.0.0 içerikli (`VERSION = '6.0.0'`) — yeni sürümlerde güncellenmedi; istenirse yeni özelliklerle doldurulabilir.
+5. **WhatsNewModal** v8.1.0 içerikli (`VERSION = '8.1.0'`) — yeni sürümlerde `STORAGE_KEY` kontrolü sayesinde otomatik gösterilir; özellik listesini yeni sürümle güncelleyin.
 6. **Supabase anon key** `.env` içinde (VITE_SUPABASE_URL / VITE_SUPABASE_KEY); Electron main, key'i renderer'dan kullanır. Deep link, tray ve yt-dlp Electron main tarafında (`dist-electron/main.cjs` kaynağı: `electron/`).
 7. **Playwright testi için** (headless QA): `src/lib/supabase.ts`'teki proje ref'iyle `sb-<ref>-auth-token` anahtarına sahte oturum yazılıp `/#/route` ile girilir; users/playlists sorguları anon'da 401 verir (sessiz) — zararsızdır.
 8. GitHub release'leri otomatik güncelleme için `latest.yml` üretir (electron-updater); `app-update.yml` extraResources'ta paketlenir.

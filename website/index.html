@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Waveify - Müzik Paylaşım Platformu</title>
+    <title>Waveify - MÃ¼zik PaylaÅŸÄ±m Platformu</title>
     <style>
         * {
             margin: 0;
@@ -166,16 +166,16 @@
 <body>
     <div class="container" id="home-view">
         <h1>Waveify</h1>
-        <p>Özel müzik paylaşım platformu — şarkı yükle, dinle, arkadaşlarınla sync odalarında birlikte eğlen!</p>
+        <p>Ã–zel mÃ¼zik paylaÅŸÄ±m platformu â€” ÅŸarkÄ± yÃ¼kle, dinle, arkadaÅŸlarÄ±nla sync odalarÄ±nda birlikte eÄŸlen!</p>
         
         <div class="btn-row">
-            <a href="https://github.com/tugraeker/Waveify/releases/download/v8.0.0/app-debug.apk" class="btn">
+            <a href="https://github.com/tugraeker/Waveify/releases/download/v8.1.0/app-debug.apk" class="btn">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
-                Android Uygulaması (APK)
+                Android UygulamasÄ± (APK)
             </a>
-            <a href="https://github.com/tugraeker/Waveify/releases/download/v8.0.0/Waveify-8.0.0-portable.exe" class="btn-secondary">
+            <a href="https://github.com/tugraeker/Waveify/releases/download/v8.1.0/Waveify-8.1.0-portable.exe" class="btn-secondary">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
@@ -185,23 +185,23 @@
 
         <div class="features">
             <div class="feature">
-                <h3>Şarkı Yükleme</h3>
-                <p>Kendi müzik dosyalarını yükle ve her yerden dinle</p>
+                <h3>ÅarkÄ± YÃ¼kleme</h3>
+                <p>Kendi mÃ¼zik dosyalarÄ±nÄ± yÃ¼kle ve her yerden dinle</p>
             </div>
             <div class="feature">
-                <h3>Sync Odaları</h3>
-                <p>Arkadaşlarınla aynı anda müzik dinle</p>
+                <h3>Sync OdalarÄ±</h3>
+                <p>ArkadaÅŸlarÄ±nla aynÄ± anda mÃ¼zik dinle</p>
             </div>
             <div class="feature">
                 <h3>Playlistler</h3>
-                <p>Özel çalma listeleri oluştur ve yönet</p>
+                <p>Ã–zel Ã§alma listeleri oluÅŸtur ve yÃ¶net</p>
             </div>
         </div>
     </div>
 
     <div id="song-view">
         <div class="song-card">
-            <div id="song-loading">Şarkı yükleniyor...</div>
+            <div id="song-loading">ÅarkÄ± yÃ¼kleniyor...</div>
             <div id="song-content" style="display:none">
                 <img id="song-cover" class="song-cover" alt="Kapak" />
                 <div class="song-title" id="song-title"></div>
@@ -212,19 +212,19 @@
                         <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M8 5v14l11-7z" />
                         </svg>
-                        <span id="play-label">Çal</span>
+                        <span id="play-label">Ã‡al</span>
                     </button>
                     <button id="app-btn" class="btn-secondary">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
-                        Uygulamada Aç
+                        Uygulamada AÃ§
                     </button>
                 </div>
-                <p class="song-meta" style="margin-top:1.5rem;margin-bottom:0">Bu şarkıyı tam deneyimle dinlemek için Waveify uygulamasını kullan</p>
+                <p class="song-meta" style="margin-top:1.5rem;margin-bottom:0">Bu ÅŸarkÄ±yÄ± tam deneyimle dinlemek iÃ§in Waveify uygulamasÄ±nÄ± kullan</p>
             </div>
-            <div id="song-error" style="display:none;color:#f87171">Şarkı bulunamadı.</div>
-            <a class="back-link" href="/">← Ana sayfaya dön</a>
+            <div id="song-error" style="display:none;color:#f87171">ÅarkÄ± bulunamadÄ±.</div>
+            <a class="back-link" href="/">â† Ana sayfaya dÃ¶n</a>
         </div>
     </div>
 
@@ -255,7 +255,7 @@
                 document.getElementById('song-artist').textContent = song.artist;
                 const mins = Math.floor((song.duration || 0) / 60);
                 const secs = Math.round((song.duration || 0) % 60).toString().padStart(2, '0');
-                document.getElementById('song-meta').textContent = mins + ':' + secs + ' · ' + (song.genre || 'Waveify');
+                document.getElementById('song-meta').textContent = mins + ':' + secs + ' Â· ' + (song.genre || 'Waveify');
                 const audio = new Audio(song.audio_url);
                 const btn = document.getElementById('play-btn');
                 const icon = document.getElementById('play-icon');
@@ -268,12 +268,12 @@
                     } else {
                         audio.pause();
                         icon.setAttribute('d', 'M8 5v14l11-7z');
-                        label.textContent = 'Çal';
+                        label.textContent = 'Ã‡al';
                     }
                 });
                 audio.addEventListener('ended', () => {
                     icon.setAttribute('d', 'M8 5v14l11-7z');
-                    label.textContent = 'Çal';
+                    label.textContent = 'Ã‡al';
                 });
 
                 function openInApp() {

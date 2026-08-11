@@ -1,9 +1,9 @@
 {
   "name": "waveify",
-  "version": "8.0.0",
+  "version": "8.1.0",
   "private": true,
   "type": "module",
-  "description": "Waveify - Ã–zel mÃ¼zik paylaÅŸÄ±m platformu",
+  "description": "Waveify - Ãƒâ€“zel mÃƒÂ¼zik paylaÃ…Å¸Ã„Â±m platformu",
   "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "vite",
