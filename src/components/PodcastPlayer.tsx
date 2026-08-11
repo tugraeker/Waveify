@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { safeParse } from '@/lib/utils'
 import { Play, Pause, SkipBack, SkipForward, Download, Bookmark, Clock, BookOpen, Star } from 'lucide-react'
 
 interface Episode {
@@ -14,8 +15,8 @@ export default function PodcastPlayer({ episodes, podcastTitle }: { episodes: Ep
   const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
-  const [bookmarks, setBookmarks] = useState<string[]>(JSON.parse(localStorage.getItem('waveify_podcast_bookmarks') || '[]'))
-  const [notes, setNotes] = useState<Record<string, string>>(JSON.parse(localStorage.getItem('waveify_podcast_notes') || '{}'))
+  const [bookmarks, setBookmarks] = useState<string[]>(safeParse(localStorage.getItem('waveify_podcast_bookmarks'), []))
+  const [notes, setNotes] = useState<Record<string, string>>(safeParse(localStorage.getItem('waveify_podcast_notes'), {}))
   const [noteInput, setNoteInput] = useState('')
   const audioRef = useRef<HTMLAudioElement>(null)
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
-import { formatDuration } from '@/lib/utils'
+import { formatDuration, safeParse } from '@/lib/utils'
 import { SongSkeleton, CardSkeleton } from '@/components/Skeleton'
 import ContextMenu from '@/components/ContextMenu'
 import AddToPlaylistModal from '@/components/AddToPlaylistModal'
@@ -45,7 +45,7 @@ export default function Home() {
 
   // Hype: Live heat meter (community listening pulse, local-first)
   useEffect(() => {
-    const history = JSON.parse(localStorage.getItem('waveify_listen_history_local') || '[]') as string[]
+    const history = safeParse<string[]>(localStorage.getItem('waveify_listen_history_local'), [])
     const minutes = Math.floor((Date.now() - (Number(localStorage.getItem('waveify_first_seen') || Date.now()))) / 60000)
     const base = Math.max(2, Math.min(5 + history.length, 42) + Math.floor(minutes / 90))
     const pulse = () => setLiveListeners(base + Math.floor(Math.random() * 7))
@@ -86,9 +86,9 @@ export default function Home() {
           const ids = (friends || []).map((f: any) => f.friend_id)
           if (ids.length === 0) return
           const { data: plays } = await supabase.from('listen_history')
-            .select('user_id, listened_at, song_id')
+            .select('user_id, played_at, song_id')
             .in('user_id', ids)
-            .order('listened_at', { ascending: false })
+            .order('played_at', { ascending: false })
             .limit(30)
           if (!plays || plays.length === 0) return
           const songIds = [...new Set(plays.map((p: any) => p.song_id))]
@@ -102,7 +102,7 @@ export default function Home() {
             const song = songMap.get(p.song_id)
             if (!song || seen.has(p.song_id)) continue
             seen.add(p.song_id)
-            items.push({ user: userMap.get(p.user_id), song, at: p.listened_at })
+            items.push({ user: userMap.get(p.user_id), song, at: p.played_at })
             if (items.length >= 5) break
           }
           setFriendActivity(items)

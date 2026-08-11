@@ -16,7 +16,10 @@ INSERT INTO storage.buckets (id, name, public) VALUES
   ('songs', 'songs', true)
 ON CONFLICT (id) DO NOTHING;
 
--- 4) Storage policy'leri (public okuma + giriş yapan kullanıcı yükleme)
+-- 3b) listen_history.played_at default (geçmiş kaydı yazılmıyordu)
+ALTER TABLE public.listen_history ALTER COLUMN played_at SET DEFAULT now();
+ALTER TABLE public.listen_history ALTER COLUMN played_at SET NOT NULL;
+
 DROP POLICY IF EXISTS "covers_read_all" ON storage.objects;
 CREATE POLICY "covers_read_all" ON storage.objects FOR SELECT USING (bucket_id = 'covers');
 DROP POLICY IF EXISTS "songs_read_all" ON storage.objects FOR SELECT USING (bucket_id = 'songs');
@@ -96,7 +99,14 @@ DROP POLICY IF EXISTS "friends_delete" ON public.friends;
 CREATE POLICY "friends_delete" ON public.friends FOR DELETE TO authenticated USING (auth.uid() = user_id OR auth.uid() = friend_id);
 ALTER TABLE public.friends ENABLE ROW LEVEL SECURITY;
 
--- blocks (engelleme)
+-- blocks (engelleme — tablo yoksa önce oluştur)
+CREATE TABLE IF NOT EXISTS public.blocks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  blocked_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (user_id, blocked_id)
+);
 DROP POLICY IF EXISTS "blocks_select" ON public.blocks;
 CREATE POLICY "blocks_select" ON public.blocks FOR SELECT USING (true);
 DROP POLICY IF EXISTS "blocks_insert" ON public.blocks;

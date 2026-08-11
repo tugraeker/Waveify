@@ -49,8 +49,8 @@ export default function Charts() {
       try {
         const { data: listenRows } = await supabase
           .from('listen_history')
-          .select('user_id, listened_at')
-          .gte('listened_at', weekAgo)
+          .select('user_id, played_at')
+          .gte('played_at', weekAgo)
         const counts = new Map<string, number>()
         ;(listenRows || []).forEach((l) => counts.set(l.user_id, (counts.get(l.user_id) || 0) + 1))
         const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10)

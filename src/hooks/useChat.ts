@@ -3,6 +3,7 @@ import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { emitToast } from '@/hooks/useToast'
 import { trackChatMessage, awardXp } from '@/lib/achievements'
+import { safeParse } from '@/lib/utils'
 import type { Socket } from 'socket.io-client'
 
 interface ChatMessage {
@@ -282,7 +283,7 @@ export function useChat(socket: Socket | null) {
   const addReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!user) return
     const key = `waveify_chat_reactions_${messageId}`
-    const existing = JSON.parse(localStorage.getItem(key) || '{}')
+    const existing = safeParse<Record<string, string[]>>(localStorage.getItem(key), {})
     const users = existing[emoji] || []
     if (users.includes(user.id)) {
       existing[emoji] = users.filter((u: string) => u !== user.id)

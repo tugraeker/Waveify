@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
+import { safeParse } from '@/lib/utils'
 import { Play, Pause, Search, Download, Bookmark, Clock, Headphones, Filter, ChevronDown, Music, Plus, Check } from 'lucide-react'
 
 const PODCAST_CATEGORIES = ['Teknoloji', 'Müzik', 'Eğitim', 'Haber', 'Spor', 'Sanat', 'Bilim', 'Komedi', 'Sağlık', 'Tarih']
@@ -20,8 +21,8 @@ export default function PodcastPage() {
   const { user } = useStore()
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
-  const [subscribed, setSubscribed] = useState<string[]>(JSON.parse(localStorage.getItem('waveify_podcast_subs') || '[]'))
-  const [favourites, setFavourites] = useState<string[]>(JSON.parse(localStorage.getItem('waveify_podcast_favs') || '[]'))
+  const [subscribed, setSubscribed] = useState<string[]>(safeParse(localStorage.getItem('waveify_podcast_subs'), []))
+  const [favourites, setFavourites] = useState<string[]>(safeParse(localStorage.getItem('waveify_podcast_favs'), []))
 
   const filtered = PODCASTS.filter(p =>
     (!search || p.title.toLowerCase().includes(search.toLowerCase()) || p.author.toLowerCase().includes(search.toLowerCase())) &&

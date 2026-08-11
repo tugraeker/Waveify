@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { safeParse } from '@/lib/utils'
 import { Play, Pause, Search, Radio as RadioIcon, Heart, Music, Globe } from 'lucide-react'
 
 const RADIO_STATIONS = [
@@ -21,7 +22,7 @@ export default function RadioPage() {
   const [search, setSearch] = useState('')
   const [genreFilter, setGenreFilter] = useState('')
   const [countryFilter, setCountryFilter] = useState('')
-  const [favourites, setFavourites] = useState<string[]>(JSON.parse(localStorage.getItem('waveify_radio_favs') || '[]'))
+  const [favourites, setFavourites] = useState<string[]>(safeParse(localStorage.getItem('waveify_radio_favs'), []))
 
   const filtered = RADIO_STATIONS.filter(s =>
     (!search || s.name.toLowerCase().includes(search.toLowerCase()) || s.genre.toLowerCase().includes(search.toLowerCase())) &&
