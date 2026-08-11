@@ -11,6 +11,7 @@ import {
   History, Sun, Moon, Globe, Settings as SettingsIcon,
   BarChart3, Shield, MessageSquare, Sparkles, Award, Trophy, Waves,
   Headphones, Music4, Ear, Gamepad2, AudioWaveform, Monitor,
+  CalendarCheck, BookOpen, Flower2, Cpu, Sprout,
 } from 'lucide-react'
 
 const navItems = [
@@ -87,6 +88,12 @@ export default function Sidebar() {
             { icon: Waves, label: 'Ses Manzaraları', path: '/soundscapes' },
             { icon: Headphones, label: 'Drop Modu', path: '/trivia', highlight: true },
             { icon: Music4, label: 'Beat Maker', path: '/beatmaker', highlight: true },
+            { icon: Users, label: 'Topluluk', path: '/community' },
+            { icon: CalendarCheck, label: 'Haftalık Özet', path: '/recap' },
+            { icon: BookOpen, label: 'Müzik Sözlüğü', path: '/wiki' },
+            { icon: Flower2, label: 'Zen', path: '/zen' },
+            { icon: Cpu, label: 'Sistem', path: '/system' },
+            { icon: Sprout, label: 'Görevler', path: '/quests' },
             { icon: Ear, label: 'Perde Oyunu', path: '/pitch-game' },
             { icon: Gamepad2, label: 'Arcade', path: '/arcade', highlight: true },
             { icon: AudioWaveform, label: 'Studio', path: '/studio', highlight: true },

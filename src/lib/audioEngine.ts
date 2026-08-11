@@ -10,6 +10,8 @@ class AudioEngine {
   private eqFilters: BiquadFilterNode[] = []
   private gainNode: GainNode | null = null
   private analyserNode: AnalyserNode | null = null
+  private lAnalyser: AnalyserNode | null = null
+  private rAnalyser: AnalyserNode | null = null
   private bassFilter: BiquadFilterNode | null = null
   private reverbWet: GainNode | null = null
   private delayWet: GainNode | null = null
@@ -52,6 +54,10 @@ class AudioEngine {
     this.gainNode.connect(this.panner)
     this.panner.connect(this.analyserNode)
     this.analyserNode.connect(c.destination)
+    this.lAnalyser = c.createAnalyser(); this.lAnalyser.fftSize = 512
+    this.rAnalyser = c.createAnalyser(); this.rAnalyser.fftSize = 512
+    this.gainNode.connect(this.lAnalyser)
+    this.gainNode.connect(this.rAnalyser)
     this.createEqFilters(c)
     this.createEffects(c)
     this.createVocalStage(c)
@@ -445,6 +451,16 @@ class AudioEngine {
     const data = new Uint8Array(this.analyserNode.frequencyBinCount)
     try { this.analyserNode.getByteFrequencyData(data) } catch {}
     return data
+  }
+
+  getStereoData(): { l: Uint8Array; r: Uint8Array } {
+    const empty = { l: new Uint8Array(256), r: new Uint8Array(256) }
+    if (!this.lAnalyser || !this.rAnalyser) return empty
+    try {
+      this.lAnalyser.getByteTimeDomainData(empty.l)
+      this.rAnalyser.getByteTimeDomainData(empty.r)
+    } catch {}
+    return empty
   }
 
   setOnTimeupdate(fn: (t: number) => void) { this.onTimeupdate = fn }

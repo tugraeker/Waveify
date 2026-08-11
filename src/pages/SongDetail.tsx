@@ -6,17 +6,41 @@ import { formatDuration, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui'
 import SongEditModal from '@/components/SongEditModal'
 import type { Song, Comment } from '@/types'
-import { Play, Pause, Heart, MessageCircle, ArrowLeft, Edit3, Music2 } from 'lucide-react'
+import { Play, Pause, Heart, MessageCircle, ArrowLeft, Edit3, Music2, Sparkles } from 'lucide-react'
 
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user, setCurrentSong, setQueue, currentSong, isPlaying } = useStore()
+  const { user, setCurrentSong, setQueue, currentSong, isPlaying, songs } = useStore()
   const [song, setSong] = useState<Song | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState('')
   const [liked, setLiked] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [similar, setSimilar] = useState<Song[]>([])
+
+  /* 134 — Benzer Şarkılar: tür + sanatçı uyum skoru */
+  useEffect(() => {
+    if (!song) return
+    const rest = songs.length > 1 ? songs : song
+    const list = songs.length > 1 ? songs : [song]
+    const scored = list
+      .filter((s) => s.id !== song.id)
+      .map((s) => {
+        let score = 0
+        if (s.genre && song.genre && s.genre === song.genre) score += 3
+        else if (s.genre && song.genre && s.genre.includes(song.genre.split(' ')[0])) score += 2
+        if (s.artist === song.artist) score += 2
+        if (s.album && song.album && s.album === song.album) score += 1
+        if (s.duration && song.duration && Math.abs(s.duration - song.duration) < 20) score += 0.5
+        return { s, score }
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
+      .map((x) => x.s)
+    if (scored.length) setSimilar(scored)
+  }, [song, songs])
 
   useEffect(() => {
     if (id) fetchSong(id)
@@ -126,6 +150,31 @@ export default function SongDetail() {
             <h3 className="text-sm font-semibold text-surface-400 uppercase mb-3">Şarkı Sözleri</h3>
             <div className="bg-surface-900/50 rounded-xl p-4 whitespace-pre-line text-sm leading-relaxed text-surface-300">
               {song.lyrics}
+            </div>
+          </section>
+        )}
+
+        {similar.length > 0 && (
+          <section>
+            <h3 className="text-sm font-semibold text-surface-400 uppercase mb-3 flex items-center gap-1.5"><Sparkles size={13} className="text-wave-400" /> Benzer Şarkılar</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {similar.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => { setQueue(similar); setCurrentSong(s) }}
+                  className="flex items-center gap-3 bg-surface-900/40 hover:bg-surface-900/80 rounded-xl p-2.5 text-left transition-colors border border-transparent hover:border-wave-500/30"
+                >
+                  {s.cover_url ? (
+                    <img src={s.cover_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-surface-800 flex items-center justify-center flex-shrink-0"><Music2 size={16} className="text-surface-500" /></div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium truncate">{s.title}</p>
+                    <p className="text-[11px] text-surface-500 truncate">{s.artist}{s.genre ? ` · ${s.genre}` : ''}</p>
+                  </div>
+                </button>
+              ))}
             </div>
           </section>
         )}

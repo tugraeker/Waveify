@@ -10,6 +10,7 @@ import { emitToast } from '@/hooks/useToast'
 import { Slider } from '@/components/ui'
 import Visualizer from '@/components/Visualizer'
 import SyncedLyrics from '@/components/SyncedLyrics'
+import { WeatherOverlay, StrobeOverlay, Goniometer, EnergySegments, CommentDots, ClockMode, BookmarksPanel, TimestampCommentsPanel } from '@/components/NowPlayingExtras'
 import type { Song, VisualizerMode, VisualizerColorTheme, CoverStyle } from '@/types'
 import { EQ_PRESETS, EQ_BAND_FREQS, defaultEqBands, ROOM_PRESETS } from '@/types'
 import {
@@ -18,6 +19,7 @@ import {
   BarChart3, Waves, Circle, Flame, Radio,
   Maximize2, Share2, Star, Pencil, Info, ListPlus,
   Palette, Plus, Check, FileText, Save, Zap, Volume1, Landmark, Download, XCircle, Mic2,
+  Activity, Clock3, Sparkles,
 } from 'lucide-react'
 
 const VISUALIZER_MODES: { key: VisualizerMode; label: string; icon: typeof BarChart3 }[] = [
@@ -87,6 +89,9 @@ export default function NowPlaying() {
   const [coverUrlInput, setCoverUrlInput] = useState('')
   const [touchX, setTouchX] = useState<number | null>(null)
   const [touchY, setTouchY] = useState<number | null>(null)
+  const [showGonio, setShowGonio] = useState(false)
+  const [clockOpen, setClockOpen] = useState(false)
+  const { strobeMode, setStrobeMode } = useStore()
 
   const shareSong = useCallback(() => {
     if (!currentSong) return
@@ -266,11 +271,16 @@ export default function NowPlaying() {
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-surface-900 to-surface-950 overflow-hidden">
+      <WeatherOverlay />
+      <StrobeOverlay />
       <div className="flex items-center p-5 flex-shrink-0">
         <button onClick={() => navigate(-1)} className="text-surface-400 hover:text-white transition-colors p-1">
           <ChevronDown size={22} />
         </button>
         <span className="flex-1 text-center text-[11px] font-semibold text-gradient uppercase tracking-[0.15em]">Şimdi Çalıyor</span>
+        <button onClick={() => setClockOpen(true)} className="text-surface-400 hover:text-wave-400 transition-colors p-1" title="Masa Saati Modu">
+          <Clock3 size={18} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin px-4"
@@ -394,7 +404,7 @@ export default function NowPlaying() {
 
           {/* Visualizer */}
           <div className="w-full max-w-md">
-            <Visualizer analyserData={analyserData} isPlaying={isPlaying} className="w-full h-16 rounded-xl" />
+            {showGonio ? <Goniometer /> : <Visualizer analyserData={analyserData} isPlaying={isPlaying} className="w-full h-16 rounded-xl" />}
           </div>
 
           {/* Visualizer controls */}
@@ -429,6 +439,26 @@ export default function NowPlaying() {
                 Tam Ekrandan Çık
               </button>
             )}
+            <button
+              onClick={() => setShowGonio(!showGonio)}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                showGonio
+                  ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20'
+                  : 'text-surface-400 hover:text-white border border-transparent'
+              }`}
+            >
+              <Activity size={14} className="inline mr-1" />Gonyometre
+            </button>
+            <button
+              onClick={() => setStrobeMode(!strobeMode)}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                strobeMode
+                  ? 'bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30 animate-pulse'
+                  : 'text-surface-400 hover:text-white border border-transparent'
+              }`}
+            >
+              <Sparkles size={14} className="inline mr-1" />Konser Strobe
+            </button>
           </div>
 
           {/* Visualizer color theme + sensitivity (Feature 12) */}
@@ -490,8 +520,10 @@ export default function NowPlaying() {
               </span>
               <div className="flex-1 relative group h-1.5">
                 <div className="absolute inset-0 rounded-full bg-surface-700/50" />
+                <EnergySegments songId={currentSong.id} duration={duration} />
+                <CommentDots songId={currentSong.id} duration={duration} onSeek={seek} />
                 <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-white/60 group-hover:bg-wave-400 transition-all duration-75"
+                  className="absolute inset-y-0 left-0 rounded-full bg-white/60 group-hover:bg-wave-400 transition-all duration-75 z-20"
                   style={{ width: `${progress}%` }}
                 />
                 <input
@@ -635,6 +667,10 @@ export default function NowPlaying() {
                 <p className="text-xs text-surface-400 mt-1.5 italic bg-surface-800/30 rounded-lg p-2">{currentNote}</p>
               )}
             </div>
+
+            {/* Bookmarks (107) + Timestamp comments (179) */}
+            <BookmarksPanel songId={currentSong.id} currentTime={currentTime} onSeek={seek} />
+            <TimestampCommentsPanel songId={currentSong.id} currentTime={currentTime} onSeek={seek} />
 
             {/* Crossfade (Feature 3) */}
             <div className="flex items-center justify-between px-2 py-1">
@@ -840,6 +876,7 @@ export default function NowPlaying() {
           )}
         </div>
       </div>
+      <ClockMode open={clockOpen} onClose={() => setClockOpen(false)} />
     </div>
   )
 }

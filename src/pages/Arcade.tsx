@@ -4,7 +4,7 @@ import { useStore } from '@/store/store'
 import { resolveAudioUrl } from '@/lib/offline'
 import { emitToast } from '@/hooks/useToast'
 import { confettiBurst } from '@/lib/party'
-import { Gamepad2, Music2, Zap, Skull, Ear, Palette, MessageSquareText, Grid3x3, Timer, Flag, Waves } from 'lucide-react'
+import { Gamepad2, Music2, Zap, Skull, Ear, Palette, MessageSquareText, Grid3x3, Timer, Flag, Waves, Trophy } from 'lucide-react'
 import type { Song } from '@/types'
 
 const GAMES = [
@@ -19,6 +19,15 @@ const GAMES = [
   { id: 'edge', name: 'Giriş/Outro Avcısı', icon: Timer, desc: 'İlk ve son saniyeyi bil' },
   { id: 'hearing', name: 'Kulak Yaşı', icon: Ear, desc: 'İşitme seviyeni ölç' },
   { id: 'dino', name: 'Çevrimdışı Dino', icon: Flag, desc: 'İnternetsiz zıpla' },
+  { id: 'simon', name: 'Melodi Taklit', icon: Music2, desc: 'Sırayı hatırla, tekrarla' },
+  { id: 'blocks', name: 'Şarkı Blokları', icon: Grid3x3, desc: 'Eş blokları eşleştir' },
+  { id: 'flappy', name: 'Flappy Note', icon: Waves, desc: 'Mikrofonla zıpla' },
+  { id: 'escape', name: 'Kaçış Odası', icon: Skull, desc: '4 bilmece, 1 çıkış' },
+  { id: 'tamagotchi', name: 'Wave Tamagotçi', icon: Flag, desc: 'Sanal evcilini besle' },
+  { id: 'abtest', name: 'A-B İşitme Testi', icon: Ear, desc: 'Hangisi kayıpsız?' },
+  { id: 'dance', name: 'Dans Pisti', icon: Zap, desc: 'Okları ritme bas' },
+  { id: 'scratch', name: 'Plak Kazıma', icon: Palette, desc: 'DJ gibi sürt' },
+  { id: 'season', name: 'Liderlik Sezonu', icon: Trophy, desc: 'Sezonun en iyileri' },
 ]
 
 let arcadeAudio: HTMLAudioElement | null = null
@@ -85,6 +94,15 @@ export default function Arcade() {
             {active === 'edge' && <EdgeGame songs={pool} pick4={pick4} />}
             {active === 'hearing' && <HearingTest />}
             {active === 'dino' && <DinoGame />}
+            {active === 'simon' && <SimonGame />}
+            {active === 'blocks' && <SongBlocks songs={pool} />}
+            {active === 'flappy' && <FlappyNote />}
+            {active === 'escape' && <EscapeRoom songs={pool} pick4={pick4} />}
+            {active === 'tamagotchi' && <Tamagotchi />}
+            {active === 'abtest' && <ABTest songs={pool} pick4={pick4} />}
+            {active === 'dance' && <DanceFloor />}
+            {active === 'scratch' && <ScratchVinyl />}
+            {active === 'season' && <SeasonBoard />}
           </div>
         )}
       </div>
@@ -153,6 +171,7 @@ function RhythmHero() {
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
   }, [running])
+  useEffect(() => { if (score > 0 && score % 100 === 0) saveArcadeScore('rhythm', score) }, [score])
 
   return (
     <div className="glass rounded-2xl p-5">
@@ -680,6 +699,7 @@ function DinoGame() {
       return () => clearInterval(id)
     }
   }, [running])
+  useEffect(() => { if (score > 0 && score % 100 === 0) saveArcadeScore('dino', score) }, [score])
 
   return (
     <div className="glass rounded-2xl p-5">
@@ -702,6 +722,693 @@ function DinoGame() {
         )}
       </div>
       <p className="text-xs text-surface-500 mt-3 text-center">İnternetsiz de çalışır — engellere çarpma</p>
+    </div>
+  )
+}
+
+/* ---------- Paket 2 oyunları (v8.1.0) ---------- */
+
+function currentSeason(): string {
+  const m = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+  const d = new Date()
+  return `${m[d.getMonth()]} ${d.getFullYear()}`
+}
+function saveArcadeScore(game: string, score: number) {
+  if (score < 10) return
+  try {
+    const key = 'waveify_arcade_season'
+    const data = JSON.parse(localStorage.getItem(key) || 'null') || { season: currentSeason(), scores: [] }
+    const name = useStore.getState().user?.username || 'Misafir'
+    data.scores.push({ name, score, game, date: Date.now() })
+    if (data.scores.length > 300) data.scores.splice(0, data.scores.length - 300)
+    localStorage.setItem(key, JSON.stringify(data))
+    const bestKey = 'waveify_arcade_best'
+    const bests = JSON.parse(localStorage.getItem(bestKey) || '{}')
+    if (!bests[game] || bests[game] < score) { bests[game] = score; localStorage.setItem(bestKey, JSON.stringify(bests)) }
+  } catch { /* boş */ }
+}
+
+/* 55 — Melodi Taklit (Simon) */
+const SIMON_NOTES = [261.63, 329.63, 392.0, 493.88]
+const SIMON_STYLE = ['bg-emerald-500 shadow-emerald-500/40', 'bg-rose-500 shadow-rose-500/40', 'bg-amber-500 shadow-amber-500/40', 'bg-sky-500 shadow-sky-500/40']
+function SimonGame() {
+  const [seq, setSeq] = useState<number[]>([])
+  const [idx, setIdx] = useState(0)
+  const [phase, setPhase] = useState<'idle' | 'show' | 'input' | 'over'>('idle')
+  const [score, setScore] = useState(0)
+  const [active, setActive] = useState(-1)
+  const ctxRef = useRef<AudioContext | null>(null)
+  const timers = useRef<number[]>([])
+
+  function tone(i: number, dur = 0.35) {
+    const ctx = ctxRef.current || new AudioContext()
+    ctxRef.current = ctx
+    const osc = ctx.createOscillator(), g = ctx.createGain()
+    osc.type = 'triangle'; osc.frequency.value = SIMON_NOTES[i]
+    g.gain.setValueAtTime(0.001, ctx.currentTime)
+    g.gain.exponentialRampToValueAtTime(0.45, ctx.currentTime + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur)
+    osc.connect(g); g.connect(ctx.destination)
+    osc.start(); osc.stop(ctx.currentTime + dur + 0.05)
+  }
+  useEffect(() => () => timers.current.forEach(clearTimeout), [])
+  function playSeq(s: number[]) {
+    setPhase('show'); setActive(-1)
+    timers.current = s.map((n, i) => window.setTimeout(() => { setActive(n); tone(n); window.setTimeout(() => setActive(-1), 240) }, i * 560))
+    timers.current.push(window.setTimeout(() => { setIdx(0); setPhase('input') }, s.length * 560 + 300))
+  }
+  function start() {
+    setScore(0)
+    const first = Math.floor(Math.random() * 4)
+    setSeq([first]); playSeq([first])
+  }
+  function press(i: number) {
+    if (phase !== 'input') return
+    tone(i)
+    if (i !== seq[idx]) { setPhase('over'); emitToast(`Bellek bitti — skor ${score}`, 'info'); if (score > 0) saveArcadeScore('simon', score) }
+    else {
+      const ni = idx + 1
+      if (ni >= seq.length) {
+        const ns = [...seq, Math.floor(Math.random() * 4)]
+        setSeq(ns); setScore((s) => s + 1)
+        window.setTimeout(() => playSeq(ns), 500)
+      } else setIdx(ni)
+    }
+  }
+  useEffect(() => { if (score > 0 && score % 50 === 0) saveArcadeScore('simon', score) }, [score])
+
+  return (
+    <div className="glass rounded-2xl p-5 text-center">
+      <ScoreHeader score={score} streak={phase === 'input' ? 0 : 0} />
+      <p className="text-xs text-surface-400 mb-4">{phase === 'show' ? '👀 Sırayı izle...' : phase === 'input' ? '🎯 Sırayı tekrarla!' : phase === 'over' ? '😵 Devam edemedin' : 'Nota sırasını takip et ve tekrarla'}</p>
+      <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto mb-5">
+        {SIMON_STYLE.map((cls, i) => (
+          <button key={i} onClick={() => press(i)} className={`h-24 rounded-2xl ${cls} ${active === i ? 'scale-95 brightness-150' : ''} ${phase === 'over' ? 'opacity-40' : ''} transition-all shadow-lg`} />
+        ))}
+      </div>
+      {phase === 'idle' || phase === 'over' ? (
+        <button onClick={start} className="px-6 py-3 rounded-2xl bg-gradient-to-r from-wave-500 to-fuchsia-500 text-white font-bold shadow-lg shadow-wave-500/20">{phase === 'over' ? 'Tekrar Dene' : 'Başla'}</button>
+      ) : (
+        <p className="text-2xl font-display font-bold text-wave-400">{seq.length} nota</p>
+      )}
+    </div>
+  )
+}
+
+/* 58 — Şarkı Blokları (hafıza eşleştirme) */
+function SongBlocks({ songs }: { songs: Song[] }) {
+  const [tiles, setTiles] = useState<{ songId: string; open: boolean; gone: boolean }[]>([])
+  const [pairs, setPairs] = useState<Song[]>([])
+  const [picks, setPicks] = useState<number[]>([])
+  const [moves, setMoves] = useState(0)
+  const [won, setWon] = useState(false)
+  function start() {
+    const s = [...songs].sort(() => Math.random() - 0.5).slice(0, 6)
+    setPairs(s)
+    const t = [...s, ...s].sort(() => Math.random() - 0.5).map((x) => ({ songId: x.id, open: false, gone: false }))
+    setTiles(t); setPicks([]); setMoves(0); setWon(false)
+  }
+  useEffect(() => { start(); /* eslint-disable-line */ }, [])
+  function flip(i: number) {
+    if (tiles[i].open || tiles[i].gone || picks.length === 2 || won) return
+    const nt = [...tiles]; nt[i] = { ...nt[i], open: true }
+    const np = [...picks, i]
+    setTiles(nt); setPicks(np)
+    if (np.length === 2) {
+      setMoves((m) => m + 1)
+      if (nt[np[0]].songId === nt[np[1]].songId) {
+        window.setTimeout(() => {
+          setTiles((tt) => tt.map((x, j) => np.includes(j) ? { ...x, gone: true, open: false } : x))
+          setPicks([])
+          setWon((w) => { const complete = nt.every((x, j) => np.includes(j) || x.gone); if (complete) { confettiBurst(); emitToast('🎉 Blokları temizledin!', 'success'); saveArcadeScore('blocks', Math.max(10, 100 - moves * 5)) } return w || complete })
+        }, 450)
+      } else {
+        window.setTimeout(() => { setTiles((tt) => tt.map((x, j) => np.includes(j) ? { ...x, open: false } : x)); setPicks([]) }, 850)
+      }
+    }
+  }
+  return (
+    <div className="glass rounded-2xl p-5 text-center">
+      <div className="flex items-center justify-between mb-4">
+        <div className="px-3 py-1.5 rounded-xl bg-surface-800/70 border border-surface-700 text-sm font-bold text-white">Hamle: {moves}</div>
+        <p className="text-xs text-surface-400">Eş blokları bul — 12 blok / 6 eş</p>
+      </div>
+      <div className="grid grid-cols-4 gap-2 max-w-sm mx-auto mb-5">
+        {tiles.map((t, i) => {
+          const song = pairs.find((p) => p.id === t.songId)
+          return (
+            <button key={i} onClick={() => flip(i)} className={`h-16 rounded-xl border transition-all ${t.gone ? 'opacity-0 pointer-events-none' : t.open ? 'bg-wave-500/15 border-wave-500/50' : 'bg-gradient-to-br from-wave-500 to-fuchsia-500 border-surface-700 hover:scale-105'} flex items-center justify-center overflow-hidden`}>
+              {t.open ? <span className="text-[10px] leading-tight text-white px-1 font-medium">{song?.title}</span> : <span className="text-white/80 text-lg">🎵</span>}
+            </button>
+          )
+        })}
+      </div>
+      <button onClick={start} className="text-xs text-wave-400 hover:text-wave-300">Karıştır ve Yeni Oyun</button>
+    </div>
+  )
+}
+
+/* 61 — Flappy Note (mikrofon sesiyle zıplama) */
+function FlappyNote() {
+  const [running, setRunning] = useState(false)
+  const [score, setScore] = useState(0)
+  const [y, setY] = useState(0)
+  const [obs, setObs] = useState<{ x: number; gapY: number }[]>([])
+  const [micOn, setMicOn] = useState(false)
+  const raf = useRef(0)
+  const vy = useRef(0)
+  const dead = useRef(false)
+  const micLevel = useRef(0)
+  const streamRef = useRef<MediaStream | null>(null)
+  const speed = useRef(170)
+
+  function startMic() {
+    if (!navigator.mediaDevices?.getUserMedia) return
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((st) => {
+      streamRef.current = st
+      setMicOn(true)
+      try {
+        const ctx = new AudioContext()
+        const src = ctx.createMediaStreamSource(st)
+        const an = ctx.createAnalyser(); an.fftSize = 512
+        src.connect(an)
+        const buf = new Uint8Array(an.fftSize)
+        const loop = () => { an.getByteTimeDomainData(buf); let sum = 0; for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v } micLevel.current = Math.sqrt(sum / buf.length); requestAnimationFrame(loop) }
+        loop()
+      } catch { micLevel.current = 0 }
+    }).catch(() => { micLevel.current = 0 })
+  }
+  useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()) }, [])
+
+  useEffect(() => {
+    if (!running) return
+    const tick = (dt: number) => {
+      vy.current -= 880 * dt
+      setY((p) => {
+        const ny = Math.max(0, p + vy.current * dt)
+        if (ny === 0) vy.current = 0
+        return ny
+      })
+      if (micOn && micLevel.current > 0.09 && vy.current <= 0) vy.current = 340
+      setObs((o) => {
+        let list = o.map((x) => ({ ...x, x: x.x - speed.current * dt })).filter((x) => x.x > -50)
+        if (Math.random() < dt * 0.55) list = [...list, { x: 480, gapY: 90 + Math.random() * 140 }]
+        return list
+      })
+    }
+    let last = performance.now()
+    const loop = (now: number) => { const dt = Math.min(0.05, (now - last) / 1000); last = now; tick(dt); raf.current = requestAnimationFrame(loop) }
+    raf.current = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf.current)
+  }, [running, micOn])
+
+  useEffect(() => {
+    if (!running) return
+    const id = setInterval(() => {
+      setY((yy) => {
+        const birdY = 120 - yy
+        const hit = obs.some((o) => o.x < 80 && o.x > 55 && (birdY < o.gapY - 58 || birdY > o.gapY + 58))
+        if ((hit || yy === 0) && !dead.current && yy === 0) { dead.current = true; setRunning(false); emitToast(`🏁 Skor: ${score}`, 'info'); if (score > 0) saveArcadeScore('flappy', score) }
+        if (hit && !dead.current) { dead.current = true; setRunning(false); emitToast(`🏁 Skor: ${score}`, 'info'); if (score > 0) saveArcadeScore('flappy', score) }
+        return yy
+      })
+    }, 60)
+    return () => clearInterval(id)
+  }, [running, obs, score])
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault()
+        if (!running) { dead.current = false; setScore(0); setObs([]); setY(0); vy.current = 0; setRunning(true); if (!micOn) startMic() }
+        else if (vy.current <= 0) vy.current = 340
+      }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [running, micOn])
+
+  useEffect(() => {
+    if (running) {
+      const id = setInterval(() => setScore((s) => s + 1), 200)
+      return () => clearInterval(id)
+    }
+  }, [running])
+
+  return (
+    <div className="glass rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-bold text-white">🎵 Flappy Note</p>
+        <div className="flex items-center gap-3">
+          {micOn && <span className="text-[10px] px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300">🎤 Mikrofon açık</span>}
+          <p className="text-sm font-bold text-wave-400">Skor: {score}</p>
+        </div>
+      </div>
+      <div className="relative h-52 bg-surface-950/60 border border-surface-800 rounded-2xl overflow-hidden">
+        <div className="absolute inset-x-0 top-0 bottom-0 opacity-20" style={{ background: 'repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(20,184,166,.15) 18px, rgba(20,184,166,.15) 19px)' }} />
+        <div className="absolute bottom-6 left-4 w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full transition-all shadow-lg shadow-amber-500/40" style={{ transform: `translateY(${-y}px)` }}>🎵</div>
+        {obs.map((o, i) => (
+          <div key={i}>
+            <div className="absolute top-0 w-10 bg-gradient-to-b from-emerald-600 to-emerald-700 rounded-b-lg" style={{ left: o.x, height: o.gapY - 58 }} />
+            <div className="absolute bottom-6 w-10 bg-gradient-to-b from-emerald-700 to-emerald-600 rounded-t-lg" style={{ left: o.x, height: 208 - (o.gapY + 58) }} />
+          </div>
+        ))}
+        {!running && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <button onClick={() => { dead.current = false; setScore(0); setObs([]); setY(0); vy.current = 0; setRunning(true); if (!micOn) startMic() }} className="px-6 py-3 rounded-2xl bg-gradient-to-r from-wave-500 to-fuchsia-500 text-white font-bold shadow-lg mb-2">Başla</button>
+              <p className="text-xs text-surface-400">🎤 Mikrofon kapatıp seslenerek (veya Boşluk) zıpla</p>
+            </div>
+          </div>
+        )}
+      </div>
+      <p className="text-xs text-surface-500 mt-3 text-center">Seslendikçe nota yükselir — borulara çarpma</p>
+    </div>
+  )
+}
+
+/* 64 — Kaçış Odası: 4 bilmece */
+function EscapeRoom({ songs, pick4 }: { songs: Song[]; pick4: () => Song[] }) {
+  const [step, setStep] = useState(0)
+  const [opts, setOpts] = useState<string[]>([])
+  const [question, setQuestion] = useState('')
+  const [correct, setCorrect] = useState('')
+  const [wrong, setWrong] = useState(false)
+  const [won, setWon] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const ctxRef = useRef<AudioContext | null>(null)
+  const srcRef = useRef<AudioBufferSourceNode | null>(null)
+  const rounds = useRef(0)
+
+  async function playReverse(p: Song[]) {
+    const s = p[Math.floor(Math.random() * p.length)]
+    setCorrect(s.title)
+    if (!s.audio_url) return
+    setBusy(true)
+    try {
+      const ctx = ctxRef.current || new AudioContext()
+      ctxRef.current = ctx
+      const res = await fetch(s.audio_url)
+      const buf = await ctx.decodeAudioData(await res.arrayBuffer())
+      const rev = ctx.createBuffer(buf.numberOfChannels, buf.length, buf.sampleRate)
+      for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+        const d = rev.getChannelData(ch), o = buf.getChannelData(ch)
+        for (let i = 0; i < buf.length; i++) d[i] = o[buf.length - 1 - i]
+      }
+      const src = ctx.createBufferSource()
+      src.buffer = rev
+      const g = ctx.createGain(); g.gain.value = 0.8
+      src.connect(g); g.connect(ctx.destination)
+      srcRef.current = src
+      src.start(ctx.currentTime, 0, 4)
+      window.setTimeout(() => { try { src.stop() } catch {} }, 4200)
+    } catch { emitToast('Ses çözülemedi', 'error') }
+    setBusy(false)
+  }
+  function build() {
+    const p = pick4(); if (p.length < 4) return
+    const s = p[Math.floor(Math.random() * p.length)]
+    setWrong(false)
+    if (step === 0) {
+      setQuestion(`"${s.title}" şarkısını kim seslendiriyor?`)
+      setCorrect(s.artist || '')
+      setOpts([...new Set(p.map((x) => x.artist || '?'))].sort(() => Math.random() - 0.5))
+    } else if (step === 1) {
+      const longest = p.reduce((a, b) => (b.title.length > a.title.length ? b : a))
+      setQuestion('Gözlerin karanlığa alıştı — hangi şarkının başlığı en uzun?')
+      setCorrect(longest.title)
+      setOpts(p.map((x) => x.title).sort(() => Math.random() - 0.5))
+    } else if (step === 2) {
+      setQuestion(`Duvar yazısı bir şifre: ${emojify(s.title)}`)
+      setCorrect(s.title)
+      setOpts(p.map((x) => x.title).sort(() => Math.random() - 0.5))
+    } else {
+      setQuestion('Son kilit: tersten çalan kesiti çöz!')
+      setOpts([])
+      rounds.current = 0
+      window.setTimeout(() => playReverse(p), 300)
+    }
+  }
+  useEffect(() => { build(); /* eslint-disable-line */ }, [step])
+  function answer(a: string) {
+    if (a === correct) {
+      if (step >= 3) { setWon(true); confettiBurst(); emitToast('🔓 Kapı açıldı! Kaçış başarılı!', 'success'); saveArcadeScore('escape', 50) }
+      else setStep((s) => s + 1)
+    } else { setWrong(true); emitToast('❌ Kilidi açmadı', 'error') }
+  }
+  function retryReverse() {
+    if (!busy) build()
+  }
+  if (won) {
+    return (
+      <div className="glass rounded-2xl p-5 text-center py-10">
+        <p className="text-6xl mb-4">🔓</p>
+        <p className="text-2xl font-display font-bold text-white mb-2">Kaçış Başarılı!</p>
+        <p className="text-sm text-surface-400 mb-6">4 bilmecenin hepsini çözdün, stüdyodan çıktın 🎉</p>
+        <button onClick={() => { setWon(false); setStep(0) }} className="px-5 py-2.5 rounded-xl bg-wave-500 text-white text-sm font-semibold">Tekrar Oyna</button>
+      </div>
+    )
+  }
+  return (
+    <div className="glass rounded-2xl p-5 text-center">
+      <div className="flex justify-center gap-1.5 mb-5">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className={`h-1.5 w-10 rounded-full transition-colors ${i < step ? 'bg-emerald-500' : i === step ? 'bg-wave-400' : 'bg-surface-700'}`} />
+        ))}
+      </div>
+      <p className="text-xs text-surface-400 mb-2 uppercase tracking-wider">Bilmece {step + 1} / 4</p>
+      <p className="text-lg font-semibold text-white mb-1 leading-snug">{question}</p>
+      {step === 3 && (
+        <div className="mb-4">
+          <button onClick={retryReverse} disabled={busy} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white text-sm font-bold shadow-lg shadow-purple-500/20 disabled:opacity-40">🔁 Kesiti Çal</button>
+          <p className="text-xs text-surface-500 mt-2">4 saniyelik ters kesit — dinle ve tahmin et</p>
+        </div>
+      )}
+      {wrong && <p className="text-xs text-rose-400 mb-3">Yanlış — tekrar dene!</p>}
+      <div className="flex flex-wrap justify-center gap-2 max-w-lg mx-auto">
+        {opts.map((o) => (
+          <button key={o} onClick={() => answer(o)} className="px-4 py-2 rounded-xl bg-surface-800 border border-surface-700 text-sm text-white hover:border-wave-500/50 transition-all">{o}</button>
+        ))}
+      </div>
+      <p className="text-xs text-surface-500 mt-4">Müzik bilginle stüdyodan kaç! 🚪</p>
+    </div>
+  )
+}
+
+/* 66 — Wave Tamagotçi */
+const TAMA_KEY = 'waveify_tamagotchi'
+type Tama = { name: string; hunger: number; mood: number; energy: number; lastSeen: number; plays: number }
+function Tamagotchi() {
+  const [tama, setTama] = useState<Tama>(() => {
+    try {
+      const t = JSON.parse(localStorage.getItem(TAMA_KEY) || '')
+      if (t) {
+        const hours = Math.max(0, (Date.now() - t.lastSeen) / 3600000)
+        return { ...t, hunger: Math.max(0, t.hunger - hours * 2), mood: Math.max(0, t.mood - hours * 1.5), energy: Math.max(0, t.energy - hours * 1.5) }
+      }
+    } catch { /* boş */ }
+    return { name: 'Bebe', hunger: 80, mood: 80, energy: 80, lastSeen: Date.now(), plays: 0 }
+  })
+  useEffect(() => { localStorage.setItem(TAMA_KEY, JSON.stringify({ ...tama, lastSeen: Date.now() })) }, [tama])
+  function act(kind: 'eat' | 'play' | 'sleep') {
+    setTama((t) => {
+      const nt = { ...t, plays: t.plays + 1 }
+      if (kind === 'eat') nt.hunger = Math.min(100, t.hunger + 25)
+      if (kind === 'play') { nt.mood = Math.min(100, t.mood + 20); nt.energy = Math.max(0, t.energy - 10) }
+      if (kind === 'sleep') nt.energy = Math.min(100, t.energy + 40)
+      return nt
+    })
+  }
+  const sick = tama.hunger < 20 || tama.mood < 20
+  const face = sick ? '🤒' : tama.energy < 20 ? '😴' : tama.mood > 70 && tama.hunger > 70 ? '😎' : '😊'
+  function Bar({ label, val, color }: { label: string; val: number; color: string }) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-surface-400 w-12 text-left">{label}</span>
+        <div className="flex-1 h-2.5 bg-surface-800 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${val}%` }} />
+        </div>
+        <span className="text-xs font-bold text-white w-8 text-right">{Math.round(val)}</span>
+      </div>
+    )
+  }
+  return (
+    <div className="glass rounded-2xl p-5 text-center">
+      <div className="flex items-center justify-center gap-2 mb-3">
+        <input value={tama.name} onChange={(e) => setTama((t) => ({ ...t, name: e.target.value }))} className="bg-transparent text-center text-xl font-display font-bold text-white border-b border-surface-700 focus:outline-none focus:border-wave-500/50 w-40" />
+      </div>
+      <div className={`w-28 h-28 rounded-full mx-auto mb-4 flex items-center justify-center text-6xl border-2 ${sick ? 'border-rose-500/50 bg-rose-500/10' : 'border-wave-500/30 bg-wave-500/10'} shadow-xl shadow-wave-500/10 transition-all`}>{face}</div>
+      <div className="max-w-xs mx-auto flex flex-col gap-2 mb-5">
+        <Bar label="Açlık" val={tama.hunger} color="bg-amber-400" />
+        <Bar label="Neşe" val={tama.mood} color="bg-fuchsia-400" />
+        <Bar label="Enerji" val={tama.energy} color="bg-sky-400" />
+      </div>
+      <div className="flex justify-center gap-2 flex-wrap">
+        <button onClick={() => act('eat')} className="px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-sm font-semibold">🍕 Yemek</button>
+        <button onClick={() => act('play')} className="px-4 py-2 rounded-xl bg-fuchsia-500/15 border border-fuchsia-500/40 text-fuchsia-300 text-sm font-semibold">🎮 Oyun</button>
+        <button onClick={() => act('sleep')} className="px-4 py-2 rounded-xl bg-sky-500/15 border border-sky-500/40 text-sky-300 text-sm font-semibold">😴 Uyku</button>
+      </div>
+      <p className="text-xs text-surface-500 mt-4">Evcilin zamanla acıkır — onu ihmal etme! (Oyuncak: {tama.plays})</p>
+    </div>
+  )
+}
+
+/* 69 — A-B İşitme Testi */
+function ABTest({ songs, pick4 }: { songs: Song[]; pick4: () => Song[] }) {
+  const [correct, setCorrect] = useState<Song | null>(null)
+  const [score, setScore] = useState(0)
+  const [total, setTotal] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const ctxRef = useRef<AudioContext | null>(null)
+  const srcRef = useRef<AudioBufferSourceNode | null>(null)
+  function newRound() { const p = pick4(); if (p.length < 4) return; setCorrect(p[0]) }
+  useEffect(() => { newRound(); /* eslint-disable-line */ }, [])
+  useEffect(() => () => { try { srcRef.current?.stop() } catch { /* boş */ } }, [])
+  async function play(quality: 'lossless' | 'mp3') {
+    if (!correct?.audio_url || busy) return
+    setBusy(true)
+    try { srcRef.current?.stop() } catch { /* boş */ }
+    try {
+      const ctx = ctxRef.current || new AudioContext()
+      ctxRef.current = ctx
+      const res = await fetch(correct.audio_url)
+      const buf = await ctx.decodeAudioData(await res.arrayBuffer())
+      const src = ctx.createBufferSource()
+      src.buffer = buf
+      src.loop = true
+      if (quality === 'lossless') {
+        src.connect(ctx.destination)
+      } else {
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400
+        const g = ctx.createGain(); g.gain.value = 0.7
+        src.connect(lp); lp.connect(g); g.connect(ctx.destination)
+      }
+      srcRef.current = src
+      src.start(ctx.currentTime, 0, 4)
+      window.setTimeout(() => { try { src.stop() } catch { /* boş */ } }, 4500)
+    } catch { emitToast('Ses çözülemedi', 'error') }
+    setBusy(false)
+  }
+  function answer(which: 'A' | 'B') {
+    try { srcRef.current?.stop() } catch { /* boş */ }
+    if (which === 'A') { setScore((s) => s + 10); emitToast('🎧 Altın kulak!', 'success') } else emitToast('❌ Aslında A kayıpsızdı', 'error')
+    setTotal((t) => t + 1)
+    window.setTimeout(newRound, 700)
+  }
+  useEffect(() => { if (score > 0 && score % 50 === 0) saveArcadeScore('abtest', score) }, [score])
+  return (
+    <div className="glass rounded-2xl p-5 text-center">
+      <ScoreHeader score={score} streak={0} />
+      <p className="text-xs text-surface-400 mb-1">Tur: {total + 1} — şarkı: <b className="text-white">{correct?.title || '...'}</b></p>
+      <p className="text-xs text-surface-500 mb-5">A kayıpsız (CD) kalitesinde, B sıkıştırılmış. Hangisini seçerdin? Önce ikisini de çal, sonra karar ver.</p>
+      <div className="flex justify-center gap-3 mb-5">
+        <button onClick={() => play('lossless')} disabled={busy} className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-lg shadow-emerald-500/20 disabled:opacity-40">🎧 A — Çal</button>
+        <button onClick={() => play('mp3')} disabled={busy} className="px-6 py-3 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold shadow-lg shadow-orange-500/20 disabled:opacity-40">💾 B — Çal</button>
+      </div>
+      <div className="flex justify-center gap-3">
+        <button onClick={() => answer('A')} className="px-5 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-sm font-semibold">A daha iyiydi</button>
+        <button onClick={() => answer('B')} className="px-5 py-2.5 rounded-xl bg-surface-800 border border-surface-700 text-surface-300 text-sm font-semibold">B daha iyiydi</button>
+      </div>
+      <p className="text-xs text-surface-500 mt-4">Kulaklık önerilir — 10 doğru = altın plak 🏅</p>
+    </div>
+  )
+}
+
+/* 73 — Dans Pisti (4 ok) */
+const ARROW_LABELS = ['⬆', '⬇', '⬅', '➡']
+const ARROW_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
+function DanceFloor() {
+  const [bpm, setBpm] = useState(120)
+  const [running, setRunning] = useState(false)
+  const [notes, setNotes] = useState<{ lane: number; y: number; hit: boolean }[]>([])
+  const [score, setScore] = useState(0)
+  const [streak, setStreak] = useState(0)
+  const raf = useRef(0)
+  const lastSpawn = useRef(0)
+  const lastHit = useRef(0)
+  useEffect(() => {
+    if (!running) return
+    let start = performance.now()
+    const tick = (now: number) => {
+      const dt = now - start; start = now
+      if (now - lastSpawn.current >= (60000 / bpm)) {
+        lastSpawn.current = now
+        setNotes((n) => [...n, { lane: Math.floor(Math.random() * 4), y: 0, hit: false }])
+      }
+      setNotes((n) => n.map((x) => ({ ...x, y: x.y + (dt / 1000) * 140 })).filter((x) => !x.hit && x.y < 520))
+      raf.current = requestAnimationFrame(tick)
+    }
+    lastSpawn.current = performance.now()
+    raf.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf.current)
+  }, [running, bpm])
+  function hit(lane: number) {
+    if (!running) return
+    const now = performance.now()
+    if (now - lastHit.current < 100) return
+    lastHit.current = now
+    setNotes((n) => {
+      const idx = n.findIndex((x) => x.lane === lane && !x.hit && x.y > 250 && x.y < 410)
+      if (idx >= 0) {
+        const copy = [...n]; copy[idx] = { ...copy[idx], hit: true }
+        setScore((s) => s + 10); setStreak((s) => s + 1)
+        if ((streak + 1) % 10 === 0) emitToast(`🔥 ${streak + 1} seri!`, 'success')
+        return copy
+      }
+      setStreak(0)
+      return n
+    })
+  }
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const lane = ARROW_KEYS.indexOf(e.code)
+      if (lane >= 0) { e.preventDefault(); hit(lane) }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [running])
+  useEffect(() => { if (score > 0 && score % 100 === 0) saveArcadeScore('dance', score) }, [score])
+  return (
+    <div className="glass rounded-2xl p-5">
+      <ScoreHeader score={score} streak={streak} />
+      <div className="flex items-center gap-3 mb-4">
+        <label className="text-xs text-surface-400">BPM</label>
+        <input type="range" min={70} max={200} value={bpm} onChange={(e) => setBpm(Number(e.target.value))} className="flex-1 accent-wave-400" />
+        <span className="text-sm text-white font-bold w-10 text-right">{bpm}</span>
+        <button onClick={() => { if (!running) { setScore(0); setStreak(0); setNotes([]) } setRunning(!running) }} className="px-4 py-2 rounded-xl bg-gradient-to-r from-wave-500 to-fuchsia-500 text-white text-sm font-semibold">{running ? 'Dur' : 'Başla'}</button>
+      </div>
+      <div className="relative h-64 bg-surface-950/60 border border-surface-800 rounded-2xl overflow-hidden">
+        <div className="absolute top-[62%] left-0 right-0 h-0.5 bg-fuchsia-500/60 z-10" />
+        <div className="absolute inset-x-0 top-0 bottom-0 flex">
+          {[0, 1, 2, 3].map((l) => (
+            <div key={l} className="flex-1 border-r border-surface-800/60 last:border-r-0 relative">
+              {notes.filter((n) => n.lane === l).map((n, i) => (
+                <div key={i} className="absolute left-1/2 -translate-x-1/2 w-12 h-10 rounded-lg bg-gradient-to-br from-fuchsia-400 to-purple-600 border border-fuchsia-300/30 flex items-center justify-center text-lg shadow-lg shadow-fuchsia-500/40" style={{ top: n.y - 20 }}>{ARROW_LABELS[l]}</div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="text-xs text-surface-500 mt-3 text-center">Ok çizgiye gelince <b className="text-white">↑ ↓ ← →</b> tuşlarıyla vur</p>
+    </div>
+  )
+}
+
+/* 74 — Plak Kazıma */
+function ScratchVinyl() {
+  const [score, setScore] = useState(0)
+  const [spin, setSpin] = useState(0)
+  const [scratching, setScratching] = useState(false)
+  const [combos, setCombos] = useState(0)
+  const lastX = useRef(0)
+  const dir = useRef(0)
+  const audioRef = useRef<{ ctx: AudioContext; buf: AudioBuffer } | null>(null)
+  useEffect(() => {
+    try {
+      const ctx = new AudioContext()
+      const len = ctx.sampleRate * 0.4
+      const b = ctx.createBuffer(1, len, ctx.sampleRate)
+      const d = b.getChannelData(0)
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1
+      audioRef.current = { ctx, buf: b }
+    } catch { /* boş */ }
+    return () => { try { audioRef.current?.ctx.close() } catch { /* boş */ } }
+  }, [])
+  function onDown(e: React.PointerEvent) {
+    lastX.current = e.clientX; dir.current = 0
+    setScratching(true); setCombos(0)
+    if (audioRef.current && audioRef.current.ctx.state === 'suspended') audioRef.current.ctx.resume()
+  }
+  function onMove(e: React.PointerEvent) {
+    if (!scratching || !audioRef.current) return
+    const dx = e.clientX - lastX.current
+    lastX.current = e.clientX
+    const ndir = dx > 0 ? 1 : dx < 0 ? -1 : dir.current
+    if (dx !== 0) {
+      if (ndir !== dir.current) { dir.current = ndir; setCombos((c) => c + 1); setScore((s) => s + combos + 1); if (combos + 1 >= 10) emitToast(`🔥 ${combos + 1} kombo!`, 'success') }
+      else setScore((s) => s + 1)
+      setSpin((sp) => sp + dx * 0.8)
+      const { ctx, buf } = audioRef.current
+      const src = ctx.createBufferSource(); src.buffer = buf
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 800
+      const g = ctx.createGain(); g.gain.value = Math.min(0.45, Math.abs(dx) / 30)
+      src.connect(hp); hp.connect(g); g.connect(ctx.destination)
+      src.start(); src.stop(ctx.currentTime + 0.05)
+      if (score > 0 && score % 100 === 0) saveArcadeScore('scratch', score)
+    }
+  }
+  function onUp() { setScratching(false); setCombos(0) }
+  return (
+    <div className="glass rounded-2xl p-5 text-center">
+      <ScoreHeader score={score} streak={0} />
+      <div className="flex items-center justify-center gap-4 mb-2">
+        <div
+          className="relative w-48 h-48 rounded-full select-none touch-none cursor-grab active:cursor-grabbing"
+          style={{ background: 'radial-gradient(circle at 35% 35%, #1e293b, #0b1120 70%)', boxShadow: '0 10px 40px rgba(0,0,0,.5), inset 0 0 20px rgba(0,0,0,.8)', transform: `rotate(${spin}deg)`, transition: scratching ? 'none' : 'transform .4s ease' }}
+          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}
+        >
+          <div className="absolute inset-0 rounded-full" style={{ background: 'repeating-radial-gradient(circle, transparent 0 4px, rgba(20,184,166,.06) 4px 5px)' }} />
+          <div className="absolute inset-8 rounded-full bg-gradient-to-br from-wave-900 to-surface-950 border border-wave-500/30 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-wave-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-wave-500/30">
+              <span className="text-xl">🎵</span>
+            </div>
+          </div>
+          <div className="absolute inset-0 rounded-full border-2 border-dashed border-wave-500/10" style={{ transform: `rotate(${spin * 0.5}deg)` }} />
+        </div>
+      </div>
+      <p className="text-sm font-bold text-white mb-1">{scratching ? '🎧 Plak sürtülüyor!' : "DJ'in sırası sende"}</p>
+      <p className="text-xs text-surface-500">Plakayı <b className="text-white">ileri geri</b> sürt — yön değiştirdikçe kombo puanı artar</p>
+    </div>
+  )
+}
+
+/* 75 — Liderlik Sezonu */
+function SeasonBoard() {
+  const [data, setData] = useState<{ season: string; scores: { name: string; score: number; game: string; date: number }[] }>(() => {
+    try { return JSON.parse(localStorage.getItem('waveify_arcade_season') || '') || { season: currentSeason(), scores: [] } } catch { return { season: currentSeason(), scores: [] } }
+  })
+  const [bests, setBests] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem('waveify_arcade_best') || '{}') } catch { return {} }
+  })
+  const sorted = [...data.scores].sort((a, b) => b.score - a.score).slice(0, 15)
+  const medal = (i: number) => (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`)
+  const gameName = (id: string) => GAMES.find((g) => g.id === id)?.name || id
+  return (
+    <div className="glass rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-lg font-display font-bold text-white">🏆 {data.season} Sezonu</p>
+          <p className="text-xs text-surface-500">Her ay sıfırlanır — oyunlarda 50+ puan skor kaydı yapar</p>
+        </div>
+        <button onClick={() => setData({ season: currentSeason(), scores: [] })} className="text-xs text-surface-400 hover:text-rose-400 transition-colors">Sıfırla</button>
+      </div>
+      {sorted.length === 0 ? (
+        <p className="text-center text-sm text-surface-500 py-8">Henüz skor yok — ilk skoru sen kaydet! 🎮</p>
+      ) : (
+        <div className="flex flex-col gap-1.5 max-w-lg mx-auto">
+          {sorted.map((s, i) => (
+            <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-xl border ${i === 0 ? 'bg-amber-500/10 border-amber-500/40' : i < 3 ? 'bg-surface-800/60 border-surface-700' : 'bg-surface-900/40 border-surface-800'}`}>
+              <span className="w-8 text-center text-lg">{medal(i)}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">{s.name}</p>
+                <p className="text-[10px] text-surface-500">{gameName(s.game)} · {new Date(s.date).toLocaleDateString('tr-TR')}</p>
+              </div>
+              <span className="text-sm font-bold text-wave-300">{s.score}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="mt-6 pt-4 border-t border-surface-800">
+        <p className="text-xs font-bold text-surface-400 uppercase tracking-wider mb-3">Kişisel En İyiler</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {Object.entries(bests).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([g, s]) => (
+            <div key={g} className="px-3 py-2 rounded-xl bg-surface-800/60 border border-surface-700">
+              <p className="text-[10px] text-surface-500 truncate">{gameName(g)}</p>
+              <p className="text-sm font-bold text-white">{s} <span className="text-[10px] text-surface-500 font-normal">puan</span></p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

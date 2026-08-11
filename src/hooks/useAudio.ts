@@ -55,7 +55,21 @@ export function useAudio() {
         state.setSleepTimer({ remaining: 0, endOfSong: false, active: false })
         return
       }
-      if (q.length === 0) return
+      if (q.length === 0) {
+        /* 130 — Sonsuz Akış: kuyruk bitince aynı ruh halindeki şarkıları otomatik çek */
+        if (cs) {
+          fetchRadioBatch(cs, []).then((batch) => {
+            const st2 = useStore.getState()
+            if (batch.length > 0) {
+              st2.setQueue(batch)
+              const first = batch[0]
+              st2.setCurrentSong(first)
+              st2.addToHistory(first)
+            }
+          }).catch(() => {})
+        }
+        return
+      }
       if (rp === 'one' && cs?.audio_url) {
         audioEngine.play(cs.audio_url)
         state.setIsPlaying(true)
@@ -202,7 +216,12 @@ export function useAudio() {
         audioEngine.pause()
         state.setIsPlaying(false)
         state.setSleepTimer({ remaining: 0, endOfSong: false, active: false })
+        if (state.sleepTimer.fadeOut) audioEngine.setVolume(useStore.getState().volume)
       } else {
+        /* 106 — Gelişmiş Zamanlayıcı: son 30 saniyede sesi yumuşakça kıs */
+        if (state.sleepTimer.fadeOut && newRemaining <= 30 && !state.sleepTimer.endOfSong) {
+          audioEngine.setVolume(Math.max(0.03, state.volume * (newRemaining / 30)))
+        }
         state.setSleepTimer({ ...state.sleepTimer, remaining: newRemaining })
       }
     }

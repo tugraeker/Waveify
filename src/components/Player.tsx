@@ -398,7 +398,7 @@ export default function Player() {
                   </button>
                 ))}
                 <button
-                  onClick={() => setSleepTimer({ remaining: 0, endOfSong: true, active: true })}
+                  onClick={() => setSleepTimer({ remaining: 0, endOfSong: true, active: true, fadeOut: false })}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     sleepTimer.active && sleepTimer.endOfSong
                       ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20'
@@ -406,6 +406,17 @@ export default function Player() {
                   }`}
                 >
                   Şarkı sonu
+                </button>
+                <button
+                  onClick={() => setSleepTimer({ remaining: 30, endOfSong: false, active: true, fadeOut: true })}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    sleepTimer.active && sleepTimer.fadeOut
+                      ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20'
+                      : 'text-surface-400 hover:text-white border border-surface-700'
+                  }`}
+                  title="Son 30 saniyede sesi yumuşatır"
+                >
+                  Yumuşak (30sn)
                 </button>
                 {sleepTimer.active && (
                   <button
@@ -416,11 +427,11 @@ export default function Player() {
                   </button>
                 )}
               </div>
-              {sleepTimer.active && (
-                <p className="text-xs text-wave-400 text-center">
-                  {sleepTimer.endOfSong ? 'Şarkı sonunda duracak' : `${Math.floor(sleepTimer.remaining / 60)}:${(sleepTimer.remaining % 60).toString().padStart(2, '0')} kaldı`}
-                </p>
-              )}
+                  {sleepTimer.active && (
+                    <p className="text-xs text-wave-400 text-center">
+                      {sleepTimer.endOfSong ? 'Şarkı sonunda duracak' : sleepTimer.fadeOut ? '30 sn içinde yumuşak kapanış...' : `${Math.floor(sleepTimer.remaining / 60)}:${(sleepTimer.remaining % 60).toString().padStart(2, '0')} kaldı`}
+                    </p>
+                  )}
             </div>
           )}
         </div>

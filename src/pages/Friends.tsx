@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
-import { UserPlus, UserCheck, Clock, X, Users, Search, Trash2, Ban, Circle, Siren, Send } from 'lucide-react'
+import { UserPlus, UserCheck, Clock, X, Users, Search, Trash2, Ban, Circle, Siren, Send, Radio, Swords, FlaskConical } from 'lucide-react'
 import { trackFriend, awardXp } from '@/lib/achievements'
 import { emitToast } from '@/hooks/useToast'
 import { sendTroll, TROLL_TEMPLATES, type TrollMessage } from '@/lib/troll'
-import { compatLabel, jaccard } from '@/lib/social'
+import { compatLabel, jaccard, personaFromGenres } from '@/lib/social'
 import type { User } from '@/types'
 
 interface FriendUser { id: string; username: string; email?: string; last_seen?: string }
@@ -31,6 +31,10 @@ export default function FriendsPage() {
   const [sendingTroll, setSendingTroll] = useState(false)
   const [compat, setCompat] = useState<Record<string, number>>({})
   const [compatLoading, setCompatLoading] = useState(false)
+  const [radioLoading, setRadioLoading] = useState<string | null>(null)
+  const [battle, setBattle] = useState<{ friend: FriendUser; text: string[] } | null>(null)
+  const [blendSel, setBlendSel] = useState<Set<string>>(new Set())
+  const [blendLoading, setBlendLoading] = useState(false)
 
   useEffect(() => { if (user) { fetchFriends(); fetchBlocked() } }, [user])
 
@@ -83,10 +87,92 @@ export default function FriendsPage() {
       setCompat(next)
     } catch {} finally { setCompatLoading(false) }
   }
-
   async function fetchBlocked() {
     const { data } = await supabase.from('blocks').select('blocked_id, blocked:blocked_id(id, username)').eq('user_id', user?.id)
     if (data) setBlockedUsers(data.map((b: any) => b.blocked).filter(Boolean))
+  }
+
+  /* 132 — Blend: seçilen arkadaşların zevklerini tek akışta karıştır */
+  async function createBlend() {
+    if (!user || blendSel.size === 0) { emitToast('En az bir arkadaş seç', 'info'); return }
+    setBlendLoading(true)
+    try {
+      const picked = friends.filter((f) => blendSel.has(f.id)).slice(0, 3)
+      const perFriend = Math.ceil(24 / picked.length)
+      const ids: string[] = []
+      for (const f of picked) {
+        const { data: hist } = await supabase.from('listen_history').select('song:songs(id)').eq('user_id', f.id).limit(60)
+        const fids = [...new Set((hist || []).map((h: any) => h.song?.id).filter(Boolean))] as string[]
+        ids.push(...fids.slice(0, perFriend))
+      }
+      const unique = [...new Set(ids)]
+      if (!unique.length) { emitToast('Arkadaşlarının dinleme geçmişi yok', 'info'); setBlendLoading(false); return }
+      const { data: songs } = await supabase.from('songs').select('*').in('id', unique).limit(60)
+      const list = (songs || []).sort(() => Math.random() - 0.5)
+      if (!list.length) { emitToast('Şarkılar bulunamadı', 'error'); setBlendLoading(false); return }
+      useStore.getState().setQueue(list)
+      useStore.getState().setCurrentSong(list[0])
+      useStore.getState().setIsPlaying(true)
+      emitToast(`🧪 Blend hazır: ${picked.map((f) => f.username).join(' + ')} (${list.length} şarkı)`, 'success')
+      setBlendSel(new Set())
+    } catch { emitToast('Blend oluşturulamadı', 'error') }
+    setBlendLoading(false)
+  }
+
+  /* 6 — Arkadaş Radyosu: arkadaşın dinlediklerinden karışık akış */
+  async function startFriendRadio(friend: FriendUser) {
+    if (!user) return
+    setRadioLoading(friend.id)
+    try {
+      const { data: hist } = await supabase.from('listen_history').select('song:songs(id)').eq('user_id', friend.id).limit(80)
+      const ids = [...new Set((hist || []).map((h: any) => h.song?.id).filter(Boolean))] as string[]
+      if (!ids.length) { emitToast('Arkadaşın henüz dinleme geçmişi yok', 'info'); setRadioLoading(null); return }
+      const { data: songs } = await supabase.from('songs').select('*').in('id', ids).limit(80)
+      const list = songs || []
+      if (!list.length) { emitToast('Şarkılar bulunamadı', 'error'); setRadioLoading(null); return }
+      const shuffled = [...list].sort(() => Math.random() - 0.5)
+      useStore.getState().setQueue(shuffled)
+      useStore.getState().setCurrentSong(shuffled[0])
+      useStore.getState().setIsPlaying(true)
+      emitToast(`📻 ${friend.username} radyosu yayında!`, 'success')
+    } catch { emitToast('Radyo başlatılamadı', 'error') }
+    setRadioLoading(null)
+  }
+
+  /* 185 — Müzik Zevki Kapışması: komik rap savaşı */
+  async function battleTaste(friend: FriendUser) {
+    if (!user) return
+    try {
+      const { data: myLikes } = await supabase.from('likes').select('song:songs(genre)').eq('user_id', user.id).limit(150)
+      const { data: theirLikes } = await supabase.from('likes').select('song:songs(genre)').eq('user_id', friend.id).limit(150)
+      const countGenres = (rows: any[]) => {
+        const m = new Map<string, number>()
+        for (const r of rows) { const g = r.song?.genre || 'bilinmeyen'; m.set(g, (m.get(g) || 0) + 1) }
+        return Object.fromEntries(m)
+      }
+      const me = personaFromGenres(countGenres(myLikes || []))
+      const them = personaFromGenres(countGenres(theirLikes || []))
+      const punch: Record<string, string> = {
+        'Rock Yıldızı': 'gitarımı bir akor bile çalmadan kalbiniz yanıyor',
+        'Pop Parlayan': 'liste başı koltukta senden önce oturdum',
+        'Ritim Ustası': 'beat yarışında 808\'ler konuşur, laf değil',
+        'Gece Kuşu': 'saksafonum sabah 4\'te bile swinger',
+        'Sahne Asili': 'senin zevkin prelüd, benimki konçerto',
+        'Gelecekçi': 'sen 8-bit\'te takılırken ben sentezdeyim',
+        'Duygusal Ruh': 'hüznünde bile ritim var, kıskandım',
+        'Anadolu Ruhu': 'köklerimi dinle, meydan okuman zayıf',
+        'Ses Dalgacı': 'ambient\'la bile seni ters köşeye yatırırım',
+      }
+      const lines = [
+        `🎤 RAP SAVAŞI: ${user.username} vs ${friend.username}`,
+        `${user.username} (${me.emoji} ${me.title}): "${punch[me.title] || 'müzik zevkim seni ezer'}"`,
+        `${friend.username} (${them.emoji} ${them.title}): "${punch[them.title] || 'senin listen modası geçmiş'}"`,
+        `${user.username}: "Uyumumuz %${compat[friend.id] || '?'} ama taht benim — çünkü ${me.desc.split('.')[0]}"`,
+        `${friend.username}: "Senin türünle benim beat\'im birleşince ortalık yıkılır!"`,
+        `🏆 Kazanan: ${compat[friend.id] >= 50 ? 'Berabere — ikiniz de efsane dinliyorsunuz!' : user.username + ' (bu turda)'}`,
+      ]
+      setBattle({ friend, text: lines })
+    } catch { emitToast('Kapışma başlatılamadı', 'error') }
   }
 
   async function searchUser() {
@@ -234,6 +320,33 @@ export default function FriendsPage() {
         )}
         <section>
           <h2 className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-3">Arkadaşların ({friends.length})</h2>
+          {friends.length > 1 && (
+            <div className="glass rounded-xl p-3 mb-3 border border-violet-500/20">
+              <div className="flex items-center gap-2 mb-2">
+                <FlaskConical size={14} className="text-violet-400" />
+                <p className="text-xs font-bold text-white">Arkadaş Blend'i</p>
+                <p className="text-[10px] text-surface-500 flex-1 text-right">{blendSel.size} seçili</p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {friends.slice(0, 8).map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => {
+                      const next = new Set(blendSel)
+                      if (next.has(f.id)) next.delete(f.id); else next.add(f.id)
+                      setBlendSel(next)
+                    }}
+                    className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold transition-all ${blendSel.has(f.id) ? 'bg-violet-500/25 border-violet-500/50 text-violet-200' : 'bg-surface-800/70 border-surface-700 text-surface-300 hover:border-violet-500/40'}`}
+                  >
+                    {f.username}
+                  </button>
+                ))}
+              </div>
+              <button onClick={createBlend} disabled={blendLoading || blendSel.size === 0} className="w-full py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-40">
+                {blendLoading ? 'Karıştırılıyor...' : '🧪 Blend Karıştır ve Çal'}
+              </button>
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             {friends.length === 0 ? (
               <div className="flex flex-col items-center py-12 text-surface-500 glass rounded-2xl border-dashed"><Users size={36} className="mb-3 opacity-30" /><p className="text-sm">Henüz arkadaşın yok</p><p className="text-xs mt-1 text-surface-600">İsim veya e-posta ile arkadaşlarını bul</p></div>
@@ -252,6 +365,12 @@ export default function FriendsPage() {
                     </span>
                   )}
                 </div>
+                <button onClick={() => startFriendRadio(f)} disabled={radioLoading === f.id} className="p-2 rounded-lg text-wave-400/80 hover:text-wave-300 hover:bg-wave-500/10 transition-all disabled:opacity-40" title="Arkadaş Radyosu — onun dinlediklerini çal">
+                  <Radio size={14} className={radioLoading === f.id ? 'animate-spin' : ''} />
+                </button>
+                <button onClick={() => battleTaste(f)} className="p-2 rounded-lg text-amber-400/80 hover:text-amber-300 hover:bg-amber-500/10 transition-all" title="Zevk Kapışması — rap savaşı">
+                  <Swords size={14} />
+                </button>
                 <button onClick={() => setTrollTarget(f)} className="p-2 rounded-lg text-red-400/70 hover:text-red-300 hover:bg-red-500/10 transition-all animate-pulse" title="Ekran uyarısı gönder (troll)">
                   <Siren size={14} />
                 </button>
@@ -282,6 +401,23 @@ export default function FriendsPage() {
           </section>
         )}
       </div>
+
+      {battle && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setBattle(null)}>
+          <div className="w-full max-w-lg mx-4 glass rounded-3xl p-6 animate-pop-in border border-amber-500/20 shadow-2xl shadow-amber-500/10" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white flex items-center gap-2"><Swords size={18} className="text-amber-400" /> Müzik Zevki Kapışması</h3>
+              <button onClick={() => setBattle(null)} className="text-surface-500 hover:text-white transition-colors"><X size={18} /></button>
+            </div>
+            <div className="space-y-2.5 mb-5">
+              {battle.text.map((line, i) => (
+                <p key={i} className={`text-sm rounded-xl px-3.5 py-2.5 leading-relaxed ${i === 0 ? 'bg-surface-800/60 text-white font-bold text-center' : i === battle.text.length - 1 ? 'bg-amber-500/10 border border-amber-500/30 text-amber-300 font-semibold text-center' : 'bg-surface-800/40 text-surface-200'}`}>{line}</p>
+              ))}
+            </div>
+            <button onClick={() => { setBattle(null); battleTaste(battle.friend) }} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold hover:opacity-90 transition-opacity">🔄 Remix — Tekrar Kapış</button>
+          </div>
+        </div>
+      )}
 
       {trollTarget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">

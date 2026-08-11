@@ -150,6 +150,7 @@ export interface SleepTimer {
   remaining: number
   endOfSong: boolean
   active: boolean
+  fadeOut?: boolean
 }
 
 export interface Activity {

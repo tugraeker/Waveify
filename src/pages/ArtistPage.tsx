@@ -6,7 +6,7 @@ import { formatDuration } from '@/lib/utils'
 import { Button } from '@/components/ui'
 import { isFollowing, toggleFollow } from '@/lib/artists'
 import type { Song } from '@/types'
-import { ArrowLeft, Play, Pause, Music2, Plus, Check } from 'lucide-react'
+import { ArrowLeft, Play, Pause, Music2, Plus, Check, Crown, History } from 'lucide-react'
 
 export default function ArtistPage() {
   const { name } = useParams<{ name: string }>()
@@ -14,6 +14,8 @@ export default function ArtistPage() {
   const { setCurrentSong, setQueue, currentSong, isPlaying } = useStore()
   const [songs, setSongs] = useState<Song[]>([])
   const [following, setFollowing] = useState(false)
+  const [topListeners, setTopListeners] = useState<{ username: string; count: number }[]>([])
+  const [timeMachineLoading, setTimeMachineLoading] = useState(false)
 
   const artistName = name ? decodeURIComponent(name) : ''
 
@@ -32,6 +34,37 @@ export default function ArtistPage() {
       if (data) setSongs(data)
     })
   }, [name])
+
+  /* 181 — Kral Dinleyici: bu sanatçının en sadık dinleyicileri */
+  useEffect(() => {
+    if (!name || !songs.length) return
+    const songIds = songs.map((s) => s.id)
+    supabase
+      .from('listen_history')
+      .select('user:users(username), song_id')
+      .in('song_id', songIds.slice(0, 30))
+      .limit(400)
+      .then(({ data }) => {
+        const map = new Map<string, number>()
+        for (const h of (data || []) as any[]) {
+          const uname = h.user?.username
+          if (uname) map.set(uname, (map.get(uname) || 0) + 1)
+        }
+        setTopListeners([...map.entries()].map(([username, count]) => ({ username, count })).sort((a, b) => b.count - a.count).slice(0, 3))
+      })
+  }, [name, songs.length])
+
+  /* 182 — Zaman Makinesi: kronolojik discography akışı */
+  async function timeMachine() {
+    if (!songs.length || timeMachineLoading) return
+    setTimeMachineLoading(true)
+    const { data } = await supabase.from('songs').select('*').eq('artist', artistName).order('created_at', { ascending: true }).limit(100)
+    const list = data || songs
+    if (!list.length) { setTimeMachineLoading(false); return }
+    setQueue(list)
+    setCurrentSong(list[0])
+    setTimeMachineLoading(false)
+  }
 
   const playAll = () => {
     if (songs.length === 0) return
@@ -63,6 +96,14 @@ export default function ArtistPage() {
                 <Play size={18} fill="white" /> Tümünü Oynat
               </Button>
               <button
+                onClick={timeMachine}
+                disabled={songs.length === 0 || timeMachineLoading}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border bg-surface-800 text-surface-300 border-surface-700 hover:text-white disabled:opacity-50"
+              >
+                <History size={15} />
+                {timeMachineLoading ? 'Hazırlanıyor...' : 'Zaman Makinesi'}
+              </button>
+              <button
                 onClick={handleFollow}
                 className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
                   following
@@ -74,6 +115,16 @@ export default function ArtistPage() {
                 {following ? 'Takip Ediliyor' : 'Takip Et'}
               </button>
             </div>
+            {topListeners.length > 0 && (
+              <div className="mt-4 flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] uppercase tracking-wider text-amber-400 font-semibold flex items-center gap-1"><Crown size={12} /> Kral Dinleyiciler</span>
+                {topListeners.map((l, i) => (
+                  <span key={l.username} className={`text-[11px] px-2.5 py-1 rounded-full border font-semibold ${i === 0 ? 'bg-amber-500/15 border-amber-500/40 text-amber-300' : 'bg-surface-800/70 border-surface-700 text-surface-300'}`}>
+                    {i === 0 ? '👑 ' : ''}{l.username} · {l.count}×
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

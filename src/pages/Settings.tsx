@@ -26,6 +26,7 @@ export default function Settings() {
     crossfade, setCrossfade, crossfadeDuration, setCrossfadeDuration,
     visualTheme, setVisualTheme, pillMode, setPillMode, neonText, setNeonText, lowDataMode, setLowDataMode,
     hotkeys, setHotkeys, profileName, setProfileName, smartCache, setSmartCache,
+    glassEffects, setGlassEffects,
   } = useStore()
   const navigate = useNavigate()
   const [username, setUsername] = useState(user?.username || '')
@@ -361,6 +362,12 @@ export default function Settings() {
                 <span className="text-sm text-surface-300">Düşük Veri Modu <span className="text-[10px] text-surface-500">(ambiyans analizi kapalı)</span></span>
                 <button onClick={() => setLowDataMode(!lowDataMode)} className={`w-11 h-6 rounded-full transition-all ${lowDataMode ? 'bg-emerald-500' : 'bg-surface-700'} relative`}>
                   <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${lowDataMode ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-surface-300">Cam Efektleri <span className="text-[10px] text-surface-500">(glassmorphism, kapalıyken düz yüzey)</span></span>
+                <button onClick={() => setGlassEffects(!glassEffects)} className={`w-11 h-6 rounded-full transition-all ${glassEffects ? 'bg-sky-500' : 'bg-surface-700'} relative`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${glassEffects ? 'left-[22px]' : 'left-0.5'}`} />
                 </button>
               </div>
             </div>

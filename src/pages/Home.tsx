@@ -15,6 +15,7 @@ import { getStats, getXpTotal } from '@/lib/achievements'
 import { emitToast } from '@/hooks/useToast'
 import { dailyFact, dailyFortune, wheelRotation } from '@/lib/fun'
 import { confettiBurst } from '@/lib/party'
+import { FlowToolsSection } from '@/components/FlowTools'
 
 const autoPlaylistDefs = [
   { name: 'En Çok Dinlenenler', icon: Flame, auto_type: 'top50', gradient: 'from-rose-600 to-orange-600' },
@@ -455,6 +456,8 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      <FlowToolsSection />
 
       {ctxMenu && <ContextMenu song={ctxMenu.song} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} onAddToPlaylist={() => setAddPlaylistSong(ctxMenu.song)} />}
       {addPlaylistSong && <AddToPlaylistModal song={addPlaylistSong} onClose={() => setAddPlaylistSong(null)} />}

@@ -3,8 +3,9 @@ import { supabase } from '@/lib/supabase'
 import { useStore } from '@/store/store'
 import { resolveAudioUrl } from '@/lib/offline'
 import { emitToast } from '@/hooks/useToast'
-import { SlidersHorizontal, Guitar, Timer, Grid3x3, FileOutput, AudioWaveform, CassetteTape, Waves, Activity, Disc3, Highlighter } from 'lucide-react'
+import { SlidersHorizontal, Guitar, Timer, Grid3x3, FileOutput, AudioWaveform, CassetteTape, Waves, Activity, Disc3, Highlighter, PenLine } from 'lucide-react'
 import type { Song } from '@/types'
+import { defaultEqBands } from '@/types'
 
 let studioCtx: AudioContext | null = null
 async function ctx(): Promise<AudioContext> {
@@ -26,6 +27,7 @@ const TOOLS = [
   { id: 'analyze', name: 'BPM & Ton', icon: Activity, desc: 'Şarkı analizi' },
   { id: 'center', name: 'Enstrümantal Mod', icon: Disc3, desc: 'Vokali merkezden sil' },
   { id: 'abloop', name: 'Highlight Döngüsü', icon: Highlighter, desc: 'A-B tekrar bölgesi' },
+  { id: 'eqdraw', name: 'EQ Çizimi', icon: PenLine, desc: 'Eğri çizerek ekolayzer ayarla' },
 ]
 
 export default function Studio() {
@@ -50,7 +52,7 @@ export default function Studio() {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20"><SlidersHorizontal size={20} className="text-white" /></div>
           <div>
             <h1 className="text-2xl font-display font-bold">Studio</h1>
-            <p className="text-sm text-surface-400">11 profesyonel araç — sentez, analiz ve dışa aktarma</p>
+            <p className="text-sm text-surface-400">12 profesyonel araç — sentez, analiz ve dışa aktarma</p>
           </div>
         </div>
 
@@ -83,6 +85,7 @@ export default function Studio() {
             {active === 'analyze' && <AnalyzeTool pool={pool} />}
             {active === 'center' && <CenterCancel pool={pool} />}
             {active === 'abloop' && <ABLoop pool={pool} />}
+            {active === 'eqdraw' && <EqDrawTool />}
           </div>
         )}
       </div>
@@ -144,27 +147,50 @@ function SynthPad() {
   const pads: number[][] = []
   const root = 60
   for (let r = 0; r < 4; r++) { const row: number[] = []; for (let c = 0; c < 4; c++) row.push(root + r * 2 + (c % 4)); pads.push(row) }
-  const playPad = async (midi: number) => {
-    const ac = await ctx()
-    const osc = ac.createOscillator()
-    const g = ac.createGain()
-    osc.type = wave
-    osc.frequency.value = midiFreq(midi)
-    g.gain.setValueAtTime(0.0001, ac.currentTime)
-    g.gain.exponentialRampToValueAtTime(0.25, ac.currentTime + 0.01)
-    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.7)
-    osc.connect(g).connect(ac.destination)
-    osc.start()
-    osc.stop(ac.currentTime + 0.8)
-  }
+    const playPad = async (midi: number) => {
+      const ac = await ctx()
+      const osc = ac.createOscillator()
+      const g = ac.createGain()
+      osc.type = wave
+      osc.frequency.value = midiFreq(midi)
+      g.gain.setValueAtTime(0.0001, ac.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.25, ac.currentTime + 0.01)
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.7)
+      osc.connect(g).connect(ac.destination)
+      osc.start()
+      osc.stop(ac.currentTime + 0.8)
+    }
+    const playPadRef = useRef(playPad)
+    playPadRef.current = playPad
+    const [midiConnected, setMidiConnected] = useState(false)
+    useEffect(() => {
+      const nav: any = navigator
+      if (!nav.requestMIDIAccess) return
+      let cleanup = false
+      nav.requestMIDIAccess().then((access: any) => {
+        if (cleanup) return
+        const inputs: any[] = [...access.inputs.values()]
+        if (inputs.length > 0) setMidiConnected(true)
+        inputs.forEach((input: any) => {
+          input.onmidimessage = (e: any) => {
+            const data: number[] = e.data
+            if (data.length < 3) return
+            const [status, note, vel] = data
+            if (status >= 144 && status < 160 && vel > 0) playPadRef.current(note)
+          }
+        })
+      }).catch(() => {})
+      return () => { cleanup = true }
+    }, [])
   return (
     <div>
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-xs text-surface-400">Dalga:</span>
-        {(['sine', 'triangle', 'square', 'sawtooth'] as OscillatorType[]).map((w) => (
-          <button key={w} onClick={() => setWave(w)} className={`px-3 py-1 rounded-lg text-xs border transition-colors ${wave === w ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300' : 'bg-surface-800 border-surface-700 text-surface-400'}`}>{w}</button>
-        ))}
-      </div>
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xs text-surface-400">Dalga:</span>
+          {(['sine', 'triangle', 'square', 'sawtooth'] as OscillatorType[]).map((w) => (
+            <button key={w} onClick={() => setWave(w)} className={`px-3 py-1 rounded-lg text-xs border transition-colors ${wave === w ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300' : 'bg-surface-800 border-surface-700 text-surface-400'}`}>{w}</button>
+          ))}
+          {midiConnected && <span className="ml-auto text-[10px] px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 animate-fade-in">🎹 MIDI cihaz bağlı</span>}
+        </div>
       <div className="grid grid-cols-4 gap-2">
         {pads.map((row, ri) => row.map((m) => (
           <button key={m} onMouseDown={() => playPad(m)} onTouchStart={(e) => { e.preventDefault(); playPad(m) }} className="h-20 rounded-2xl bg-gradient-to-br from-surface-800 to-surface-900 border border-surface-700 active:scale-95 transition-transform hover:border-cyan-500/50 text-sm text-surface-300 font-semibold">
@@ -752,6 +778,92 @@ function ABLoop({ pool }: { pool: Song[] }) {
           <p className="text-xs text-surface-500 mt-2">Dalga formuna tıkla — en yakın uç (A/B) taşınır. A ve B arası sonsuz döngü.</p>
         </div>
       )}
+    </div>
+  )
+}
+
+/* 95 — EQ Çizimi: eğri çizerek ekolayzer ayarla */
+const EQ_FREQS = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+function EqDrawTool() {
+  const { equalizer, setEqualizer } = useStore()
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawing = useRef(false)
+  const curveRef = useRef<number[]>([])
+  const W = 640, H = 240, PAD = 28
+  const bands = equalizer.bands || defaultEqBands()
+  const bandX = (i: number) => PAD + (i * (W - PAD * 2)) / 9
+  const yToVal = (y: number) => Math.max(-10, Math.min(10, Math.round((10 - (y - PAD) / ((H - PAD * 2) / 20)) * 10) / 10))
+  const valToY = (v: number) => PAD + (10 - v) * ((H - PAD * 2) / 20)
+
+  function draw(vals: number[]) {
+    const c = canvasRef.current
+    if (!c) return
+    const ctx = c.getContext('2d')
+    if (!ctx) return
+    ctx.clearRect(0, 0, W, H)
+    ctx.fillStyle = '#0b1220'
+    ctx.fillRect(0, 0, W, H)
+    for (let g = 0; g <= 4; g++) {
+      const v = -10 + g * 5
+      const y = valToY(v)
+      ctx.strokeStyle = v === 0 ? 'rgba(148,163,184,0.35)' : 'rgba(148,163,184,0.12)'
+      ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke()
+      ctx.fillStyle = 'rgba(148,163,184,0.6)'
+      ctx.font = '10px monospace'
+      ctx.fillText(`${v > 0 ? '+' : ''}${v}`, 4, y + 3)
+    }
+    ctx.fillStyle = 'rgba(34,211,238,0.8)'
+    ctx.font = '9px monospace'
+    EQ_FREQS.forEach((f, i) => ctx.fillText(f >= 1000 ? `${f / 1000}k` : String(f), bandX(i) - 8, H - 8))
+    ctx.strokeStyle = '#22d3ee'
+    ctx.lineWidth = 2.5
+    ctx.lineJoin = 'round'
+    ctx.beginPath()
+    vals.forEach((v, i) => { const x = bandX(i), y = valToY(v); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y) })
+    ctx.stroke()
+    ctx.lineTo(bandX(9), valToY(vals[9])); ctx.lineTo(bandX(9), valToY(0)); ctx.lineTo(bandX(0), valToY(0)); ctx.closePath()
+    ctx.fillStyle = 'rgba(34,211,238,0.08)'
+    ctx.fill()
+    vals.forEach((v, i) => {
+      ctx.fillStyle = '#fff'
+      ctx.beginPath(); ctx.arc(bandX(i), valToY(v), 3.5, 0, Math.PI * 2); ctx.fill()
+    })
+  }
+  useEffect(() => { if (!drawing.current) draw(bands) }, [bands])
+
+  function onMove(e: React.PointerEvent) {
+    if (!drawing.current) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * W
+    const y = ((e.clientY - rect.top) / rect.height) * H
+    const i = Math.max(0, Math.min(9, Math.round((x - PAD) / ((W - PAD * 2) / 9))))
+    const curve = [...curveRef.current]
+    curve[i] = yToVal(y)
+    let lastSet = i
+    for (let j = i - 1; j >= 0; j--) { if (curve[j] !== null) { for (let k = j + 1; k < lastSet; k++) curve[k] = curve[j] + ((curve[lastSet] - curve[j]) * (k - j)) / (lastSet - j); break } }
+    for (let j = i + 1; j < 10; j++) { if (curve[j] !== null) { for (let k = lastSet + 1; k < j; k++) curve[k] = curve[lastSet] + ((curve[j] - curve[lastSet]) * (k - lastSet)) / (j - lastSet); break } }
+    curveRef.current = curve
+    draw(curve)
+    setEqualizer({ ...equalizer, bands: curve })
+  }
+
+  return (
+    <div className="glass rounded-2xl p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-white">🎨 Ekolayzer Eğrisi Çiz</p>
+        <div className="flex gap-2">
+          <button onClick={() => setEqualizer({ ...equalizer, bands: defaultEqBands() })} className="px-3 py-1.5 rounded-lg bg-surface-800 border border-surface-700 text-xs text-surface-400 hover:text-white">Sıfırla</button>
+        </div>
+      </div>
+      <canvas
+        ref={canvasRef}
+        width={W} height={H}
+        className="w-full h-48 rounded-xl border border-surface-700 cursor-crosshair touch-none"
+        onPointerDown={(e) => { drawing.current = true; curveRef.current = [...(equalizer.bands || defaultEqBands())]; (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId); onMove(e) }}
+        onPointerMove={onMove}
+        onPointerUp={() => { drawing.current = false }}
+      />
+      <p className="text-xs text-surface-500">Eğriyi sürükleyerek çiz — 10 bant (31 Hz – 16 kHz) anında güncellenir. Müzik çalarken deneyin.</p>
     </div>
   )
 }

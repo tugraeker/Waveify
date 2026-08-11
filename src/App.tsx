@@ -56,6 +56,12 @@ const PitchGame = lazy(() => import('@/pages/PitchGame'))
 const Arcade = lazy(() => import('@/pages/Arcade'))
 const Studio = lazy(() => import('@/pages/Studio'))
 const Overlay = lazy(() => import('@/pages/Overlay'))
+const Community = lazy(() => import('@/pages/Community'))
+const Recap = lazy(() => import('@/pages/Recap'))
+const MusicWiki = lazy(() => import('@/pages/MusicWiki'))
+const Zen = lazy(() => import('@/pages/Zen'))
+const SystemPage = lazy(() => import('@/pages/System'))
+const QuestsPage = lazy(() => import('@/pages/QuestsPage'))
 
 const accentPalettes: Record<AccentColor, Record<string, string>> = {
   wave:   { '50': '238 251 250', '100': '213 245 242', '200': '174 234 229', '300': '106 217 210', '400': '34 199 192', '500': '15 171 166', '600': '9 139 136', '700': '12 111 109', '800': '15 89 88', '900': '18 74 73', '950': '3 45 45' },
@@ -90,7 +96,13 @@ const AURORA_SCENES: Record<string, [string, string, string]> = {
   '/beatmaker': ['16 185 129', '245 158 11', '34 211 238'],
   '/pitch-game': ['217 70 239', '16 185 129', '99 102 241'],
   '/arcade': ['245 158 11', '34 211 238', '236 72 153'],
-  '/studio': ['34 211 238', '16 185 129', '99 102 241'],
+    '/studio': ['34 211 238', '16 185 129', '99 102 241'],
+    '/community': ['244 63 94', '251 146 60', '99 102 241'],
+    '/recap': ['16 185 129', '20 184 166', '99 102 241'],
+    '/wiki': ['245 158 11', '168 85 247', '99 102 241'],
+    '/zen': ['16 185 129', '52 211 153', '99 102 241'],
+    '/system': ['244 63 94', '16 185 129', '99 102 241'],
+    '/quests': ['52 211 153', '16 185 129', '99 102 241'],
   '/settings': ['99 102 241', '139 92 246', '34 211 238'],
   '/admin': ['34 211 238', '99 102 241', '139 92 246'],
 }
@@ -101,7 +113,7 @@ function isNightWindow(): boolean {
 }
 
 export default function App() {
-  const { user, theme, accentColor, customAccentColor, setUser, setPlaylists, currentSong, retroMode, lowLightMode, visualTheme, neonText, lowDataMode } = useStore()
+  const { user, theme, accentColor, customAccentColor, setUser, setPlaylists, currentSong, retroMode, lowLightMode, visualTheme, neonText, lowDataMode, glassEffects } = useStore()
   const navigate = useNavigate()
   const location = useLocation()
   const [mounted, setMounted] = useState(false)
@@ -130,6 +142,11 @@ export default function App() {
     const root = document.documentElement
     root.style.setProperty('--low-light', lowLightMode ? '1' : '0')
   }, [lowLightMode])
+
+  /* 96 — Cam Efektleri: glassmorphism kapatılabilir */
+  useEffect(() => {
+    document.documentElement.classList.toggle('no-glass', !glassEffects)
+  }, [glassEffects])
 
   useEffect(() => {
     const palette = accentPalettes[accentColor]
@@ -425,6 +442,12 @@ export default function App() {
               <Route path="/arcade" element={<Arcade />} />
               <Route path="/studio" element={<Studio />} />
               <Route path="/overlay" element={<Overlay />} />
+              <Route path="/community" element={<Community />} />
+              <Route path="/recap" element={<Recap />} />
+              <Route path="/wiki" element={<MusicWiki />} />
+              <Route path="/zen" element={<Zen />} />
+              <Route path="/system" element={<SystemPage />} />
+              <Route path="/quests" element={<QuestsPage />} />
               <Route path="/auth" element={<Auth />} />
             </Routes>
           </Suspense>

@@ -113,6 +113,10 @@ interface AppState {
   setProfileName: (v: string) => void
   smartCache: boolean
   setSmartCache: (v: boolean) => void
+  strobeMode: boolean
+  setStrobeMode: (v: boolean) => void
+  glassEffects: boolean
+  setGlassEffects: (v: boolean) => void
 }
 
 function loadJson<T>(key: string, fallback: T): T {
@@ -258,4 +262,8 @@ songNotes: loadJson<Record<string, string>>('waveify_song_notes', {}),
   setProfileName: (v) => { localStorage.setItem('waveify_profile_name', v); set({ profileName: v }) },
   smartCache: loadJson<boolean>('waveify_smart_cache', true),
   setSmartCache: (v) => { localStorage.setItem('waveify_smart_cache', JSON.stringify(v)); set({ smartCache: v }) },
+  strobeMode: loadJson<boolean>('waveify_strobe', false),
+  setStrobeMode: (v) => { localStorage.setItem('waveify_strobe', JSON.stringify(v)); set({ strobeMode: v }) },
+  glassEffects: loadJson<boolean>('waveify_glass', true),
+  setGlassEffects: (v) => { localStorage.setItem('waveify_glass', JSON.stringify(v)); set({ glassEffects: v }) },
 }))
