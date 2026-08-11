@@ -240,6 +240,7 @@ export default function UserProfile() {
       localStorage.setItem(`waveify_${field}`, cacheBustedUrl)
       setUrl(cacheBustedUrl)
       setUser({ ...(currentUser as any), [field]: cacheBustedUrl })
+      await supabase.from('users').update({ [field]: cacheBustedUrl }).eq('id', currentUser.id)
       inputKeySetter(prev => prev + 1)
     } catch (e: any) {
       console.error('Upload error:', e)
