@@ -10,6 +10,7 @@ import ShortcutsModal from '@/components/ShortcutsModal'
 import CrossfadeControls from '@/components/CrossfadeControls'
 import Visualizer from '@/components/Visualizer'
 import { cacheAudio, removeCachedAudio, isAudioCached } from '@/lib/offline'
+import { writeLike, bumpLikeCount } from '@/lib/likes'
 import { emitToast } from '@/hooks/useToast'
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
@@ -26,7 +27,6 @@ export default function Player() {
     setCrossfade, setCrossfadeDuration, setShowEqInPlayer, showEqInPlayer, pillMode, smartCache, lowDataMode } = useStore()
   const { isPlaying, currentTime, duration, togglePlay, seek, nextSong, prevSong, analyserData } = useAudio()
   const [showVol, setShowVol] = useState(false)
-  const [audioData, setAudioData] = useState<Uint8Array>(new Uint8Array(128))
   const [isSeeking, setIsSeeking] = useState(false)
   const [seekValue, setSeekValue] = useState(0)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -76,22 +76,11 @@ export default function Player() {
 
   async function toggleLike() {
     if (!currentSong || !user) return
-    if (liked) {
-      await supabase.from('likes').delete().eq('user_id', user.id).eq('song_id', currentSong.id)
-      await supabase.from('songs').update({ likes_count: Math.max(0, (currentSong.likes_count || 0) - 1) }).eq('id', currentSong.id)
-      setLiked(false)
-    } else {
-      await supabase.from('likes').insert({ user_id: user.id, song_id: currentSong.id })
-      await supabase.from('songs').update({ likes_count: (currentSong.likes_count || 0) + 1 }).eq('id', currentSong.id)
-      setLiked(true)
-    }
+    const ok = await writeLike(user.id, currentSong.id, liked)
+    if (!ok) { emitToast('Beğeni güncellenemedi', 'error'); return }
+    setLiked(!liked)
+    bumpLikeCount(currentSong.id, currentSong.likes_count, liked ? -1 : 1)
   }
-
-  useEffect(() => {
-    if (!isPlaying) return
-    const id = setInterval(() => setAudioData(audioEngine.getAnalyserData()), 80)
-    return () => clearInterval(id)
-  }, [isPlaying])
 
   // ? key to open shortcuts
   useEffect(() => {

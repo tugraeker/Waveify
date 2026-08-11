@@ -6,6 +6,7 @@ import { formatDuration } from '@/lib/utils'
 import { Play, Pause, SkipBack, SkipForward, Music2, Heart } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { writeLike, bumpLikeCount } from '@/lib/likes'
 
 export default function MobilePlayer() {
   const navigate = useNavigate()
@@ -22,15 +23,10 @@ export default function MobilePlayer() {
 
   async function toggleLike() {
     if (!currentSong || !user) return
-    if (liked) {
-      await supabase.from('likes').delete().eq('user_id', user.id).eq('song_id', currentSong.id)
-      await supabase.from('songs').update({ likes_count: Math.max(0, (currentSong.likes_count || 0) - 1) }).eq('id', currentSong.id)
-      setLiked(false)
-    } else {
-      await supabase.from('likes').insert({ user_id: user.id, song_id: currentSong.id })
-      await supabase.from('songs').update({ likes_count: (currentSong.likes_count || 0) + 1 }).eq('id', currentSong.id)
-      setLiked(true)
-    }
+    const ok = await writeLike(user.id, currentSong.id, liked)
+    if (!ok) return
+    setLiked(!liked)
+    bumpLikeCount(currentSong.id, currentSong.likes_count, liked ? -1 : 1)
   }
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0

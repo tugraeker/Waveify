@@ -5,6 +5,7 @@ import { useAudio } from '@/hooks/useAudio'
 import { audioEngine } from '@/lib/audioEngine'
 import { formatDuration } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { writeLike } from '@/lib/likes'
 import { cacheAudio, removeCachedAudio, isAudioCached } from '@/lib/offline'
 import { emitToast } from '@/hooks/useToast'
 import { Slider } from '@/components/ui'
@@ -136,13 +137,8 @@ export default function NowPlaying() {
 
   async function toggleLike() {
     if (!user || !currentSong) return
-    if (liked) {
-      await supabase.from('likes').delete().eq('user_id', user.id).eq('song_id', currentSong.id)
-      setLiked(false)
-    } else {
-      await supabase.from('likes').insert({ user_id: user.id, song_id: currentSong.id })
-      setLiked(true)
-    }
+    const ok = await writeLike(user.id, currentSong.id, liked)
+    if (ok) setLiked(!liked)
   }
 
   function handleRating(rating: number) {

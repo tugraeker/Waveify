@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
+import { writeLike } from '@/lib/likes'
 import { formatDuration, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui'
 import SongEditModal from '@/components/SongEditModal'
@@ -66,13 +67,8 @@ export default function SongDetail() {
 
   async function toggleLike() {
     if (!user || !song) return
-    if (liked) {
-      await supabase.from('likes').delete().eq('user_id', user.id).eq('song_id', song.id)
-      setLiked(false)
-    } else {
-      await supabase.from('likes').insert({ user_id: user.id, song_id: song.id })
-      setLiked(true)
-    }
+    const ok = await writeLike(user.id, song.id, liked)
+    if (ok) setLiked(!liked)
   }
 
   async function addComment() {

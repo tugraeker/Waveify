@@ -24,7 +24,7 @@ export default function History() {
       .from('listen_history')
       .select('*, song:songs(*)')
       .eq('user_id', user!.id)
-      .order('played_at', { ascending: false })
+      .order('listened_at', { ascending: false })
       .limit(100)
     if (data) setHistory(data.filter((h: any) => h.song))
     setLoading(false)
@@ -80,7 +80,7 @@ export default function History() {
                 <p className="text-xs text-surface-400 truncate">{h.song.artist}</p>
               </div>
               <span className="text-xs text-surface-500 tabular-nums">{formatDuration(h.song.duration)}</span>
-              <span className="text-[10px] text-surface-600 flex-shrink-0 w-16 text-right">{new Date(h.played_at).toLocaleString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="text-[10px] text-surface-600 flex-shrink-0 w-16 text-right">{new Date(h.listened_at).toLocaleString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           ))}
         </div>

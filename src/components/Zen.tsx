@@ -113,7 +113,7 @@ export function Meditation() {
       .or('genre.ilike.%ambient%,genre.ilike.%lo-fi%,genre.ilike.%chill%')
       .limit(20)
     const list = (data as Song[]) || []
-    if (!list.length) { setLoading(false); return }
+    if (!list.length) { setLoading(false); setSession(null); return }
     setQueue(list)
     setCurrentSong(list[0])
     setIsPlaying(true)

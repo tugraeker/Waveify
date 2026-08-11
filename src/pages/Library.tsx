@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
+import { writeLike, bumpLikeCount } from '@/lib/likes'
 import { formatDuration } from '@/lib/utils'
 import ContextMenu from '@/components/ContextMenu'
 import AddToPlaylistModal from '@/components/AddToPlaylistModal'
@@ -58,15 +59,15 @@ export default function Library() {
   async function toggleLike(song: Song) {
     if (!user) return
     const isLiked = likedIds.has(song.id)
+    const ok = await writeLike(user.id, song.id, isLiked)
+    if (!ok) { emitToast('Beğeni güncellenemedi', 'error'); return }
     if (isLiked) {
-      await supabase.from('likes').delete().eq('user_id', user.id).eq('song_id', song.id)
-      await supabase.from('songs').update({ likes_count: Math.max(0, (song.likes_count || 0) - 1) }).eq('id', song.id)
       likedIds.delete(song.id)
+      bumpLikeCount(song.id, song.likes_count, -1)
       emitToast('Beğeni kaldırıldı', 'info')
     } else {
-      await supabase.from('likes').insert({ user_id: user.id, song_id: song.id })
-      await supabase.from('songs').update({ likes_count: (song.likes_count || 0) + 1 }).eq('id', song.id)
       likedIds.add(song.id)
+      bumpLikeCount(song.id, song.likes_count, 1)
       trackLike()
       trackSongLiked(song.user_id, user.id)
       awardXp(2)

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { personaFromGenres } from '@/lib/social'
 import { supabase } from '@/lib/supabase'
+import { writeLike } from '@/lib/likes'
 import { formatDuration } from '@/lib/utils'
 import { Button, Input } from '@/components/ui'
 import SongEditModal from '@/components/SongEditModal'
@@ -619,7 +620,7 @@ function SongRow({ song, isOwn, currentUser, likedSongIds, setLikedSongIds, onPl
       </div>
       {isOwn && (
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={async (e) => { e.stopPropagation(); const isLiked = likedSongIds.has(song.id); if (isLiked) { await supabase.from('likes').delete().eq('user_id', currentUser!.id).eq('song_id', song.id); likedSongIds.delete(song.id) } else { await supabase.from('likes').insert({ user_id: currentUser!.id, song_id: song.id }); likedSongIds.add(song.id) } setLikedSongIds((prev) => new Set(prev)) }}
+          <button onClick={async (e) => { e.stopPropagation(); const isLiked = likedSongIds.has(song.id); const ok = await writeLike(currentUser!.id, song.id, isLiked); if (!ok) return; if (isLiked) { likedSongIds.delete(song.id) } else { likedSongIds.add(song.id) } setLikedSongIds((prev) => new Set(prev)) }}
             className={`p-1 rounded-lg transition-colors ${likedSongIds.has(song.id) ? 'text-red-400' : 'text-surface-500 hover:text-red-400'}`}>
             <Heart size={13} fill={likedSongIds.has(song.id) ? 'currentColor' : 'none'} />
           </button>

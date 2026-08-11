@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
+import { writeLike } from '@/lib/likes'
 import { emitToast } from '@/hooks/useToast'
 import type { Song } from '@/types'
 import { Play, ListPlus, Heart, Share2, User, Copy, Trash2 } from 'lucide-react'
@@ -39,15 +40,10 @@ export default function ContextMenu({ song, x, y, onClose, onAddToPlaylist }: Pr
     ...(onAddToPlaylist ? [{ icon: ListPlus, label: 'Listeye Ekle', action: () => { onAddToPlaylist(); onClose() } }] : []),
     { icon: Heart, label: liked ? 'Beğeniyi Kaldır' : 'Beğen', action: async () => {
       if (!user) return
-      if (liked) {
-        await supabase.from('likes').delete().eq('user_id', user.id).eq('song_id', song.id)
-        setLiked(false)
-        emitToast('Beğeni kaldırıldı', 'info')
-      } else {
-        await supabase.from('likes').insert({ user_id: user.id, song_id: song.id })
-        setLiked(true)
-        emitToast('Beğenildi!', 'success')
-      }
+      const ok = await writeLike(user.id, song.id, liked)
+      if (!ok) { emitToast('Beğeni güncellenemedi', 'error'); onClose(); return }
+      setLiked(!liked)
+      emitToast(liked ? 'Beğeni kaldırıldı' : 'Beğenildi!', liked ? 'info' : 'success')
       onClose()
     }},
     { icon: User, label: 'Sanatçı Sayfası', action: () => { navigate(`/search?q=${encodeURIComponent(song.artist)}`); onClose() } },

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
+import { writeLike, bumpLikeCount } from '@/lib/likes'
 import { formatDuration } from '@/lib/utils'
 import { Input } from '@/components/ui'
 import { SongSkeleton } from '@/components/Skeleton'
@@ -93,14 +94,14 @@ export default function SearchPage() {
   async function toggleLike(song: Song) {
     if (!user) return
     const isLiked = likedIds.has(song.id)
+    const ok = await writeLike(user.id, song.id, isLiked)
+    if (!ok) return
     if (isLiked) {
-      await supabase.from('likes').delete().eq('user_id', user.id).eq('song_id', song.id)
-      await supabase.from('songs').update({ likes_count: Math.max(0, (song.likes_count || 0) - 1) }).eq('id', song.id)
       likedIds.delete(song.id)
+      bumpLikeCount(song.id, song.likes_count, -1)
     } else {
-      await supabase.from('likes').insert({ user_id: user.id, song_id: song.id })
-      await supabase.from('songs').update({ likes_count: (song.likes_count || 0) + 1 }).eq('id', song.id)
       likedIds.add(song.id)
+      bumpLikeCount(song.id, song.likes_count, 1)
     }
     setLikedIds(new Set(likedIds))
   }
