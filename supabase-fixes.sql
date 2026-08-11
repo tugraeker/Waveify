@@ -20,9 +20,10 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE public.listen_history ALTER COLUMN played_at SET DEFAULT now();
 ALTER TABLE public.listen_history ALTER COLUMN played_at SET NOT NULL;
 
+-- 4) Storage policy'leri (public okuma + giriş yapan kullanıcı yükleme)
 DROP POLICY IF EXISTS "covers_read_all" ON storage.objects;
 CREATE POLICY "covers_read_all" ON storage.objects FOR SELECT USING (bucket_id = 'covers');
-DROP POLICY IF EXISTS "songs_read_all" ON storage.objects FOR SELECT USING (bucket_id = 'songs');
+DROP POLICY IF EXISTS "songs_read_all" ON storage.objects;
 CREATE POLICY "songs_read_all" ON storage.objects FOR SELECT USING (bucket_id = 'songs');
 DROP POLICY IF EXISTS "covers_upload_auth" ON storage.objects;
 CREATE POLICY "covers_upload_auth" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'covers');
