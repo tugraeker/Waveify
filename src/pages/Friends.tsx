@@ -7,6 +7,7 @@ import { UserPlus, UserCheck, Clock, X, Users, Search, Trash2, Ban, Circle, Sire
 import { trackFriend, awardXp } from '@/lib/achievements'
 import { emitToast } from '@/hooks/useToast'
 import { sendTroll, TROLL_TEMPLATES, type TrollMessage } from '@/lib/troll'
+import { compatLabel, jaccard } from '@/lib/social'
 import type { User } from '@/types'
 
 interface FriendUser { id: string; username: string; email?: string; last_seen?: string }
@@ -28,6 +29,8 @@ export default function FriendsPage() {
   const [trollText, setTrollText] = useState('')
   const [trollTone, setTrollTone] = useState('scary')
   const [sendingTroll, setSendingTroll] = useState(false)
+  const [compat, setCompat] = useState<Record<string, number>>({})
+  const [compatLoading, setCompatLoading] = useState(false)
 
   useEffect(() => { if (user) { fetchFriends(); fetchBlocked() } }, [user])
 
@@ -52,7 +55,33 @@ export default function FriendsPage() {
       setFriends(allFriends)
       setPendingRequests((pending || []) as any)
       setOutgoingRequests((outgoing || []) as any)
+      loadCompat(allFriends)
     } catch (err: any) { setError(err.message) }
+  }
+
+  async function loadCompat(friendList: FriendUser[]) {
+    if (!user || friendList.length === 0) { setCompat({}); return }
+    setCompatLoading(true)
+    try {
+      const { data: myLikes } = await supabase.from('likes').select('song_id').eq('user_id', user.id)
+      const mine = new Set((myLikes || []).map((l: any) => l.song_id))
+      const next: Record<string, number> = {}
+      for (const f of friendList) {
+        try {
+          const { data: theirLikes } = await supabase.from('likes').select('song_id').eq('user_id', f.id)
+          const theirs = new Set((theirLikes || []).map((l: any) => l.song_id))
+          const j = jaccard(mine, theirs)
+          const { data: myHist } = await supabase.from('listen_history').select('song:songs(id)').eq('user_id', user.id).limit(100)
+          const { data: theirHist } = await supabase.from('listen_history').select('song:songs(id)').eq('user_id', f.id).limit(100)
+          const myIds = new Set((myHist || []).map((h: any) => h.song?.id).filter(Boolean))
+          const theirIds = new Set((theirHist || []).map((h: any) => h.song?.id).filter(Boolean))
+          const hj = jaccard(myIds, theirIds)
+          const pct = Math.round(Math.min(100, Math.max(5, j * 70 + hj * 30)))
+          next[f.id] = pct
+        } catch { next[f.id] = 0 }
+      }
+      setCompat(next)
+    } catch {} finally { setCompatLoading(false) }
   }
 
   async function fetchBlocked() {
@@ -216,7 +245,12 @@ export default function FriendsPage() {
                 </div>
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/profile/${f.id}`)}>
                   <p className="text-sm font-medium text-white truncate">{f.username}</p>
-                  {f.email && <p className="text-xs text-surface-500 truncate">{f.email}</p>}
+                  <p className="text-xs text-surface-500 truncate">{f.email}</p>
+                  {compat[f.id] !== undefined && (
+                    <span className={`inline-flex items-center gap-1 mt-1 text-[10px] px-2 py-0.5 rounded-full border font-semibold ${compatLabel(compat[f.id]).cls}`}>
+                      {compatLoading ? '…' : `${compat[f.id]}% uyum · ${compatLabel(compat[f.id]).text}`}
+                    </span>
+                  )}
                 </div>
                 <button onClick={() => setTrollTarget(f)} className="p-2 rounded-lg text-red-400/70 hover:text-red-300 hover:bg-red-500/10 transition-all animate-pulse" title="Ekran uyarısı gönder (troll)">
                   <Siren size={14} />

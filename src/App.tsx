@@ -15,10 +15,12 @@ import ToastContainer from '@/components/ToastContainer'
 import UpdateBanner from '@/components/UpdateBanner'
 import WhatsNewModal from '@/components/WhatsNewModal'
 import TrollScreen from '@/components/TrollScreen'
+import MatrixRain from '@/components/MatrixRain'
 import { useAchievementsInit } from '@/hooks/useAchievements'
 import { getAmbientColors } from '@/lib/ambient'
 import { popLocalTroll, type TrollMessage } from '@/lib/troll'
 import { confettiBurst } from '@/lib/party'
+import { emitToast } from '@/hooks/useToast'
 import { Trophy } from 'lucide-react'
 import type { AccentColor, Song } from '@/types'
 
@@ -51,6 +53,9 @@ const Soundscapes = lazy(() => import('@/pages/Soundscapes'))
 const Trivia = lazy(() => import('@/pages/Trivia'))
 const BeatMaker = lazy(() => import('@/pages/BeatMaker'))
 const PitchGame = lazy(() => import('@/pages/PitchGame'))
+const Arcade = lazy(() => import('@/pages/Arcade'))
+const Studio = lazy(() => import('@/pages/Studio'))
+const Overlay = lazy(() => import('@/pages/Overlay'))
 
 const accentPalettes: Record<AccentColor, Record<string, string>> = {
   wave:   { '50': '238 251 250', '100': '213 245 242', '200': '174 234 229', '300': '106 217 210', '400': '34 199 192', '500': '15 171 166', '600': '9 139 136', '700': '12 111 109', '800': '15 89 88', '900': '18 74 73', '950': '3 45 45' },
@@ -84,6 +89,8 @@ const AURORA_SCENES: Record<string, [string, string, string]> = {
   '/charts': ['245 158 11', '34 211 238', '236 72 153'],
   '/beatmaker': ['16 185 129', '245 158 11', '34 211 238'],
   '/pitch-game': ['217 70 239', '16 185 129', '99 102 241'],
+  '/arcade': ['245 158 11', '34 211 238', '236 72 153'],
+  '/studio': ['34 211 238', '16 185 129', '99 102 241'],
   '/settings': ['99 102 241', '139 92 246', '34 211 238'],
   '/admin': ['34 211 238', '99 102 241', '139 92 246'],
 }
@@ -94,7 +101,7 @@ function isNightWindow(): boolean {
 }
 
 export default function App() {
-  const { user, theme, accentColor, customAccentColor, setUser, setPlaylists, currentSong, retroMode, lowLightMode } = useStore()
+  const { user, theme, accentColor, customAccentColor, setUser, setPlaylists, currentSong, retroMode, lowLightMode, visualTheme, neonText, lowDataMode } = useStore()
   const navigate = useNavigate()
   const location = useLocation()
   const [mounted, setMounted] = useState(false)
@@ -170,6 +177,27 @@ export default function App() {
       if (typed.includes('waveify') || typed.includes('konfeti')) {
         confettiBurst()
         typed = ''
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  // Konami code easter egg (188)
+  useEffect(() => {
+    const seq = ['arrowup', 'arrowup', 'arrowdown', 'arrowdown', 'arrowleft', 'arrowright', 'arrowleft', 'arrowright', 'b', 'a']
+    let pos = 0
+    const handler = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      if (key === seq[pos]) {
+        pos++
+        if (pos === seq.length) {
+          pos = 0
+          confettiBurst()
+          emitToast('🎮 30 can kazandın! (aslında sadece konfeti)', 'success')
+        }
+      } else {
+        pos = key === seq[0] ? 1 : 0
       }
     }
     window.addEventListener('keydown', handler)
@@ -313,7 +341,7 @@ export default function App() {
   }, [user?.id])
 
   useEffect(() => {
-    if (!currentSong?.cover_url) return
+    if (!currentSong?.cover_url || lowDataMode) return
     let cancelled = false
     getAmbientColors(currentSong.cover_url).then((c) => {
       if (cancelled) return
@@ -336,8 +364,14 @@ export default function App() {
   if (!user) return <Auth />
 
   return (
-    <div className={`h-screen flex flex-col bg-surface-950 relative overflow-hidden ${retroMode ? 'scanlines' : ''} ${lowLightMode ? 'brightness-[0.6] saturate-[0.9] contrast-[1.05]' : ''}`}>
+    <div className={`h-screen flex flex-col bg-surface-950 relative overflow-hidden ${retroMode || visualTheme === 'crt' ? 'scanlines' : ''} ${visualTheme === 'crt' ? 'theme-crt' : ''} ${visualTheme === 'matrix' ? 'theme-matrix' : ''} ${visualTheme === 'oled' ? 'theme-oled' : ''} ${lowLightMode ? 'brightness-[0.6] saturate-[0.9] contrast-[1.05]' : ''}`}>
       <div className="ambient-glow" />
+      {visualTheme === 'matrix' && <MatrixRain />}
+      {neonText && (
+        <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-[5]">
+          <p className={`neon-sign ${visualTheme === 'crt' || visualTheme === 'matrix' ? 'neon-sign-alt' : ''} font-display font-extrabold text-6xl md:text-8xl text-cyan-300/25 text-center px-8 select-none`}>{neonText}</p>
+        </div>
+      )}
       <div className="hidden md:block">
         <TitleBar />
       </div>
@@ -388,6 +422,9 @@ export default function App() {
               <Route path="/trivia" element={<Trivia />} />
               <Route path="/beatmaker" element={<BeatMaker />} />
               <Route path="/pitch-game" element={<PitchGame />} />
+              <Route path="/arcade" element={<Arcade />} />
+              <Route path="/studio" element={<Studio />} />
+              <Route path="/overlay" element={<Overlay />} />
               <Route path="/auth" element={<Auth />} />
             </Routes>
           </Suspense>

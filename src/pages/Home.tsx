@@ -13,6 +13,8 @@ import { Flame, TrendingUp, Clock, Heart, Music, Play, AudioWaveform, ListMusic,
 import { computeLevel } from '@/types'
 import { getStats, getXpTotal } from '@/lib/achievements'
 import { emitToast } from '@/hooks/useToast'
+import { dailyFact, dailyFortune, wheelRotation } from '@/lib/fun'
+import { confettiBurst } from '@/lib/party'
 
 const autoPlaylistDefs = [
   { name: 'En Çok Dinlenenler', icon: Flame, auto_type: 'top50', gradient: 'from-rose-600 to-orange-600' },
@@ -37,6 +39,10 @@ export default function Home() {
   const [weather, setWeather] = useState<{ emoji: string; label: string; temp: number }>({ emoji: '☀️', label: 'Hava durumu yükleniyor', temp: 0 })
   const [dailyMystery, setDailyMystery] = useState<Song | null>(null)
   const [mysteryRevealed, setMysteryRevealed] = useState(false)
+  const [wheelAngle, setWheelAngle] = useState(0)
+  const [wheelSpinning, setWheelSpinning] = useState(false)
+
+  const wheelSegments = songs.length >= 8 ? songs.slice(0, 8) : songs
 
   // Hype: Daily song mystery
   useEffect(() => {
@@ -231,6 +237,82 @@ export default function Home() {
               </span>
             </button>
           ))}
+        </div>
+      </section>
+
+      <section className="mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Günün Falı (129) */}
+          <div className="glass rounded-2xl p-4 border border-fuchsia-500/20 relative overflow-hidden">
+            <div className="absolute -top-8 -right-8 w-32 h-32 bg-fuchsia-500/10 blur-3xl rounded-full pointer-events-none" />
+            <p className="text-[11px] font-bold text-fuchsia-400 tracking-widest uppercase mb-2 flex items-center gap-1.5"><Sparkles size={12} /> Günün Falı</p>
+            <p className="text-sm text-surface-200 leading-relaxed">{dailyFortune()}</p>
+            <p className="text-[10px] text-surface-500 mt-2">Her gün yeni bir fal — tekrar tıklamana gerek yok ✨</p>
+          </div>
+
+          {/* Günün Bilgisi (178) */}
+          <div className="glass rounded-2xl p-4 border border-cyan-500/20 relative overflow-hidden">
+            <div className="absolute -top-8 -right-8 w-32 h-32 bg-cyan-500/10 blur-3xl rounded-full pointer-events-none" />
+            <p className="text-[11px] font-bold text-cyan-400 tracking-widest uppercase mb-2 flex items-center gap-1.5"><HelpCircle size={12} /> Müzik Bilgisi</p>
+            <p className="text-sm text-surface-200 leading-relaxed">{dailyFact()}</p>
+            <p className="text-[10px] text-surface-500 mt-2">Günlük bilgi dozu 🧠</p>
+          </div>
+
+          {/* Çarkıfelek (190) */}
+          <div className="glass rounded-2xl p-4 border border-amber-500/20 relative overflow-hidden">
+            <div className="absolute -top-8 -right-8 w-32 h-32 bg-amber-500/10 blur-3xl rounded-full pointer-events-none" />
+            <p className="text-[11px] font-bold text-amber-400 tracking-widest uppercase mb-2 flex items-center gap-1.5"><AudioWaveform size={12} /> Çarkıfelek</p>
+            {wheelSegments.length === 0 ? (
+              <p className="text-sm text-surface-500">Kütüphane boş — çark için şarkı lazım 🎲</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-4">
+                  <div className="relative w-28 h-28 flex-shrink-0">
+                    <svg viewBox="0 0 100 100" className="w-full h-full" style={{ transform: `rotate(${wheelAngle}deg)`, transition: wheelSpinning ? 'transform 3.5s cubic-bezier(0.17, 0.67, 0.12, 1)' : 'none' }}>
+                      {wheelSegments.map((s, i) => {
+                        const angle = 360 / wheelSegments.length
+                        const start = i * angle - 90
+                        const colors = ['#f59e0b', '#22d3ee', '#a855f7', '#ef4444', '#22c55e', '#3b82f6', '#ec4899', '#f97316']
+                        return (
+                          <g key={s.id}>
+                            <path d={`M50 50 L50 4 A46 46 0 0 1 ${50 + 46 * Math.cos(((start + angle) * Math.PI) / 180)} ${50 + 46 * Math.sin(((start + angle) * Math.PI) / 180)} Z`} fill={colors[i % colors.length]} stroke="#0f1418" strokeWidth="0.5" />
+                            <text x={50 + 30 * Math.cos(((start + angle / 2) * Math.PI) / 180)} y={50 + 30 * Math.sin(((start + angle / 2) * Math.PI) / 180)} fill="#fff" fontSize="6" textAnchor="middle" dominantBaseline="middle">🎵</text>
+                          </g>
+                        )
+                      })}
+                      <circle cx="50" cy="50" r="6" fill="#fff" stroke="#f59e0b" strokeWidth="2" />
+                    </svg>
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-amber-400"><span className="text-lg">▼</span></div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => {
+                        if (wheelSpinning) return
+                        setWheelSpinning(true)
+                        const target = wheelRotation(Date.now())
+                        setWheelAngle(target)
+                        setTimeout(() => {
+                          setWheelSpinning(false)
+                          const seg = Math.floor(((360 - (target % 360) - 270 + 360) % 360) / (360 / wheelSegments.length)) % wheelSegments.length
+                          const song = wheelSegments[seg]
+                          if (song) {
+                            playSong(song)
+                            emitToast(`🎡 Çark ${song.title} — ${song.artist} çıktı!`, 'success')
+                            confettiBurst()
+                          }
+                        }, 3600)
+                      }}
+                      disabled={wheelSpinning}
+                      className="w-full py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold hover:bg-amber-500/25 transition-all disabled:opacity-50"
+                    >
+                      {wheelSpinning ? 'Çark dönüyor…' : 'Çevir ve Dinle'}
+                    </button>
+                    <p className="text-[10px] text-surface-500 mt-2 truncate">Kütüphaneden rastgele 8 şarkı</p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </section>
 

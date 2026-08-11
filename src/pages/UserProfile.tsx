@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, type Dispatch, type SetStateAction } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
+import { personaFromGenres } from '@/lib/social'
 import { supabase } from '@/lib/supabase'
 import { formatDuration } from '@/lib/utils'
 import { Button, Input } from '@/components/ui'
@@ -279,6 +280,11 @@ export default function UserProfile() {
   const lv = computeLevel(xp)
   const currentTheme = PROFILE_THEMES.find(t => t.key === profileTheme) || PROFILE_THEMES[0]
 
+  const genreCounts: Record<string, number> = {}
+  for (const s of userSongs) { if (s.genre) genreCounts[s.genre] = (genreCounts[s.genre] || 0) + 1 }
+  const persona = personaFromGenres(genreCounts)
+  const top4 = [...userSongs].sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0)).slice(0, 4)
+
   if (loading) return <div className="p-8 flex items-center justify-center h-full text-surface-500"><p>Yükleniyor...</p></div>
   if (privacyMode && !isOwn) return <div className="p-8 flex items-center justify-center h-full text-surface-500"><EyeOff size={48} className="mb-4 opacity-30" /><p>Bu profil gizli</p></div>
 
@@ -407,6 +413,39 @@ export default function UserProfile() {
           </div>
         </div>
       </div>
+
+      {/* Kişilik Kartı + Top4 vitrin (v8.0.0) */}
+      {showStats && (
+        <div className="px-8 mt-5 flex flex-col md:flex-row gap-4">
+          <div className="flex-1 bg-surface-900/60 border border-surface-800/50 rounded-2xl p-5 relative overflow-hidden">
+            <div className={`absolute inset-0 bg-gradient-to-br ${persona.gradient} opacity-10 pointer-events-none`} />
+            <p className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider mb-2">Müzik Kişilik Kartı</p>
+            <div className="flex items-center gap-4">
+              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${persona.gradient} flex items-center justify-center text-2xl shadow-lg flex-shrink-0`}>{persona.emoji}</div>
+              <div className="min-w-0">
+                <p className="text-base font-bold text-white">{persona.title}</p>
+                <p className="text-xs text-surface-400 mt-0.5">{persona.desc}</p>
+              </div>
+            </div>
+          </div>
+          {top4.length > 0 && (
+            <div className="flex-1 bg-surface-900/60 border border-surface-800/50 rounded-2xl p-5">
+              <p className="text-[11px] font-semibold text-surface-500 uppercase tracking-wider mb-2">Top 4 Vitrin</p>
+              <div className="flex gap-2">
+                {top4.map((s, i) => (
+                  <button key={s.id} onClick={() => playSong(s)} className="group flex-1 min-w-0">
+                    <div className="relative aspect-square rounded-xl overflow-hidden bg-surface-800">
+                      {s.cover_url ? <img src={s.cover_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center"><Music2 size={20} className="text-surface-600" /></div>}
+                      <span className="absolute top-1 left-1 w-5 h-5 rounded-md bg-black/70 backdrop-blur-sm text-[10px] font-bold text-amber-300 flex items-center justify-center">#{i + 1}</span>
+                    </div>
+                    <p className="text-[11px] text-surface-400 truncate mt-1 text-left group-hover:text-white transition-colors">{s.title}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Settings panel */}
       {showSettings && isOwn && (

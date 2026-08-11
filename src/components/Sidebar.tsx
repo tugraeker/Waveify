@@ -10,7 +10,7 @@ import {
   Plus, List, Disc3, User, Radio,
   History, Sun, Moon, Globe, Settings as SettingsIcon,
   BarChart3, Shield, MessageSquare, Sparkles, Award, Trophy, Waves,
-  Headphones, Music4, Ear,
+  Headphones, Music4, Ear, Gamepad2, AudioWaveform, Monitor,
 } from 'lucide-react'
 
 const navItems = [
@@ -88,6 +88,9 @@ export default function Sidebar() {
             { icon: Headphones, label: 'Drop Modu', path: '/trivia', highlight: true },
             { icon: Music4, label: 'Beat Maker', path: '/beatmaker', highlight: true },
             { icon: Ear, label: 'Perde Oyunu', path: '/pitch-game' },
+            { icon: Gamepad2, label: 'Arcade', path: '/arcade', highlight: true },
+            { icon: AudioWaveform, label: 'Studio', path: '/studio', highlight: true },
+            { icon: Monitor, label: 'OBS Overlay', path: '/overlay' },
             { icon: History, label: 'Geçmiş', path: '/history' },
             { icon: BarChart3, label: 'İstatistik', path: '/stats' },
             { icon: Award, label: 'Rozetler', path: '/badges' },

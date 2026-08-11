@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/components/ui'
 import OfflineMode from '@/components/OfflineMode'
 import { emitToast } from '@/hooks/useToast'
-import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity, PaintBucket, Trash2, Bell, Monitor, Moon, RotateCcw, Sliders, Download, Upload, Square, Sparkles, Waves, FolderOutput } from 'lucide-react'
+import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity, PaintBucket, Trash2, Bell, Monitor, Moon, RotateCcw, Sliders, Download, Upload, Square, Sparkles, Waves, FolderOutput, Keyboard, Users } from 'lucide-react'
 import type { AccentColor, CoverStyle } from '@/types'
 
 const accentColors: { key: AccentColor; label: string; color: string }[] = [
@@ -24,6 +24,8 @@ export default function Settings() {
     seekStep, setSeekStep, normalize, setNormalize, smartShuffle, setSmartShuffle,
     coverStyle, setCoverStyle, retroMode, setRetroMode, lowLightMode, setLowLightMode,
     crossfade, setCrossfade, crossfadeDuration, setCrossfadeDuration,
+    visualTheme, setVisualTheme, pillMode, setPillMode, neonText, setNeonText, lowDataMode, setLowDataMode,
+    hotkeys, setHotkeys, profileName, setProfileName, smartCache, setSmartCache,
   } = useStore()
   const navigate = useNavigate()
   const [username, setUsername] = useState(user?.username || '')
@@ -37,6 +39,71 @@ export default function Settings() {
   const [bgColor, setBgColor] = useState(localStorage.getItem('waveify_bg_color') || '')
   const [customAccentInput, setCustomAccentInput] = useState(customAccentColor || '')
   const [appVersion] = useState(__APP_VERSION__)
+  const [capturingAction, setCapturingAction] = useState<string | null>(null)
+  const [profiles, setProfiles] = useState<Record<string, Record<string, string>>>(() => {
+    try { return JSON.parse(localStorage.getItem('waveify_profiles') || '{}') } catch { return {} }
+  })
+  const [newProfileName, setNewProfileName] = useState('')
+
+  useEffect(() => {
+    if (!capturingAction) return
+    const handler = (e: KeyboardEvent) => {
+      e.preventDefault(); e.stopPropagation()
+      const next = { ...hotkeys, [capturingAction]: e.code }
+      setHotkeys(next)
+      setCapturingAction(null)
+    }
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
+  }, [capturingAction, hotkeys, setHotkeys])
+
+  const HOTKEY_META = [
+    { action: 'playpause', label: 'Oynat / Duraklat' },
+    { action: 'next', label: 'Sonraki Şarkı' },
+    { action: 'prev', label: 'Önceki Şarkı' },
+    { action: 'volumeup', label: 'Sesi Aç' },
+    { action: 'volumedown', label: 'Sesi Kıs' },
+    { action: 'mute', label: 'Sessize Al' },
+    { action: 'shuffle', label: 'Karıştır' },
+    { action: 'repeat', label: 'Tekrarla' },
+    { action: 'highlight', label: 'Highlight Modu' },
+    { action: 'instrumental', label: 'Enstrümantal Mod' },
+  ]
+  const keyLabel = (code: string) => {
+    const m: Record<string, string> = { Space: 'Boşluk', ArrowRight: '→', ArrowLeft: '←', ArrowUp: '↑', ArrowDown: '↓' }
+    if (m[code]) return m[code]
+    if (code.startsWith('Key')) return code.slice(3)
+    if (code.startsWith('Digit')) return code.slice(5)
+    return code
+  }
+
+  function saveProfileSnapshot(name: string) {
+    const snap: Record<string, string> = {}
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith('waveify_')) snap[k] = localStorage.getItem(k) || ''
+    }
+    const next = { ...profiles, [name]: snap }
+    setProfiles(next)
+    localStorage.setItem('waveify_profiles', JSON.stringify(next))
+    emitToast(`"${name}" profili kaydedildi`, 'success')
+  }
+
+  function applyProfile(name: string) {
+    const snap = profiles[name]
+    if (!snap) return
+    Object.entries(snap).forEach(([k, v]) => localStorage.setItem(k, v))
+    emitToast(`"${name}" profili uygulandı — yeniden başlatılıyor`, 'success')
+    setTimeout(() => window.location.reload(), 1200)
+  }
+
+  function deleteProfile(name: string) {
+    if (!confirm(`"${name}" profili silinsin mi?`)) return
+    const next = { ...profiles }
+    delete next[name]
+    setProfiles(next)
+    localStorage.setItem('waveify_profiles', JSON.stringify(next))
+  }
 
   const coverStyles: { key: CoverStyle; label: string }[] = [
     { key: 'vinyl', label: '💿 Plak' },
@@ -265,6 +332,41 @@ export default function Settings() {
           </div>
 
           <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-cyan-500/10 flex items-center justify-center"><Eye size={18} className="text-cyan-400" /></div>
+              <h2 className="text-lg font-semibold">Efekt Temaları</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-surface-400 font-medium mb-2 block">Ekran Efekti</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {([
+                    ['none', 'Yok'], ['crt', '📺 CRT TV'], ['matrix', '🌿 Matrix'], ['oled', '⬛ OLED'],
+                  ] as const).map(([key, label]) => (
+                    <button key={key} onClick={() => setVisualTheme(key)} className={`px-3 py-2 rounded-xl text-xs font-medium transition-all border ${visualTheme === key ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-surface-800 text-surface-400 border-surface-700 hover:text-white'}`}>{label}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-surface-300">Pill Oynatıcı <span className="text-[10px] text-surface-500">(yüzen kompakt çubuk)</span></span>
+                <button onClick={() => setPillMode(!pillMode)} className={`w-11 h-6 rounded-full transition-all ${pillMode ? 'bg-cyan-500' : 'bg-surface-700'} relative`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${pillMode ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+              <div>
+                <label className="text-xs text-surface-400 font-medium mb-1.5 block">Neon Yazı <span className="text-surface-500">(arkaplan tabelası, boş = kapalı)</span></label>
+                <Input value={neonText} onChange={(e) => setNeonText(e.target.value)} placeholder="örn. ROCK GECESİ" />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-surface-300">Düşük Veri Modu <span className="text-[10px] text-surface-500">(ambiyans analizi kapalı)</span></span>
+                <button onClick={() => setLowDataMode(!lowDataMode)} className={`w-11 h-6 rounded-full transition-all ${lowDataMode ? 'bg-emerald-500' : 'bg-surface-700'} relative`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${lowDataMode ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-9 h-9 rounded-xl bg-wave-500/10 flex items-center justify-center"><Sliders size={18} className="text-wave-400" /></div>
               <h2 className="text-lg font-semibold">Oynatma & Sahneler</h2>
@@ -325,6 +427,71 @@ export default function Settings() {
                   <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${lowLightMode ? 'left-[22px]' : 'left-0.5'}`} />
                 </button>
               </div>
+            </div>
+          </div>
+
+          <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center"><Keyboard size={18} className="text-amber-400" /></div>
+              <h2 className="text-lg font-semibold">Kısayol Stüdyosu</h2>
+            </div>
+            <p className="text-xs text-surface-400 mb-3">Her aksiyon için yeni tuşu gösterip bas. Farklı tuşlar için harf, ok veya Boşluk kullan.</p>
+            <div className="flex flex-col gap-1.5">
+              {HOTKEY_META.map(({ action, label }) => {
+                const currentCode = Object.entries(hotkeys).find(([, a]) => a === action)?.[0]
+                const capturing = capturingAction === action
+                return (
+                  <div key={action} className="flex items-center justify-between gap-3 bg-surface-800/50 border border-surface-700/50 rounded-xl px-3 py-2">
+                    <span className="text-sm text-surface-300">{label}</span>
+                    <button
+                      onClick={() => setCapturingAction(capturing ? null : action)}
+                      className={`min-w-[90px] px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all ${capturing ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 animate-pulse' : currentCode ? 'bg-wave-500/10 border-wave-500/25 text-wave-400' : 'bg-surface-800 border-surface-600 text-surface-500'}`}
+                    >
+                      {capturing ? 'Bas…' : currentCode ? keyLabel(currentCode) : '—'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            <button
+              onClick={() => setHotkeys({ Space: 'playpause', ArrowRight: 'next', ArrowLeft: 'prev', ArrowUp: 'volumeup', ArrowDown: 'volumedown', KeyM: 'mute', KeyN: 'shuffle', KeyR: 'repeat', KeyH: 'highlight', KeyI: 'instrumental' })}
+              className="mt-3 text-xs text-surface-500 hover:text-white transition-colors"
+            >
+              Varsayılanlara dön
+            </button>
+          </div>
+
+          <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-cyan-500/10 flex items-center justify-center"><Users size={18} className="text-cyan-400" /></div>
+              <h2 className="text-lg font-semibold">Çoklu Profil</h2>
+            </div>
+            <p className="text-xs text-surface-400 mb-3">Her profil tüm yerel ayarlarının anlık görüntüsüdür — aile üyeleri için ideal.</p>
+            <div className="flex gap-2 mb-3">
+              <Input value={newProfileName} onChange={(e) => setNewProfileName(e.target.value)} placeholder="Profil adı (örn. Anne, Baba…)" />
+              <Button variant="outline" onClick={() => { if (!newProfileName.trim()) return; saveProfileSnapshot(newProfileName.trim()); setNewProfileName('') }}>
+                <Save size={14} /> Kaydet
+              </Button>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {Object.keys(profiles).length === 0 ? (
+                <p className="text-xs text-surface-500 italic">Henüz kayıtlı profil yok. Mevcut ayarlarını bir isimle kaydet.</p>
+              ) : Object.keys(profiles).map((name) => (
+                <div key={name} className="flex items-center justify-between gap-2 bg-surface-800/50 border border-surface-700/50 rounded-xl px-3 py-2">
+                  <span className={`text-sm ${profileName === name ? 'text-cyan-300 font-semibold' : 'text-surface-300'}`}>{name} {profileName === name && '✓'}</span>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => { setProfileName(name); applyProfile(name) }} className="px-2.5 py-1 rounded-lg text-[11px] bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20">Uygula</button>
+                    <button onClick={() => { setProfileName(name); saveProfileSnapshot(name) }} className="px-2.5 py-1 rounded-lg text-[11px] bg-surface-800 border border-surface-600 text-surface-400 hover:text-white">Güncelle</button>
+                    <button onClick={() => deleteProfile(name)} className="px-2.5 py-1 rounded-lg text-[11px] bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/20">Sil</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-surface-800">
+              <span className="text-sm text-surface-300">Akıllı Önbellek <span className="text-[10px] text-surface-500">(çalan + sıradaki şarkı otomatik iner)</span></span>
+              <button onClick={() => setSmartCache(!smartCache)} className={`w-11 h-6 rounded-full transition-all ${smartCache ? 'bg-emerald-500' : 'bg-surface-700'} relative`}>
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${smartCache ? 'left-[22px]' : 'left-0.5'}`} />
+              </button>
             </div>
           </div>
 

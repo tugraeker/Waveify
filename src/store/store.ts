@@ -95,6 +95,24 @@ interface AppState {
   setLowLightMode: (v: boolean) => void
   cdMode: boolean
   setCdMode: (v: boolean) => void
+  visualTheme: 'none' | 'crt' | 'matrix' | 'oled'
+  setVisualTheme: (t: 'none' | 'crt' | 'matrix' | 'oled') => void
+  pillMode: boolean
+  setPillMode: (v: boolean) => void
+  neonText: string
+  setNeonText: (v: string) => void
+  lowDataMode: boolean
+  setLowDataMode: (v: boolean) => void
+  instrumentalMode: boolean
+  setInstrumentalMode: (v: boolean) => void
+  highlightMode: boolean
+  setHighlightMode: (v: boolean) => void
+  hotkeys: Record<string, string>
+  setHotkeys: (h: Record<string, string>) => void
+  profileName: string
+  setProfileName: (v: string) => void
+  smartCache: boolean
+  setSmartCache: (v: boolean) => void
 }
 
 function loadJson<T>(key: string, fallback: T): T {
@@ -222,4 +240,22 @@ songNotes: loadJson<Record<string, string>>('waveify_song_notes', {}),
   setLowLightMode: (v) => { localStorage.setItem('waveify_low_light', JSON.stringify(v)); set({ lowLightMode: v }) },
   cdMode: loadJson<boolean>('waveify_cd_mode', false),
   setCdMode: (v) => { localStorage.setItem('waveify_cd_mode', JSON.stringify(v)); set({ cdMode: v }) },
+  visualTheme: loadJson<'none' | 'crt' | 'matrix' | 'oled'>('waveify_visual_theme', 'none'),
+  setVisualTheme: (t) => { localStorage.setItem('waveify_visual_theme', t); set({ visualTheme: t }) },
+  pillMode: loadJson<boolean>('waveify_pill_mode', false),
+  setPillMode: (v) => { localStorage.setItem('waveify_pill_mode', JSON.stringify(v)); set({ pillMode: v }) },
+  neonText: localStorage.getItem('waveify_neon_text') || '',
+  setNeonText: (v) => { localStorage.setItem('waveify_neon_text', v); set({ neonText: v }) },
+  lowDataMode: loadJson<boolean>('waveify_low_data', false),
+  setLowDataMode: (v) => { localStorage.setItem('waveify_low_data', JSON.stringify(v)); set({ lowDataMode: v }) },
+  instrumentalMode: loadJson<boolean>('waveify_instrumental', false),
+  setInstrumentalMode: (v) => { localStorage.setItem('waveify_instrumental', JSON.stringify(v)); set({ instrumentalMode: v }) },
+  highlightMode: loadJson<boolean>('waveify_highlight', false),
+  setHighlightMode: (v) => { localStorage.setItem('waveify_highlight', JSON.stringify(v)); set({ highlightMode: v }) },
+  hotkeys: loadJson<Record<string, string>>('waveify_hotkeys', { Space: 'playpause', ArrowRight: 'next', ArrowLeft: 'prev', ArrowUp: 'volumeup', ArrowDown: 'volumedown', KeyM: 'mute', KeyN: 'shuffle', KeyR: 'repeat', KeyH: 'highlight', KeyI: 'instrumental' }),
+  setHotkeys: (h) => { localStorage.setItem('waveify_hotkeys', JSON.stringify(h)); set({ hotkeys: h }) },
+  profileName: localStorage.getItem('waveify_profile_name') || '',
+  setProfileName: (v) => { localStorage.setItem('waveify_profile_name', v); set({ profileName: v }) },
+  smartCache: loadJson<boolean>('waveify_smart_cache', true),
+  setSmartCache: (v) => { localStorage.setItem('waveify_smart_cache', JSON.stringify(v)); set({ smartCache: v }) },
 }))

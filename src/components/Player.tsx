@@ -23,7 +23,7 @@ export default function Player() {
   const { currentSong, user, volume, shuffle, repeat, queue, sleepTimer, playbackRate, miniPlayer,
     crossfade, crossfadeDuration, songRatings, equalizer, visualizerMode, seekStep,
     setVolume, setShuffle, setRepeat, setSleepTimer, setPlaybackRate, setMiniPlayer,
-    setCrossfade, setCrossfadeDuration, setShowEqInPlayer, showEqInPlayer } = useStore()
+    setCrossfade, setCrossfadeDuration, setShowEqInPlayer, showEqInPlayer, pillMode, smartCache, lowDataMode } = useStore()
   const { isPlaying, currentTime, duration, togglePlay, seek, nextSong, prevSong, analyserData } = useAudio()
   const [showVol, setShowVol] = useState(false)
   const [audioData, setAudioData] = useState<Uint8Array>(new Uint8Array(128))
@@ -45,6 +45,13 @@ export default function Player() {
     isAudioCached(currentSong.audio_url || '').then((v) => { if (!cancelled) setCached(v) })
     return () => { cancelled = true }
   }, [currentSong?.id, cached])
+
+  // Akıllı önbellek (175): çalan şarkı + sıradaki önceden indirilir
+  useEffect(() => {
+    if (!currentSong || !smartCache || lowDataMode) return
+    const targets = [currentSong.audio_url, queue.find((s) => s.id !== currentSong.id)?.audio_url]
+    targets.forEach((url) => { if (url) cacheAudio(url) })
+  }, [currentSong?.id, smartCache, lowDataMode])
 
   async function handleCache() {
     if (!currentSong?.audio_url) return
@@ -111,7 +118,9 @@ export default function Player() {
 
   if (!currentSong) {
     return (
-      <div className="hidden md:flex h-22 bg-surface-950/70 backdrop-blur-2xl border-t border-white/10 items-center px-5">
+      <div className={`hidden md:flex ${pillMode
+        ? 'fixed bottom-4 left-1/2 -translate-x-1/2 z-[95] w-[min(94vw,980px)] h-16 items-center px-5 bg-surface-950/85 backdrop-blur-2xl border border-white/10 rounded-full shadow-2xl'
+        : 'h-22 bg-surface-950/70 backdrop-blur-2xl border-t border-white/10 items-center px-5'}`}>
         <div className="flex items-center gap-4 text-surface-500">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-surface-800 to-surface-900 border border-white/10 flex items-center justify-center shadow-sm">
             <Music2 size={22} className="opacity-40" />
@@ -166,7 +175,9 @@ export default function Player() {
   }
 
   return (
-    <div className="hidden md:flex h-22 bg-surface-950/70 backdrop-blur-2xl border-t border-white/10 items-center px-4 gap-4 z-50 shadow-[0_-10px_40px_-12px_rgba(139,92,246,0.15)]">
+    <div className={`hidden md:flex ${pillMode
+      ? 'fixed bottom-4 left-1/2 -translate-x-1/2 z-[95] w-[min(94vw,980px)] h-16 items-center px-5 gap-4 bg-surface-950/85 backdrop-blur-2xl border border-white/10 rounded-full shadow-2xl shadow-wave-500/10'
+      : 'h-22 bg-surface-950/70 backdrop-blur-2xl border-t border-white/10 items-center px-4 gap-4 z-50 shadow-[0_-10px_40px_-12px_rgba(139,92,246,0.15)]'}`}>
       {/* Song info (left, flexes equally so center stays truly centered) */}
       <div className="flex-1 min-w-0 flex items-center gap-3"
         onMouseEnter={() => setShowTooltip(true)}
