@@ -19,13 +19,7 @@ import {
 } from 'lucide-react'
 
 const ACCENT_COLORS: { key: AccentColor; label: string; color: string }[] = [
-  { key: 'wave', label: 'Wave', color: '#22c7c0' },
-  { key: 'purple', label: 'Mor', color: '#8b5cf6' },
-  { key: 'green', label: 'Yeşil', color: '#10b981' },
-  { key: 'blue', label: 'Mavi', color: '#3b82f6' },
-  { key: 'warm', label: 'Sıcak', color: '#f97316' },
-  { key: 'pink', label: 'Pembe', color: '#ec4899' },
-  { key: 'classic', label: 'Klasik', color: '#f59e0b' },
+  { key: 'wave', label: 'Mor', color: '#8b5cf6' },
 ]
 
 const PROFILE_THEMES = [

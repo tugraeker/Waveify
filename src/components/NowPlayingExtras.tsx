@@ -53,11 +53,10 @@ export function WeatherOverlay() {
 
 /* 83 — Konser Modu: müzikle senkronize strobe + titreşim */
 export function StrobeOverlay() {
-  const strobeMode = useStore((s) => s.strobeMode)
   const isPlaying = useStore((s) => s.isPlaying)
   const [level, setLevel] = useState(0)
   useEffect(() => {
-    if (!strobeMode || !isPlaying) return
+    if (!isPlaying) return
     let lastVibe = 0
     const id = setInterval(() => {
       const data = audioEngine.getAnalyserData()
@@ -69,8 +68,8 @@ export function StrobeOverlay() {
       if (avg > 150 && navigator.vibrate && now - lastVibe > 250) { lastVibe = now; navigator.vibrate(12) }
     }, 50)
     return () => clearInterval(id)
-  }, [strobeMode, isPlaying])
-  if (!strobeMode) return null
+  }, [isPlaying])
+  return null
   return (
     <div
       className="fixed inset-0 z-[40] pointer-events-none"

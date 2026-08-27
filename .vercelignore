@@ -1,0 +1,11 @@
+node_modules
+server/node_modules
+release
+android
+dist-electron
+bin
+.git
+.env
+.env.production
+*.log
+preview.log

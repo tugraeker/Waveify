@@ -11,14 +11,12 @@ export const HOTKEY_ACTIONS: { action: string; label: string }[] = [
   { action: 'mute', label: 'Sessize Al' },
   { action: 'shuffle', label: 'Karıştır' },
   { action: 'repeat', label: 'Tekrarla' },
-  { action: 'highlight', label: 'Highlight Modu' },
-  { action: 'instrumental', label: 'Enstrümantal Mod' },
 ]
 
 export const DEFAULT_HOTKEYS: Record<string, string> = {
   Space: 'playpause', ArrowRight: 'next', ArrowLeft: 'prev',
   ArrowUp: 'volumeup', ArrowDown: 'volumedown', KeyM: 'mute',
-  KeyN: 'shuffle', KeyR: 'repeat', KeyH: 'highlight', KeyI: 'instrumental',
+  KeyN: 'shuffle', KeyR: 'repeat',
 }
 
 export function hotkeyLabel(code: string): string {
@@ -83,12 +81,6 @@ export function useKeyboardShortcuts() {
             break
           case 'repeat':
             state.setRepeat(state.repeat === 'off' ? 'all' : state.repeat === 'all' ? 'one' : 'off')
-            break
-          case 'highlight':
-            state.setHighlightMode(!state.highlightMode)
-            break
-          case 'instrumental':
-            state.setInstrumentalMode(!state.instrumentalMode)
             break
         }
       }

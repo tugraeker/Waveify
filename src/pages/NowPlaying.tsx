@@ -92,7 +92,6 @@ export default function NowPlaying() {
   const [touchY, setTouchY] = useState<number | null>(null)
   const [showGonio, setShowGonio] = useState(false)
   const [clockOpen, setClockOpen] = useState(false)
-  const { strobeMode, setStrobeMode } = useStore()
 
   const shareSong = useCallback(() => {
     if (!currentSong) return
@@ -443,16 +442,6 @@ export default function NowPlaying() {
               }`}
             >
               <Activity size={14} className="inline mr-1" />Gonyometre
-            </button>
-            <button
-              onClick={() => setStrobeMode(!strobeMode)}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                strobeMode
-                  ? 'bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30 animate-pulse'
-                  : 'text-surface-400 hover:text-white border border-transparent'
-              }`}
-            >
-              <Sparkles size={14} className="inline mr-1" />Konser Strobe
             </button>
           </div>
 

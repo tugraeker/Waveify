@@ -14,7 +14,6 @@ import { computeLevel } from '@/types'
 import { getStats, getXpTotal } from '@/lib/achievements'
 import { emitToast } from '@/hooks/useToast'
 import { dailyFact, dailyFortune, wheelRotation } from '@/lib/fun'
-import { confettiBurst } from '@/lib/party'
 import { FlowToolsSection } from '@/components/FlowTools'
 
 const autoPlaylistDefs = [
@@ -254,7 +253,6 @@ export default function Home() {
                           if (song) {
                             playSong(song)
                             emitToast(`🎡 Çark ${song.title} — ${song.artist} çıktı!`, 'success')
-                            confettiBurst()
                           }
                         }, 3600)
                       }}

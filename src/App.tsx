@@ -14,15 +14,9 @@ import MobilePlayer from '@/components/MobilePlayer'
 import ToastContainer from '@/components/ToastContainer'
 import UpdateBanner from '@/components/UpdateBanner'
 import WhatsNewModal from '@/components/WhatsNewModal'
-import TrollScreen from '@/components/TrollScreen'
-import MatrixRain from '@/components/MatrixRain'
 import { useAchievementsInit } from '@/hooks/useAchievements'
-import { getAmbientColors } from '@/lib/ambient'
-import { popLocalTroll, type TrollMessage } from '@/lib/troll'
-import { confettiBurst } from '@/lib/party'
-import { emitToast } from '@/hooks/useToast'
 import { Trophy } from 'lucide-react'
-import type { AccentColor, Song } from '@/types'
+import type { Song } from '@/types'
 
 const Auth = lazy(() => import('@/pages/Auth'))
 const Home = lazy(() => import('@/pages/Home'))
@@ -49,177 +43,29 @@ const BadgeGallery = lazy(() => import('@/pages/BadgeGallery'))
 const PodcastPage = lazy(() => import('@/pages/Podcast'))
 const RadioPage = lazy(() => import('@/pages/Radio'))
 const Charts = lazy(() => import('@/pages/Charts'))
-const Soundscapes = lazy(() => import('@/pages/Soundscapes'))
-const Trivia = lazy(() => import('@/pages/Trivia'))
-const BeatMaker = lazy(() => import('@/pages/BeatMaker'))
-const PitchGame = lazy(() => import('@/pages/PitchGame'))
-const Arcade = lazy(() => import('@/pages/Arcade'))
-const Studio = lazy(() => import('@/pages/Studio'))
-const Overlay = lazy(() => import('@/pages/Overlay'))
-const Community = lazy(() => import('@/pages/Community'))
-const Recap = lazy(() => import('@/pages/Recap'))
-const MusicWiki = lazy(() => import('@/pages/MusicWiki'))
-const Zen = lazy(() => import('@/pages/Zen'))
-const SystemPage = lazy(() => import('@/pages/System'))
-const QuestsPage = lazy(() => import('@/pages/QuestsPage'))
-
-const accentPalettes: Record<AccentColor, Record<string, string>> = {
-  wave:   { '50': '238 251 250', '100': '213 245 242', '200': '174 234 229', '300': '106 217 210', '400': '34 199 192', '500': '15 171 166', '600': '9 139 136', '700': '12 111 109', '800': '15 89 88', '900': '18 74 73', '950': '3 45 45' },
-  purple: { '50': '250 245 255', '100': '243 232 255', '200': '233 213 255', '300': '216 180 254', '400': '168 85 247', '500': '147 51 234', '600': '124 58 237', '700': '109 40 217', '800': '91 33 182', '900': '76 29 149', '950': '30 10 60' },
-  green:  { '50': '240 253 244', '100': '220 252 231', '200': '187 247 208', '300': '134 239 172', '400': '34 197 94', '500': '22 163 74', '600': '21 128 61', '700': '22 101 52', '800': '20 83 45', '900': '15 59 30', '950': '5 32 12' },
-  blue:   { '50': '239 246 255', '100': '219 234 254', '200': '191 219 254', '300': '147 197 253', '400': '59 130 246', '500': '37 99 235', '600': '29 78 216', '700': '30 64 175', '800': '30 58 138', '900': '23 37 84', '950': '10 14 46' },
-  warm:   { '50': '255 247 237', '100': '255 237 213', '200': '254 215 170', '300': '253 186 116', '400': '249 115 22', '500': '234 88 12', '600': '194 65 12', '700': '154 52 18', '800': '124 45 18', '900': '102 30 10', '950': '39 11 3' },
-  pink:   { '50': '253 242 248', '100': '252 231 243', '200': '251 207 232', '300': '249 168 212', '400': '236 72 153', '500': '219 39 119', '600': '190 24 93', '700': '157 23 77', '800': '131 24 67', '900': '80 7 36', '950': '32 3 18' },
-  classic:{ '50': '238 242 255', '100': '224 231 255', '200': '199 210 254', '300': '165 180 252', '400': '99 102 241', '500': '79 70 229', '600': '67 56 202', '700': '55 48 163', '800': '49 46 129', '900': '30 27 75', '950': '14 12 38' },
-}
-
-function hexToRgb(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return `${r} ${g} ${b}`
-}
-
-const AURORA_SCENES: Record<string, [string, string, string]> = {
-  '/': ['99 102 241', '34 211 238', '236 72 153'],
-  '/search': ['34 211 238', '236 72 153', '99 102 241'],
-  '/library': ['236 72 153', '245 158 11', '99 102 241'],
-  '/playlist': ['245 158 11', '99 102 241', '34 211 238'],
-  '/song': ['245 158 11', '236 72 153', '34 211 238'],
-  '/now-playing': ['139 92 246', '217 70 239', '245 158 11'],
-  '/trivia': ['139 92 246', '236 72 153', '34 211 238'],
-  '/soundscapes': ['16 185 129', '34 211 238', '99 102 241'],
-  '/stats': ['34 211 238', '99 102 241', '139 92 246'],
-  '/sync-room': ['249 115 22', '236 72 153', '99 102 241'],
-  '/discover': ['217 70 239', '34 211 238', '139 92 246'],
-  '/charts': ['245 158 11', '34 211 238', '236 72 153'],
-  '/beatmaker': ['16 185 129', '245 158 11', '34 211 238'],
-  '/pitch-game': ['217 70 239', '16 185 129', '99 102 241'],
-  '/arcade': ['245 158 11', '34 211 238', '236 72 153'],
-    '/studio': ['34 211 238', '16 185 129', '99 102 241'],
-    '/community': ['244 63 94', '251 146 60', '99 102 241'],
-    '/recap': ['16 185 129', '20 184 166', '99 102 241'],
-    '/wiki': ['245 158 11', '168 85 247', '99 102 241'],
-    '/zen': ['16 185 129', '52 211 153', '99 102 241'],
-    '/system': ['244 63 94', '16 185 129', '99 102 241'],
-    '/quests': ['52 211 153', '16 185 129', '99 102 241'],
-  '/settings': ['99 102 241', '139 92 246', '34 211 238'],
-  '/admin': ['34 211 238', '99 102 241', '139 92 246'],
-}
-
-function isNightWindow(): boolean {
-  const h = new Date().getHours()
-  return h >= 0 && h < 5
-}
 
 export default function App() {
-  const { user, theme, accentColor, customAccentColor, setUser, setPlaylists, currentSong, retroMode, lowLightMode, visualTheme, neonText, lowDataMode, glassEffects } = useStore()
+  const { user, theme, setUser, setPlaylists, currentSong } = useStore()
   const navigate = useNavigate()
   const location = useLocation()
   const [mounted, setMounted] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
-  const [troll, setTroll] = useState<TrollMessage | null>(null)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
     document.documentElement.classList.toggle('light', theme === 'light')
-    const savedBg = localStorage.getItem('waveify_bg_color')
-    if (savedBg) {
-      document.documentElement.style.setProperty('--custom-bg', savedBg)
-    }
   }, [theme])
 
   useEffect(() => {
     const root = document.documentElement
-    if (retroMode) {
-      root.style.filter = 'contrast(1.15) saturate(1.2)'
-    } else {
-      root.style.filter = ''
-    }
-  }, [retroMode])
-
-  useEffect(() => {
-    const root = document.documentElement
-    root.style.setProperty('--low-light', lowLightMode ? '1' : '0')
-  }, [lowLightMode])
-
-  /* 96 — Cam Efektleri: glassmorphism kapatılabilir */
-  useEffect(() => {
-    document.documentElement.classList.toggle('no-glass', !glassEffects)
-  }, [glassEffects])
-
-  useEffect(() => {
-    const palette = accentPalettes[accentColor]
-    const root = document.documentElement
-    if (customAccentColor) {
-      const rgb = hexToRgb(customAccentColor)
-      for (const [shade, _] of Object.entries(accentPalettes.wave)) {
-        const intensity = parseInt(shade) / 950
-        root.style.setProperty(`--wave-${shade}`, `255 255 255`)
-      }
-      root.style.setProperty('--wave-400', rgb)
-      root.style.setProperty('--wave-500', rgb)
-    } else if (palette) {
-      for (const [shade, value] of Object.entries(palette)) {
-        root.style.setProperty(`--wave-${shade}`, value)
-      }
-    }
-  }, [accentColor, customAccentColor])
+    root.style.setProperty('--wave-400', '139 92 246')
+    root.style.setProperty('--wave-500', '139 92 246')
+  }, [])
 
   useKeyboardShortcuts()
   useDiscordRPC()
   useMediaSession()
   const { showLevelUp, newLevel } = useAchievementsInit()
-
-  // Aurora scene per route (with night override)
-  useEffect(() => {
-    const root = document.documentElement
-    const scene = AURORA_SCENES[location.pathname] || AURORA_SCENES['/']
-    let c1 = scene[0], c2 = scene[1], c3 = scene[2]
-    if (isNightWindow()) {
-      c1 = '76 29 149'
-      c2 = '30 27 75'
-      c3 = '236 72 153'
-    }
-    root.style.setProperty('--aurora-1', c1)
-    root.style.setProperty('--aurora-2', c2)
-    root.style.setProperty('--aurora-3', c3)
-  }, [location.pathname])
-
-  // Console easter egg: type "waveify" or "konfeti"
-  useEffect(() => {
-    let typed = ''
-    const handler = (e: KeyboardEvent) => {
-      typed = (typed + e.key).toLowerCase().slice(-12)
-      if (typed.includes('waveify') || typed.includes('konfeti')) {
-        confettiBurst()
-        typed = ''
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [])
-
-  // Konami code easter egg (188)
-  useEffect(() => {
-    const seq = ['arrowup', 'arrowup', 'arrowdown', 'arrowdown', 'arrowleft', 'arrowright', 'arrowleft', 'arrowright', 'b', 'a']
-    let pos = 0
-    const handler = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase()
-      if (key === seq[pos]) {
-        pos++
-        if (pos === seq.length) {
-          pos = 0
-          confettiBurst()
-          emitToast('🎮 30 can kazandın! (aslında sadece konfeti)', 'success')
-        }
-      } else {
-        pos = key === seq[0] ? 1 : 0
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -254,12 +100,6 @@ export default function App() {
       is_admin: isAdmin,
       created_at: authUser.created_at,
     })
-    const inbox: TrollMessage[] = Array.isArray(profile?.display_settings?.trollInbox) ? profile.display_settings.trollInbox : []
-    if (inbox.length > 0) {
-      const [first, ...rest] = inbox
-      setTroll(first)
-      supabase.from('users').update({ display_settings: { ...(profile?.display_settings || {}), trollInbox: rest } }).eq('id', authUser.id).then(() => {}, () => {})
-    }
     try {
       const { data } = await supabase.from('playlists').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false })
       if (data) setPlaylists(data)
@@ -335,45 +175,12 @@ export default function App() {
 
   useEffect(() => { setMounted(true) }, [])
 
-  // Troll inbox polling (local queue → immediate display, Supabase → cross-device)
-  useEffect(() => {
-    if (!user) return
-    const check = () => {
-      if (!useStore.getState().user) return
-      const local = popLocalTroll()
-      if (local) { setTroll(local); return }
-      supabase.from('users').select('display_settings').eq('id', user.id).maybeSingle()
-        .then(({ data }) => {
-          const q: TrollMessage[] = Array.isArray(data?.display_settings?.trollInbox) ? data.display_settings.trollInbox : []
-          if (q.length > 0) {
-            const [first, ...rest] = q
-            setTroll(first)
-            supabase.from('users').update({ display_settings: { ...(data!.display_settings || {}), trollInbox: rest } }).eq('id', user.id).then(() => {}, () => {})
-          }
-        }, () => {})
-    }
-    const id = window.setInterval(check, 60000)
-    check()
-    return () => window.clearInterval(id)
-  }, [user?.id])
-
-  useEffect(() => {
-    if (!currentSong?.cover_url || lowDataMode) return
-    let cancelled = false
-    getAmbientColors(currentSong.cover_url).then((c) => {
-      if (cancelled) return
-      const root = document.documentElement
-      root.style.setProperty('--ambient-primary', c.primary)
-      root.style.setProperty('--ambient-secondary', c.secondary)
-    })
-    return () => { cancelled = true }
-  }, [currentSong?.cover_url])
   if (!mounted) return null
 
   if (authLoading) {
     return (
-      <div className="h-screen bg-surface-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-wave-400 border-t-transparent rounded-full animate-spin" />
+      <div className="h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -381,14 +188,7 @@ export default function App() {
   if (!user) return <Auth />
 
   return (
-    <div className={`h-screen flex flex-col bg-surface-950 relative overflow-hidden ${retroMode || visualTheme === 'crt' ? 'scanlines' : ''} ${visualTheme === 'crt' ? 'theme-crt' : ''} ${visualTheme === 'matrix' ? 'theme-matrix' : ''} ${visualTheme === 'oled' ? 'theme-oled' : ''} ${lowLightMode ? 'brightness-[0.6] saturate-[0.9] contrast-[1.05]' : ''}`}>
-      <div className="ambient-glow" />
-      {visualTheme === 'matrix' && <MatrixRain />}
-      {neonText && (
-        <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-[5]">
-          <p className={`neon-sign ${visualTheme === 'crt' || visualTheme === 'matrix' ? 'neon-sign-alt' : ''} font-display font-extrabold text-6xl md:text-8xl text-cyan-300/25 text-center px-8 select-none`}>{neonText}</p>
-        </div>
-      )}
+    <div className="h-screen flex flex-col bg-[#0a0a0a] relative overflow-hidden">
       <div className="hidden md:block">
         <TitleBar />
       </div>
@@ -398,15 +198,10 @@ export default function App() {
           <Sidebar />
         </div>
         <main className="relative flex-1 flex flex-col overflow-hidden">
-          <div className="aurora-layer">
-            <div className="aurora-blob aurora-blob-1" />
-            <div className="aurora-blob aurora-blob-2" />
-            <div className="aurora-blob aurora-blob-3" />
-          </div>
           <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
           <Suspense fallback={
             <div className="flex-1 flex items-center justify-center">
-              <div className="w-8 h-8 border-2 border-wave-400 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
             </div>
           }>
             <Routes>
@@ -435,19 +230,6 @@ export default function App() {
               <Route path="/podcast" element={<PodcastPage />} />
               <Route path="/radio" element={<RadioPage />} />
               <Route path="/charts" element={<Charts />} />
-              <Route path="/soundscapes" element={<Soundscapes />} />
-              <Route path="/trivia" element={<Trivia />} />
-              <Route path="/beatmaker" element={<BeatMaker />} />
-              <Route path="/pitch-game" element={<PitchGame />} />
-              <Route path="/arcade" element={<Arcade />} />
-              <Route path="/studio" element={<Studio />} />
-              <Route path="/overlay" element={<Overlay />} />
-              <Route path="/community" element={<Community />} />
-              <Route path="/recap" element={<Recap />} />
-              <Route path="/wiki" element={<MusicWiki />} />
-              <Route path="/zen" element={<Zen />} />
-              <Route path="/system" element={<SystemPage />} />
-              <Route path="/quests" element={<QuestsPage />} />
               <Route path="/auth" element={<Auth />} />
             </Routes>
           </Suspense>
@@ -462,7 +244,6 @@ export default function App() {
       <ToastContainer />
       <UpdateBanner />
       <WhatsNewModal />
-      {troll && <TrollScreen message={troll} onClose={() => setTroll(null)} />}
       {showLevelUp && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => {}}>
           <div className="text-center animate-level-up">

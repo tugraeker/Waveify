@@ -9,24 +9,16 @@ import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity, Paint
 import type { AccentColor, CoverStyle } from '@/types'
 
 const accentColors: { key: AccentColor; label: string; color: string }[] = [
-  { key: 'wave', label: 'Turkuaz', color: '#14b8a6' },
-  { key: 'purple', label: 'Mor', color: '#a855f7' },
-  { key: 'green', label: 'Yeşil', color: '#22c55e' },
-  { key: 'blue', label: 'Mavi', color: '#3b82f6' },
-  { key: 'warm', label: 'Sıcak', color: '#f97316' },
-  { key: 'pink', label: 'Pembe', color: '#ec4899' },
-  { key: 'classic', label: 'Klasik', color: '#6366f1' },
+  { key: 'wave', label: 'Mor', color: '#8b5cf6' },
 ]
 
 export default function Settings() {
   const {
-    user, theme, accentColor, customAccentColor, setTheme, setAccentColor, setCustomAccentColor, setUser,
+    user, theme, accentColor, setTheme, setUser, setAccentColor,
     seekStep, setSeekStep, normalize, setNormalize, smartShuffle, setSmartShuffle,
-    coverStyle, setCoverStyle, retroMode, setRetroMode, lowLightMode, setLowLightMode,
+    coverStyle, setCoverStyle,
     crossfade, setCrossfade, crossfadeDuration, setCrossfadeDuration,
-    visualTheme, setVisualTheme, pillMode, setPillMode, neonText, setNeonText, lowDataMode, setLowDataMode,
     hotkeys, setHotkeys, profileName, setProfileName, smartCache, setSmartCache,
-    glassEffects, setGlassEffects,
   } = useStore()
   const navigate = useNavigate()
   const [username, setUsername] = useState(user?.username || '')
@@ -38,7 +30,7 @@ export default function Settings() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [bgColor, setBgColor] = useState(localStorage.getItem('waveify_bg_color') || '')
-  const [customAccentInput, setCustomAccentInput] = useState(customAccentColor || '')
+  const [customAccentInput, setCustomAccentInput] = useState('')
   const [appVersion] = useState(__APP_VERSION__)
   const [capturingAction, setCapturingAction] = useState<string | null>(null)
   const [profiles, setProfiles] = useState<Record<string, Record<string, string>>>(() => {
@@ -298,21 +290,12 @@ export default function Settings() {
                   {accentColors.map((ac) => (
                     <button
                       key={ac.key}
-                      onClick={() => { setAccentColor(ac.key); setCustomAccentInput('') }}
-                      className={`w-9 h-9 rounded-xl transition-all border-2 ${accentColor === ac.key && !customAccentColor ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
+                      onClick={() => setAccentColor(ac.key)}
+                      className={`w-9 h-9 rounded-xl transition-all border-2 ${accentColor === ac.key ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
                       style={{ backgroundColor: ac.color }}
                       title={ac.label}
                     />
                   ))}
-                </div>
-                <div className="mt-3 flex items-center gap-2">
-                  <label className="text-xs text-surface-400">Özel renk (hex):</label>
-                  <input
-                    type="color"
-                    value={customAccentInput || '#22c7c0'}
-                    onChange={(e) => { setCustomAccentInput(e.target.value); setCustomAccentColor(e.target.value); setAccentColor('wave') }}
-                    className="w-9 h-9 rounded-lg cursor-pointer bg-transparent border border-surface-700"
-                  />
                 </div>
               </div>
               <div>
@@ -328,47 +311,6 @@ export default function Settings() {
                     Sıfırla
                   </button>
                 )}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-surface-900/60 border border-surface-800/50 rounded-2xl p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 rounded-xl bg-cyan-500/10 flex items-center justify-center"><Eye size={18} className="text-cyan-400" /></div>
-              <h2 className="text-lg font-semibold">Efekt Temaları</h2>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-surface-400 font-medium mb-2 block">Ekran Efekti</label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {([
-                    ['none', 'Yok'], ['crt', '📺 CRT TV'], ['matrix', '🌿 Matrix'], ['oled', '⬛ OLED'],
-                  ] as const).map(([key, label]) => (
-                    <button key={key} onClick={() => setVisualTheme(key)} className={`px-3 py-2 rounded-xl text-xs font-medium transition-all border ${visualTheme === key ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-surface-800 text-surface-400 border-surface-700 hover:text-white'}`}>{label}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-surface-300">Pill Oynatıcı <span className="text-[10px] text-surface-500">(yüzen kompakt çubuk)</span></span>
-                <button onClick={() => setPillMode(!pillMode)} className={`w-11 h-6 rounded-full transition-all ${pillMode ? 'bg-cyan-500' : 'bg-surface-700'} relative`}>
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${pillMode ? 'left-[22px]' : 'left-0.5'}`} />
-                </button>
-              </div>
-              <div>
-                <label className="text-xs text-surface-400 font-medium mb-1.5 block">Neon Yazı <span className="text-surface-500">(arkaplan tabelası, boş = kapalı)</span></label>
-                <Input value={neonText} onChange={(e) => setNeonText(e.target.value)} placeholder="örn. ROCK GECESİ" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-surface-300">Düşük Veri Modu <span className="text-[10px] text-surface-500">(ambiyans analizi kapalı)</span></span>
-                <button onClick={() => setLowDataMode(!lowDataMode)} className={`w-11 h-6 rounded-full transition-all ${lowDataMode ? 'bg-emerald-500' : 'bg-surface-700'} relative`}>
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${lowDataMode ? 'left-[22px]' : 'left-0.5'}`} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-surface-300">Cam Efektleri <span className="text-[10px] text-surface-500">(glassmorphism, kapalıyken düz yüzey)</span></span>
-                <button onClick={() => setGlassEffects(!glassEffects)} className={`w-11 h-6 rounded-full transition-all ${glassEffects ? 'bg-sky-500' : 'bg-surface-700'} relative`}>
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${glassEffects ? 'left-[22px]' : 'left-0.5'}`} />
-                </button>
               </div>
             </div>
           </div>
@@ -421,18 +363,6 @@ export default function Settings() {
                   />
                   <span className="text-xs text-wave-400 font-mono tabular-nums w-10 text-right">{crossfadeDuration}sn</span>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-surface-300">Retro 2006 Modu <span className="text-[10px] text-surface-500">(eski okul hissi)</span></span>
-                <button onClick={() => setRetroMode(!retroMode)} className={`w-11 h-6 rounded-full transition-all ${retroMode ? 'bg-amber-500' : 'bg-surface-700'} relative`}>
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${retroMode ? 'left-[22px]' : 'left-0.5'}`} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-surface-300">Düşük Işık <span className="text-[10px] text-surface-500">(göz dostu gece)</span></span>
-                <button onClick={() => setLowLightMode(!lowLightMode)} className={`w-11 h-6 rounded-full transition-all ${lowLightMode ? 'bg-indigo-500' : 'bg-surface-700'} relative`}>
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${lowLightMode ? 'left-[22px]' : 'left-0.5'}`} />
-                </button>
               </div>
             </div>
           </div>

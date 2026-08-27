@@ -255,4 +255,4 @@ export interface LooseBadgeDef {
   icon: string
 }
 
-export type AccentColor = 'wave' | 'purple' | 'green' | 'blue' | 'warm' | 'pink' | 'classic'
+export type AccentColor = 'wave'

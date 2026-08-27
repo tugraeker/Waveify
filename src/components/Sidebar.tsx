@@ -1,38 +1,42 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
-import { cn } from '@/lib/utils'
 import { Logo } from '@/components/Logo'
 import {
   Home, Search, Library, Upload, Users,
-  Music, Flame, Clock, Heart, TrendingUp,
-  Plus, List, Disc3, User, Radio,
-  History, Sun, Moon, Globe, Settings as SettingsIcon,
-  BarChart3, Shield, MessageSquare, Sparkles, Award, Trophy, Waves,
-  Headphones, Music4, Ear, Gamepad2, AudioWaveform, Monitor,
-  CalendarCheck, BookOpen, Flower2, Cpu, Sprout,
+  MessageSquare, ListMusic, BarChart3, Trophy,
+  Settings, User, Radio, History, Globe,
 } from 'lucide-react'
 
-const navItems = [
-  { view: 'home' as const, label: 'Ana Sayfa', icon: Home, path: '/' },
-  { view: 'search' as const, label: 'Ara', icon: Search, path: '/search' },
-  { view: 'library' as const, label: 'Kitaplık', icon: Library, path: '/library' },
-  { view: 'upload' as const, label: 'Yükle', icon: Upload, path: '/upload' },
-  { view: 'friends' as const, label: 'Arkadaşlar', icon: Users, path: '/friends' },
-  { view: 'chat' as const, label: 'Sohbet', icon: MessageSquare, path: '/chat' },
+const mainItems = [
+  { to: '/', icon: Home, label: 'Ana Sayfa' },
+  { to: '/search', icon: Search, label: 'Ara' },
+  { to: '/library', icon: Library, label: 'Kitaplık' },
+  { to: '/upload', icon: Upload, label: 'Yükle' },
 ]
 
-const autoPlaylists = [
-  { name: 'En Çok Dinlenenler', icon: Flame, auto_type: 'top50' as const },
-  { name: 'Bu Hafta Popüler', icon: TrendingUp, auto_type: 'weekly' as const },
-  { name: 'En Son Yüklenenler', icon: Clock, auto_type: 'latest' as const },
-  { name: 'Beğenilenler', icon: Heart, auto_type: 'liked' as const },
-  { name: 'Arkadaşlarının En Çok Dinledikleri', icon: Music, auto_type: 'friends_top' as const },
+const socialItems = [
+  { to: '/friends', icon: Users, label: 'Arkadaşlar' },
+  { to: '/chat', icon: MessageSquare, label: 'Sohbet' },
+]
+
+const musicItems = [
+  { to: '/now-playing', icon: ListMusic, label: 'Şimdi Çalıyor' },
+  { to: '/queue', icon: ListMusic, label: 'Sıradakiler' },
+  { to: '/discover', icon: Radio, label: 'Keşfet' },
+  { to: '/charts', icon: Trophy, label: 'Charts' },
+]
+
+const bottomItems = [
+  { to: '/stats', icon: BarChart3, label: 'İstatistikler' },
+  { to: '/badges', icon: Trophy, label: 'Rozetler' },
+  { to: '/history', icon: History, label: 'Geçmiş' },
+  { to: '/import', icon: Globe, label: 'İçe Aktar' },
 ]
 
 export default function Sidebar() {
-  const { user, sidebarView, setSidebarView, playlists, setActivePlaylist, theme, setTheme } = useStore()
+  const { user } = useStore()
   const navigate = useNavigate()
   const [isAdmin, setIsAdmin] = useState(false)
 
@@ -44,137 +48,79 @@ export default function Sidebar() {
     })
   }, [user?.id])
 
-  const handleNav = (view: typeof sidebarView, path: string) => {
-    setSidebarView(view)
-    navigate(path)
-  }
+  const linkClass = ({ isActive }: { isActive: boolean }) =>
+    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-200 ${
+      isActive
+        ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]'
+        : 'text-[#a1a1a1] hover:bg-[#282828] hover:text-white'
+    }`
 
   return (
-    <div className="w-64 bg-surface-950 h-full flex flex-col border-r border-surface-800/30 overflow-hidden">
-      <div className="drag-region h-11 flex items-center gap-2.5 px-4 pt-2 flex-shrink-0">
-        <Logo size={28} className="shadow-lg shadow-wave-500/20" />
-        <span className="text-base font-extrabold text-gradient tracking-tight">Waveify</span>
+    <div className="w-60 h-full bg-[#0a0a0a] border-r border-[#282828] flex flex-col overflow-hidden">
+      <div className="drag-region h-14 flex items-center gap-2.5 px-5 flex-shrink-0">
+        <Logo size={24} />
+        <span className="text-lg font-display font-bold text-white">Waveify</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-2">
-        <nav className="flex flex-col gap-0.5 mt-1">
-          {navItems.map(({ view, label, icon: Icon, path }) => (
-            <button
-              key={view}
-              onClick={() => handleNav(view, path)}
-              className={cn(
-                'relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 no-drag overflow-hidden',
-                sidebarView === view
-                  ? 'text-white bg-gradient-to-r from-wave-500/20 via-wave-500/10 to-transparent border border-wave-500/25 shadow-sm shadow-wave-500/10'
-                  : 'text-surface-400 hover:text-white hover:bg-white/5 border border-transparent'
-              )}
-            >
-              {sidebarView === view && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-3/4 w-0.5 rounded-full bg-gradient-to-b from-wave-400 to-fuchsia-400 shadow-[0_0_8px_rgba(167,139,250,0.8)]" />
-              )}
-              <Icon size={18} className={sidebarView === view ? 'text-wave-400' : ''} />
-              {label}
-            </button>
-          ))}
-        </nav>
+      <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-2 space-y-1">
+        {mainItems.map((item) => (
+          <NavLink key={item.to} to={item.to} className={linkClass} end={item.to === '/'}>
+            <item.icon size={18} />
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
 
-        <div className="flex flex-col gap-0.5 mt-1">
-          {[
-            { icon: Sparkles, label: 'Keşfet', path: '/discover' },
-            { icon: List, label: 'Sıradakiler', path: '/queue' },
-            { icon: Disc3, label: 'Şimdi Çalıyor', path: '/now-playing' },
-            { icon: User, label: 'Profilim', path: '/profile' },
-            { icon: Radio, label: 'Birlikte Dinle', path: '/sync-room', highlight: true },
-            { icon: Waves, label: 'Ses Manzaraları', path: '/soundscapes' },
-            { icon: Headphones, label: 'Drop Modu', path: '/trivia', highlight: true },
-            { icon: Music4, label: 'Beat Maker', path: '/beatmaker', highlight: true },
-            { icon: Users, label: 'Topluluk', path: '/community' },
-            { icon: CalendarCheck, label: 'Haftalık Özet', path: '/recap' },
-            { icon: BookOpen, label: 'Müzik Sözlüğü', path: '/wiki' },
-            { icon: Flower2, label: 'Zen', path: '/zen' },
-            { icon: Cpu, label: 'Sistem', path: '/system' },
-            { icon: Sprout, label: 'Görevler', path: '/quests' },
-            { icon: Ear, label: 'Perde Oyunu', path: '/pitch-game' },
-            { icon: Gamepad2, label: 'Arcade', path: '/arcade', highlight: true },
-            { icon: AudioWaveform, label: 'Studio', path: '/studio', highlight: true },
-            { icon: Monitor, label: 'OBS Overlay', path: '/overlay' },
-            { icon: History, label: 'Geçmiş', path: '/history' },
-            { icon: BarChart3, label: 'İstatistik', path: '/stats' },
-            { icon: Award, label: 'Rozetler', path: '/badges' },
-            { icon: Trophy, label: 'Charts', path: '/charts' },
-            { icon: Globe, label: 'İçe Aktar', path: '/import' },
-          ].map(({ icon: Icon, label, path, highlight }) => (
-            <button
-              key={path}
-              onClick={() => navigate(path)}
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-200 no-drag ${
-                highlight
-                  ? 'text-wave-400 hover:text-white hover:bg-wave-500/10 border border-transparent hover:border-wave-500/20'
-                  : 'text-surface-400 hover:text-white hover:bg-white/5 border border-transparent'
-              }`}
-            >
-              <Icon size={17} />
-              {label}
-            </button>
-          ))}
+        <div className="pt-4 pb-2">
+          <p className="px-3 text-xs text-[#666666] uppercase tracking-wider font-medium">Sosyal</p>
         </div>
+        {socialItems.map((item) => (
+          <NavLink key={item.to} to={item.to} className={linkClass}>
+            <item.icon size={18} />
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
 
-        <div className="mt-3 flex items-center justify-between px-1">
-          <span className="text-[11px] font-display font-semibold text-surface-500 uppercase tracking-[0.14em]">Listelerin</span>
-          <button onClick={() => navigate('/create-playlist')} className="text-surface-500 hover:text-wave-400 no-drag transition-colors">
-            <Plus size={14} />
-          </button>
+        <div className="pt-4 pb-2">
+          <p className="px-3 text-xs text-[#666666] uppercase tracking-wider font-medium">Müzik</p>
         </div>
+        {musicItems.map((item) => (
+          <NavLink key={item.to} to={item.to} className={linkClass}>
+            <item.icon size={18} />
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
 
-        <div className="flex flex-col gap-0.5 mt-2">
-          {autoPlaylists.map(({ name, icon: Icon, auto_type }) => (
-            <button
-              key={auto_type}
-              onClick={() => {
-                setActivePlaylist({ id: auto_type, name, user_id: '', type: 'auto', auto_type, created_at: '' })
-                navigate('/playlist')
-              }}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-400 hover:text-white hover:bg-white/5 transition-all duration-200 no-drag"
-            >
-              <Icon size={15} className="text-surface-500" />
-              {name}
-            </button>
-          ))}
-          <div className="border-t border-surface-800/50 my-2" />
-          {playlists.filter((p) => p.type === 'custom').length === 0 ? (
-            <div className="px-3 py-3 bg-surface-900/40 border border-surface-800/30 rounded-xl text-center">
-            <p className="text-xs text-surface-500 italic">Henüz liste yok</p>
-          </div>
-          ) : (
-            playlists.filter((p) => p.type === 'custom').map((pl) => (
-              <button
-                key={pl.id}
-                onClick={() => { setActivePlaylist(pl); navigate('/playlist') }}
-                className="text-left px-3 py-2 text-sm text-surface-400 hover:text-white hover:bg-white/5 rounded-xl truncate transition-all duration-200 no-drag"
-              >
-                {pl.name}
-              </button>
-            ))
-          )}
+        <div className="pt-4 pb-2">
+          <p className="px-3 text-xs text-[#666666] uppercase tracking-wider font-medium">Diğer</p>
         </div>
+        {bottomItems.map((item) => (
+          <NavLink key={item.to} to={item.to} className={linkClass}>
+            <item.icon size={18} />
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
 
-        <div className="flex flex-col gap-0.5 mt-3 pt-3 border-t border-surface-800/30">
-          {isAdmin && (
-            <button onClick={() => navigate('/admin')} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-amber-400 hover:text-amber-300 hover:bg-amber-500/5 transition-all duration-200 no-drag w-full">
-              <Shield size={17} /> Admin
-            </button>
-          )}
-          <button onClick={() => navigate('/settings')} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-400 hover:text-white hover:bg-white/5 transition-all duration-200 no-drag w-full">
-            <SettingsIcon size={17} /> Ayarlar
-          </button>
-          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-surface-400 hover:text-white hover:bg-white/5 transition-all duration-200 no-drag w-full">
-            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-            {theme === 'dark' ? 'Aydınlık Tema' : 'Karanlık Tema'}
-          </button>
-        </div>
-        <div className="px-3 py-2 text-[10px] text-surface-600 text-center">
-          v{__APP_VERSION__}
-        </div>
+        {isAdmin && (
+          <NavLink to="/admin" className={linkClass}>
+            <Settings size={18} />
+            <span>Admin</span>
+          </NavLink>
+        )}
+      </nav>
+
+      <div className="px-3 py-3 border-t border-[#282828]">
+        <NavLink to="/profile" className={linkClass}>
+          <User size={18} />
+          <span>Profilim</span>
+        </NavLink>
+        <NavLink to="/settings" className={linkClass}>
+          <Settings size={18} />
+          <span>Ayarlar</span>
+        </NavLink>
+      </div>
+
+      <div className="px-5 py-2 text-[10px] text-[#666666] text-center border-t border-[#282828]">
+        v{__APP_VERSION__}
       </div>
     </div>
   )
