@@ -7,6 +7,7 @@ import { useDiscordRPC } from '@/hooks/useDiscordRPC'
 import { useMediaSession } from '@/hooks/useMediaSession'
 import Sidebar from '@/components/Sidebar'
 import Player from '@/components/Player'
+import HeyWave from '@/components/HeyWave'
 import TitleBar from '@/components/TitleBar'
 import MobileTopBar from '@/components/MobileTopBar'
 import MobileNav from '@/components/MobileNav'
@@ -43,6 +44,10 @@ const BadgeGallery = lazy(() => import('@/pages/BadgeGallery'))
 const PodcastPage = lazy(() => import('@/pages/Podcast'))
 const RadioPage = lazy(() => import('@/pages/Radio'))
 const Charts = lazy(() => import('@/pages/Charts'))
+const AIDJ = lazy(() => import('@/pages/AIDJ'))
+const VisualLab = lazy(() => import('@/pages/VisualLab'))
+const LiveSessions = lazy(() => import('@/pages/LiveSessions'))
+const Studio = lazy(() => import('@/pages/Studio'))
 
 export default function App() {
   const { user, theme, setUser, setPlaylists, currentSong } = useStore()
@@ -230,6 +235,10 @@ export default function App() {
               <Route path="/podcast" element={<PodcastPage />} />
               <Route path="/radio" element={<RadioPage />} />
               <Route path="/charts" element={<Charts />} />
+              <Route path="/ai-dj" element={<AIDJ />} />
+              <Route path="/visual-lab" element={<VisualLab />} />
+              <Route path="/live-sessions" element={<LiveSessions />} />
+              <Route path="/studio" element={<Studio />} />
               <Route path="/auth" element={<Auth />} />
             </Routes>
           </Suspense>
@@ -241,6 +250,7 @@ export default function App() {
       </div>
       <MobilePlayer />
       <MobileNav />
+      <HeyWave />
       <ToastContainer />
       <UpdateBanner />
       <WhatsNewModal />
