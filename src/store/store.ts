@@ -1,3 +1,8 @@
+/**
+ * @deprecated v10 monolit store. Yeni kod src/stores/* kullanmalidir
+ * (useUserStore, useUiStore, yakinda player/queue). Bu dosya Task 4/6
+ * gocu tamamlanana kadar eski import'lar calissin diye korunur.
+ */
 import { create } from 'zustand'
 import type { User, Song, Playlist, EqualizerSettings, AudioEffects, RadioState, SyncRoom, VisualizerMode, SleepTimer, AccentColor, Activity, Badge, EqPreset, VisualizerColorTheme, SongNote, SongRating, CoverStyle } from '@/types'
 import { defaultEqBands, EQ_PRESETS } from '@/types'
@@ -219,3 +224,7 @@ songNotes: loadJson<Record<string, string>>('waveify_song_notes', {}),
   smartCache: loadJson<boolean>('waveify_smart_cache', true),
   setSmartCache: (v) => { localStorage.setItem('waveify_smart_cache', JSON.stringify(v)); set({ smartCache: v }) },
 }))
+
+// v10 shim: yeni bolunmus store'lar eski yoldan da erisilebilir (gecici, Task 4/6 sonrasi kaldir).
+export { useUserStore } from '@/stores/userStore'
+export { useUiStore } from '@/stores/uiStore'
