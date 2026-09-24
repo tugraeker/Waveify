@@ -1,0 +1,186 @@
+import { useState, useRef } from 'react'
+import { useStore } from '@/store/store'
+import { supabase } from '../../../core/supabaseClient'
+import { formatDuration } from '@/lib/utils'
+import { trackPlaylist } from '@/lib/achievements'
+import { emitToast } from '@/hooks/useToast'
+import { Music2, X, Play, GripVertical, Save, Shuffle, Star, Sparkles } from 'lucide-react'
+import type { Song } from '@/types'
+
+export default function QueuePage() {
+  const { queue, currentSong, removeFromQueue, setCurrentSong, setQueue, user, setPlaylists } = useStore()
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const dragOverIdx = useRef<number | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saveName, setSaveName] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [mystery, setMystery] = useState(false)
+
+  const playSong = (song: Song) => {
+    const idx = queue.findIndex((s) => s.id === song.id)
+    if (idx > -1) setCurrentSong(song)
+  }
+
+  const clearQueue = () => setQueue([])
+
+  // Hype: Mystery queue — shuffle button that also surprises
+  const toggleMystery = async () => {
+    if (queue.length === 0) return
+    setMystery(!mystery)
+    if (!mystery) {
+      try {
+        const { data } = await supabase.from('songs').select('*')
+        if (data && data.length > 0) {
+          const pool = (data as Song[]).filter((s) => s.id !== currentSong?.id && !queue.some((q) => q.id === s.id))
+          const picks: Song[] = []
+          for (let i = 0; i < 3 && pool.length > 0; i++) {
+            const r = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]
+            if (r) picks.push(r)
+          }
+          setQueue([...queue, ...picks])
+          emitToast('🎰 Gizemli sıra eklendi — ne çıkarsa', 'info')
+        }
+      } catch {}
+    } else {
+      emitToast('👻 Gizemli sıra kapatıldı', 'info')
+    }
+  }
+
+  function handleDragStart(i: number) {
+    setDragIdx(i)
+  }
+
+  function handleDragOver(e: React.DragEvent, i: number) {
+    e.preventDefault()
+    dragOverIdx.current = i
+  }
+
+  function handleDrop() {
+    if (dragIdx === null || dragOverIdx.current === null) return
+    const from = dragIdx
+    const to = dragOverIdx.current
+    if (from === to) { setDragIdx(null); return }
+    const newQueue = [...queue]
+    const [moved] = newQueue.splice(from, 1)
+    newQueue.splice(to, 0, moved)
+    setQueue(newQueue)
+    setDragIdx(null)
+  }
+
+  async function saveQueue() {
+    if (!user || queue.length === 0) return
+    const name = saveName.trim() || `Sıra ${new Date().toLocaleDateString('tr-TR')}`
+    setSaving(true)
+    try {
+      const { data: pl, error } = await supabase
+        .from('playlists')
+        .insert({ user_id: user.id, name, type: 'custom', is_collaborative: false })
+        .select()
+        .single()
+      if (error || !pl) throw error
+      const rows = queue.map((song, i) => ({ playlist_id: pl.id, song_id: song.id, position: i }))
+      await supabase.from('playlist_songs').insert(rows)
+      const { data: playlists } = await supabase.from('playlists').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+      if (playlists) setPlaylists(playlists)
+      trackPlaylist()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      console.warn('Queue save failed:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="p-6 overflow-y-auto h-full scrollbar-thin animate-fade-in">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+        <h1 className="text-2xl font-display font-bold">Sıradaki</h1>
+        <div className="flex items-center gap-2">
+          {queue.length > 0 && !saved && (
+            <>
+              <button
+                onClick={toggleMystery}
+                className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold transition-all ${
+                  mystery
+                    ? 'bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/40'
+                    : 'bg-surface-800/60 border border-surface-700 text-surface-300 hover:text-white'
+                }`}
+                title="3 rastgele sürpriz şarkı daha ekle"
+              >
+                <Shuffle size={13} className={mystery ? 'animate-spin-slow' : ''} /> Gizemli Sıra
+              </button>
+              <button
+                onClick={saveQueue}
+                disabled={saving || !user}
+                className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-wave-500 text-white text-xs font-semibold hover:bg-wave-400 transition-colors disabled:opacity-50"
+              >
+                <Save size={13} />Sırayı Kaydet
+              </button>
+            </>
+          )}
+          {saved && (
+            <span className="text-sm text-wave-400 font-semibold animate-fade-in">✓ Kaydedildi!</span>
+          )}
+          {queue.length > 0 && (
+            <button onClick={clearQueue} className="text-sm text-surface-500 hover:text-white transition-colors">
+              Temizle
+            </button>
+          )}
+        </div>
+      </div>
+
+      {queue.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-64 text-surface-500 glass rounded-2xl border-dashed">
+          <Music2 size={48} className="mb-3 opacity-50" />
+          <p className="text-sm">Sırada şarkı yok</p>
+          <p className="text-xs mt-1">Kitaplıktan şarkı seçip sıraya ekleyin</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {queue.map((song, i) => (
+            <div
+              key={`${song.id}-${i}`}
+              draggable
+              onDragStart={() => handleDragStart(i)}
+              onDragOver={(e) => handleDragOver(e, i)}
+              onDrop={handleDrop}
+              onDragEnd={() => setDragIdx(null)}
+              className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all group ${
+                currentSong?.id === song.id ? 'bg-wave-500/10 border border-wave-500/20 shadow-sm shadow-wave-500/10' : 'hover:bg-white/5 border border-transparent'
+              } ${dragIdx === i ? 'opacity-50 scale-[0.98]' : ''}`}
+            >
+              <div className="text-surface-500 hover:text-surface-300 cursor-grab active:cursor-grabbing">
+                <GripVertical size={15} />
+              </div>
+              <span className="w-5 text-xs text-surface-500 text-right tabular-nums">{i + 1}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); removeFromQueue(i) }}
+                className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity"
+              >
+                <X size={14} />
+              </button>
+              {song.cover_url ? (
+                <img src={song.cover_url} alt="" className="w-9 h-9 rounded-lg object-cover" />
+              ) : (
+                <div className="w-9 h-9 rounded-lg bg-surface-800 border border-surface-700 flex items-center justify-center">
+                  <Music2 size={14} className="text-surface-500" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0" onClick={() => playSong(song)}>
+                <p className={`text-sm truncate ${currentSong?.id === song.id ? 'text-wave-400' : 'text-white'}`}>
+                  {song.title}
+                </p>
+                <p className="text-xs text-surface-400 truncate">{song.artist}</p>
+              </div>
+              <button onClick={() => playSong(song)} className="opacity-0 group-hover:opacity-100 text-wave-400 transition-opacity">
+                <Play size={14} fill="currentColor" />
+              </button>
+              <span className="text-xs text-surface-500 tabular-nums">{formatDuration(song.duration)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

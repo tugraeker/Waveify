@@ -1,0 +1,222 @@
+import { useEffect, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useStore } from '@/store/store'
+import { supabase } from '../../../core/supabaseClient'
+import { writeLike } from '@/lib/likes'
+import { formatDuration, formatDate } from '@/lib/utils'
+import { Button } from '@/components/ui'
+import SongEditModal from '@/components/SongEditModal'
+import type { Song, Comment } from '@/types'
+import { Play, Pause, Heart, MessageCircle, ArrowLeft, Edit3, Music2, Sparkles } from 'lucide-react'
+
+export default function SongDetail() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { user, setCurrentSong, setQueue, currentSong, isPlaying, songs } = useStore()
+  const [song, setSong] = useState<Song | null>(null)
+  const [comments, setComments] = useState<Comment[]>([])
+  const [newComment, setNewComment] = useState('')
+  const [liked, setLiked] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [similar, setSimilar] = useState<Song[]>([])
+
+  /* 134 — Benzer Şarkılar: tür + sanatçı uyum skoru */
+  useEffect(() => {
+    if (!song) return
+    const rest = songs.length > 1 ? songs : song
+    const list = songs.length > 1 ? songs : [song]
+    const scored = list
+      .filter((s) => s.id !== song.id)
+      .map((s) => {
+        let score = 0
+        if (s.genre && song.genre && s.genre === song.genre) score += 3
+        else if (s.genre && song.genre && s.genre.includes(song.genre.split(' ')[0])) score += 2
+        if (s.artist === song.artist) score += 2
+        if (s.album && song.album && s.album === song.album) score += 1
+        if (s.duration && song.duration && Math.abs(s.duration - song.duration) < 20) score += 0.5
+        return { s, score }
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
+      .map((x) => x.s)
+    if (scored.length) setSimilar(scored)
+  }, [song, songs])
+
+  useEffect(() => {
+    if (id) fetchSong(id)
+  }, [id])
+
+  async function fetchSong(songId: string) {
+    const { data: s } = await supabase.from('songs').select('*').eq('id', songId).single()
+    if (s) setSong(s)
+
+    const { data: c } = await supabase
+      .from('comments')
+      .select('*, user:user_id(username)')
+      .eq('song_id', songId)
+      .order('created_at', { ascending: false })
+    if (c) setComments(c as any)
+
+    if (user) {
+      const { data: l } = await supabase
+        .from('likes').select('id').eq('user_id', user.id).eq('song_id', songId).single()
+      setLiked(!!l)
+    }
+  }
+
+  async function toggleLike() {
+    if (!user || !song) return
+    const ok = await writeLike(user.id, song.id, liked)
+    if (ok) setLiked(!liked)
+  }
+
+  async function addComment() {
+    if (!user || !song || !newComment.trim()) return
+    const { data } = await supabase
+      .from('comments').insert({ user_id: user.id, song_id: song.id, content: newComment.trim() })
+      .select('*, user:user_id(username)').single()
+    if (data) {
+      setComments((prev) => [data as any, ...prev])
+      setNewComment('')
+    }
+  }
+
+  const playSong = () => {
+    if (!song) return
+    setQueue([song])
+    setCurrentSong(song)
+  }
+
+  if (!song) {
+    return (
+      <div className="p-6 flex items-center justify-center h-full text-surface-500">
+        <p>Yükleniyor...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-y-auto h-full scrollbar-thin animate-fade-in">
+      <div className="bg-gradient-to-b from-surface-900 to-surface-950 p-6">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-surface-400 hover:text-white mb-4">
+          <ArrowLeft size={18} /> Geri
+        </button>
+
+        <div className="flex items-end gap-6">
+          {song.cover_url ? (
+            <img src={song.cover_url} alt="" className="w-48 h-48 rounded-xl shadow-xl object-cover" />
+          ) : (
+            <div className="w-48 h-48 rounded-xl bg-surface-800 border border-surface-700 flex items-center justify-center">
+              <Music2 size={48} className="text-surface-500" />
+            </div>
+          )}
+          <div className="flex-1">
+            <p className="text-xs uppercase font-semibold tracking-wider text-surface-500">Şarkı</p>
+            <h1 className="text-3xl font-display font-bold mt-1">{song.title}</h1>
+            <p className="text-lg text-surface-400 mt-1">{song.artist}</p>
+            <div className="flex items-center gap-4 mt-4">
+              <Button variant="primary" size="lg" onClick={playSong}>
+                {currentSong?.id === song.id && isPlaying ? <Pause size={18} fill="black" /> : <Play size={18} fill="black" />}
+                {currentSong?.id === song.id && isPlaying ? ' Durdur' : ' Çal'}
+              </Button>
+              <Button variant="ghost" onClick={toggleLike}>
+                <Heart size={20} className={liked ? 'fill-wave-400 text-wave-400' : ''} />
+              </Button>
+              {song.user_id === user?.id && (
+                <Button variant="ghost" onClick={() => setShowEdit(true)}>
+                  <Edit3 size={18} />
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 space-y-6">
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div><span className="text-surface-500">Süre:</span> <span>{formatDuration(song.duration)}</span></div>
+          <div><span className="text-surface-500">Yüklenme:</span> <span>{formatDate(song.created_at)}</span></div>
+          {song.album && <div><span className="text-surface-500">Albüm:</span> <span>{song.album}</span></div>}
+          {song.genre && <div><span className="text-surface-500">Tür:</span> <span>{song.genre}</span></div>}
+        </div>
+
+        {song.lyrics && (
+          <section>
+            <h3 className="text-sm font-semibold text-surface-400 uppercase mb-3">Şarkı Sözleri</h3>
+            <div className="bg-surface-900/50 rounded-xl p-4 whitespace-pre-line text-sm leading-relaxed text-surface-300">
+              {song.lyrics}
+            </div>
+          </section>
+        )}
+
+        {similar.length > 0 && (
+          <section>
+            <h3 className="text-sm font-semibold text-surface-400 uppercase mb-3 flex items-center gap-1.5"><Sparkles size={13} className="text-wave-400" /> Benzer Şarkılar</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {similar.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => { setQueue(similar); setCurrentSong(s) }}
+                  className="flex items-center gap-3 bg-surface-900/40 hover:bg-surface-900/80 rounded-xl p-2.5 text-left transition-colors border border-transparent hover:border-wave-500/30"
+                >
+                  {s.cover_url ? (
+                    <img src={s.cover_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-surface-800 flex items-center justify-center flex-shrink-0"><Music2 size={16} className="text-surface-500" /></div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium truncate">{s.title}</p>
+                    <p className="text-[11px] text-surface-500 truncate">{s.artist}{s.genre ? ` · ${s.genre}` : ''}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section>
+          <h3 className="text-sm font-semibold text-surface-400 uppercase mb-3">Yorumlar ({comments.length})</h3>
+          <div className="space-y-3">
+            {user && (
+              <div className="flex gap-2">
+                <input
+                  placeholder="Yorum yaz..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addComment()}
+                  className="flex-1 bg-surface-900 border border-surface-700 rounded-xl px-3 py-2 text-sm text-white placeholder:text-surface-400 focus:outline-none focus:border-wave-400/50"
+                />
+                <Button size="sm" variant="primary" onClick={addComment} disabled={!newComment.trim()}>
+                  <MessageCircle size={14} />
+                </Button>
+              </div>
+            )}
+            {comments.map((c) => (
+              <div key={c.id} className="bg-surface-900/30 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 rounded-full bg-wave-500/20 flex items-center justify-center text-xs font-bold text-wave-400">
+                    {(c.user as any)?.username?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <span className="text-xs font-medium">{(c.user as any)?.username || 'Bilinmeyen'}</span>
+                  <span className="text-xs text-surface-500">{formatDate(c.created_at)}</span>
+                </div>
+                <p className="text-sm ml-8">{c.content}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {song && (
+        <SongEditModal
+          song={song}
+          open={showEdit}
+          onClose={() => setShowEdit(false)}
+          onSaved={(updated) => { setSong(updated) }}
+          onDeleted={() => navigate('/library')}
+        />
+      )}
+    </div>
+  )
+}
