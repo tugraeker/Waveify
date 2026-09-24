@@ -1,22 +1,16 @@
 import { useState } from 'react'
 import { Sparkles, X, Gamepad2, Mic2, AudioWaveform, Wind, Brain, Radio, GitMerge, History, Clock, Hourglass, Sprout, CloudUpload, MonitorPlay, Activity, FlaskConical, Star, ScrollText } from 'lucide-react'
 
-const VERSION = '8.1.0'
+const VERSION = '10.0.0'
 const STORAGE_KEY = 'waveify_seen_whatsnew'
 
 const FEATURES = [
-  { icon: Gamepad2, title: 'Arcade 8 Yeni Oyun', desc: 'Melodi Taklit, Şarkı Blokları, Flappy Note (mikrofon!), Kaçış Odası, Wave Tamagotçi, A-B İşitme Testi, Dans Pisti ve Plak Kazıma + Sezonluk liderlik tablosu.' },
-  { icon: AudioWaveform, title: 'Şimdi Çalıyor Zekâlandı', desc: 'Hava durumu ambiyansı, strobe modu, gonyometre (stereo görüntü), şarkı enerji haritası, zaman damgalı yorumlar, yer imleri ve tam ekran saat modu.' },
-  { icon: Mic2, title: 'Studio Genişledi', desc: 'EQ Çizim Aracı (canvas üzerinde 10 bant çiz) ve MIDI klavye desteği — synth pad artık donanım klavyenle çalıyor.' },
-  { icon: FlaskConical, title: 'Arkadaş Blend\'i + Radyolar', desc: 'Arkadaşlarının zevklerini tek akışta karıştır, onun dinlediklerini radyo gibi çal, Zevk Kapışması ile rap savaşı yap.' },
-  { icon: Brain, title: 'Akıllı Akışlar', desc: 'Gün Dönümü akışı (saate göre ruh hali), Tür Köprüsü (iki tür arasında geçiş rotası) ve Zaman Ayarlı akış (istediğin dakikada yolculuk).' },
-  { icon: Radio, title: 'Sonsuz Akış', desc: 'Kuyruk bitince Waveify benzer şarkılarla otomatik devam eder. Artık müzik hiç durmuyor.' },
-  { icon: ScrollText, title: 'Topluluk Merkezi', desc: 'Günün Albüm Panosu, Öneri Panosu, anonim İtiraf Kutusu, Canlı Dinleme Kulübü, Haftalık Özet, Müzik Sözlüğü ve Sanal Müzik Müzesi.' },
-  { icon: Wind, title: 'Zen Köşesi', desc: 'Nefes Odası (4-7-8 ritmi) ve ambient seslerle rehberli meditasyon seansları. 30 saniyelik yumuşak uyku zamanlayıcısı.' },
-  { icon: Hourglass, title: 'Zaman Kapsülü & Görev Ağacı', desc: 'Gelecekteki sana mesaj göm, görev dallarını büyüt, XP\'ye göre müzik ünvanları kazan (Acemi Dinleyici → Efsane Kulak).' },
-  { icon: MonitorPlay, title: 'Sistem Araçları', desc: 'Ekran Kaydedici (WebM), Bulut Senkron (cihazlar arası yedek) ve canlı Sistem Durumu paneli.' },
-  { icon: Star, title: 'Sanatçı & Parça Derinliği', desc: 'Kral Dinleyiciler (sanatçının en sadık 3 hayranı), Zaman Makinesi (kronolojik discography) ve Benzer Şarkılar radarı.' },
-  { icon: Activity, title: 'Cam Efektleri Ayarı', desc: 'Glassmorphism\'i tek dokunuşla kapatıp düz yüzeylere geçebilirsin — performans veya estetik tercihi senin.' },
+  { icon: Gamepad2, title: 'Modüler v10 Mimari', desc: 'Uygulama src/app + src/core + src/features (library, player, social, gamify, studio, settings) yapısına taşındı. Tüm 30 route tembel yükleniyor.' },
+  { icon: AudioWaveform, title: 'Taze Supabase Şeması', desc: 'Yeni 001_init.sql: users, songs (yıl sütunu yok, created_at var), playlists, playlist_songs, friends + songs/covers bucketları ve RLS politikaları.' },
+  { icon: Mic2, title: 'Tek Komutla .exe', desc: 'npm run build:exe — yt-dlp indirir, Vite derler, portable + setup kurulumunu üretir. HashRouter ile file:// uyumu korunur.' },
+  { icon: Brain, title: 'Mağaza Bölünmesi', desc: 'Dev Zustand store user/player/queue/ui dilimlerine ayrıldı; PlayerBar, audioEngine.v2 ve saf vocalGains tablosu ile daha öngörülebilir ses.' },
+  { icon: Radio, title: 'Yıl Sorunu Temizliği', desc: 'Olmayan songs.year ve users.last_seen sorguları kaldırıldı; yıl bilgisi created_at tarihinden türetiliyor.' },
+  { icon: ScrollText, title: 'Aynı Waveify, Aynı Rotalar', desc: '30 hash route birebir korundu; NowPlaying sahne/efekt/söz panellerine, Settings profil/görünüm/ses/veri sekmelerine bölündü.' },
 ]
 
 export default function WhatsNewModal() {
@@ -38,7 +32,7 @@ export default function WhatsNewModal() {
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-display font-bold text-white">Waveify {VERSION}</h2>
-            <p className="text-xs text-surface-400">Glow-Up Paket 2: 30+ yeni özellik</p>
+            <p className="text-xs text-surface-400">Modüler yeniden yazım: v10 mimarisi</p>
           </div>
           <button onClick={dismiss} className="text-surface-400 hover:text-white transition-colors p-1"><X size={18} /></button>
         </div>

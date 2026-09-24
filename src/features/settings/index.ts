@@ -1,0 +1,10 @@
+export { default as SettingsPage } from './pages/Settings';
+export { default as AdminPage } from './pages/Admin';
+export { default as StatsPage } from './pages/Stats';
+export { default as AuthPage } from './pages/Auth';
+export { default as ProfileTab } from './pages/ProfileTab';
+export { default as SecurityTab } from './pages/SecurityTab';
+export { default as AppearanceTab } from './pages/AppearanceTab';
+export { default as PlaybackTab } from './pages/PlaybackTab';
+export { default as HotkeysTab } from './pages/HotkeysTab';
+export { default as DataTab } from './pages/DataTab';
