@@ -12,7 +12,9 @@
     "dist": "node scripts/download-ytdlp.mjs && vite build && electron-builder",
     "dist:portable": "node scripts/download-ytdlp.mjs && vite build && electron-builder --win portable && node scripts/generate-latest-yml.mjs",
     "dist:all": "node scripts/download-ytdlp.mjs && vite build && electron-builder --win --x64",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "build:exe": "node scripts/build-exe.mjs"
   },
   "build": {
     "appId": "com.waveify.app",

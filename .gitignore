@@ -35,6 +35,7 @@ pnpm-debug.log*
 # Temporary files
 *.tmp
 *.temp
+*.zip
 .cache/
 
 # Capacitor / Android
