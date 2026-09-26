@@ -19,6 +19,7 @@
   "build": {
     "appId": "com.waveify.app",
     "productName": "Waveify",
+    "npmRebuild": false,
     "directories": {
       "output": "release"
     },
@@ -37,6 +38,8 @@
       }
     ],
     "win": {
+      "sign": null,
+      "signAndEditExecutable": false,
       "target": [
         {
           "target": "portable",

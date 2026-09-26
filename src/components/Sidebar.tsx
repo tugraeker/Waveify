@@ -54,20 +54,27 @@ export default function Sidebar() {
   }, [user?.id])
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-200 ${
+    `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
       isActive
-        ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]'
-        : 'text-[#a1a1a1] hover:bg-[#282828] hover:text-white'
+        ? 'bg-gradient-to-r from-wave-500/20 to-purple-500/10 text-white shadow-sm shadow-wave-500/10 border border-wave-500/30'
+        : 'text-surface-300 hover:bg-white/[0.05] hover:text-white'
     }`
 
   return (
-    <div className="w-60 h-full bg-[#0a0a0a] border-r border-[#282828] flex flex-col overflow-hidden">
-      <div className="drag-region h-14 flex items-center gap-2.5 px-5 flex-shrink-0">
-        <Logo size={24} />
-        <span className="text-lg font-display font-bold text-white">Waveify</span>
+    <div className="w-64 h-full bg-[#0a0a0f]/80 backdrop-blur-2xl border-r border-white/[0.06] flex flex-col overflow-hidden relative z-30">
+      <div className="drag-region h-16 flex items-center justify-between px-6 flex-shrink-0 border-b border-white/[0.04]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-wave-600 to-purple-500 flex items-center justify-center shadow-lg shadow-wave-500/20">
+            <Logo size={20} />
+          </div>
+          <span className="text-xl font-display font-extrabold text-white tracking-tight">Waveify</span>
+        </div>
+        <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-wave-500/10 border border-wave-500/30 text-wave-400">
+          PRO
+        </span>
       </div>
 
-      <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-2 space-y-1">
+      <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-3 space-y-1">
         {mainItems.map((item) => (
           <NavLink key={item.to} to={item.to} className={linkClass} end={item.to === '/'}>
             <item.icon size={18} />

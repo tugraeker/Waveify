@@ -147,27 +147,61 @@ export default function Home() {
   const lv = computeLevel(xp)
 
   return (
-    <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
-      <div className="flex items-start justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-display font-bold text-gradient">{greeting}</h1>
-          {user && (
-            <div className="flex items-center gap-3 text-xs text-surface-400 glass rounded-xl px-3 py-2">
-              <Award size={14} className="text-wave-400" />
-              <span>Seviye <strong className="text-white">{lv.level}</strong></span>
-              <span className="text-surface-600">|</span>
-              <span>{xp} XP</span>
+    <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in relative z-10">
+      {/* Dynamic Aurora Top Hero Banner */}
+      <div className="relative mb-10 p-8 rounded-3xl bg-gradient-to-r from-wave-950/60 via-surface-900/60 to-purple-950/40 border border-white/[0.08] backdrop-blur-2xl overflow-hidden shadow-2xl">
+        <div className="absolute -top-12 -left-12 w-64 h-64 bg-wave-500/20 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute -bottom-12 -right-12 w-64 h-64 bg-purple-500/15 blur-3xl rounded-full pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-wave-400 animate-pulse" />
+              <span className="text-xs font-bold uppercase tracking-widest text-wave-400 font-mono">Waveify Acoustic Engine v10</span>
             </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <div className={`glass rounded-xl px-3 py-2 text-surface-300 animate-pulse ${heatLevel >= 3 ? 'glow-amber' : ''}`}>
-            <Flame size={14} className={`inline mr-1.5 ${heatLevel >= 4 ? 'text-orange-400' : heatLevel >= 2 ? 'text-amber-400' : 'text-rose-500'}`} />
-            <strong className="text-white tabular-nums">{liveListeners}</strong> kişi şu an dinliyor
+            <h1 className="text-4xl md:text-5xl font-display font-extrabold text-white tracking-tight">
+              {greeting}, <span className="bg-clip-text text-transparent bg-gradient-to-r from-wave-300 via-purple-300 to-cyan-300">{user?.username || 'Dinleyici'}</span>
+            </h1>
+            <p className="text-sm text-surface-300 mt-2 max-w-lg">
+              Arkadaşlarınla senkronize müzik dinle, yapay zeka ile şarkı DNA'nı keşfet ve ruh haline göre ses akışını başlat.
+            </p>
+
+            {user && (
+              <div className="flex items-center gap-3 mt-4">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.06] border border-white/10 text-xs font-medium text-surface-200 backdrop-blur-md">
+                  <Award size={14} className="text-amber-400" />
+                  <span>Seviye <strong className="text-white">{lv.level}</strong></span>
+                  <span className="text-surface-600">·</span>
+                  <span className="text-amber-300 font-mono">{xp} XP</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-300 backdrop-blur-md">
+                  <Sparkles size={14} />
+                  <span>AI Motoru Aktif</span>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="glass rounded-xl px-3 py-2 text-surface-300" title="Hava sahnesi">
-            <span className="mr-1.5">{weather.emoji}</span>
-            {weather.label} <strong className="text-white tabular-nums">{weather.temp}°</strong>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+            <div className={`p-3.5 rounded-2xl bg-black/40 border border-white/[0.08] backdrop-blur-xl flex items-center gap-3 text-xs ${heatLevel >= 3 ? 'border-amber-500/40 shadow-lg shadow-amber-500/10' : ''}`}>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/30 flex items-center justify-center">
+                <Flame size={18} className={heatLevel >= 4 ? 'text-orange-400' : heatLevel >= 2 ? 'text-amber-400' : 'text-rose-500'} />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-surface-400 tracking-wider">Canlı Topluluk</p>
+                <p className="text-sm font-bold text-white tabular-nums">{liveListeners} kişi dinliyor</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.08] backdrop-blur-xl flex items-center gap-3 text-xs">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center text-lg">
+                {weather.emoji}
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-surface-400 tracking-wider">{weather.label}</p>
+                <p className="text-sm font-bold text-white tabular-nums">{weather.temp}°C</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -5,16 +5,16 @@
 @layer base {
   :root {
     --surface-50: 255 255 255;
-    --surface-100: 161 161 161;
-    --surface-200: 102 102 102;
-    --surface-300: 58 58 58;
-    --surface-400: 42 42 42;
-    --surface-500: 40 40 40;
-    --surface-600: 26 26 26;
-    --surface-700: 24 24 24;
-    --surface-800: 20 20 20;
-    --surface-900: 10 10 10;
-    --surface-950: 10 10 10;
+    --surface-100: 220 220 230;
+    --surface-200: 160 160 175;
+    --surface-300: 110 110 125;
+    --surface-400: 70 70 85;
+    --surface-500: 45 45 58;
+    --surface-600: 30 30 40;
+    --surface-700: 22 22 30;
+    --surface-800: 16 16 22;
+    --surface-900: 10 10 15;
+    --surface-950: 7 7 11;
 
     --wave-50: 245 243 255;
     --wave-100: 237 233 254;
@@ -30,14 +30,15 @@
   }
 
   * {
-    @apply border-[#282828];
+    @apply border-white/[0.08];
   }
 
   body {
-    @apply bg-[#0a0a0a] text-white;
+    @apply bg-[#07070b] text-white selection:bg-wave-500/30 selection:text-white;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: 'cv11', 'ss01';
-    letter-spacing: -0.011em;
+    letter-spacing: -0.015em;
+    overflow-x: hidden;
   }
 
   ::selection {

@@ -18,6 +18,8 @@ import WhatsNewModal from '@/components/WhatsNewModal'
 import { Skeleton } from '@/core/ui/Skeleton'
 import { RouteErrorBoundary } from '@/core/errorBoundary'
 import { useAchievementsInit } from '@/hooks/useAchievements'
+import { useAuraBackground } from '@/hooks/useAuraBackground'
+import FriendActivityBubble from '@/components/FriendActivityBubble'
 import { Trophy } from 'lucide-react'
 import type { Song } from '@/types'
 
@@ -75,6 +77,7 @@ export default function App() {
   useKeyboardShortcuts()
   useDiscordRPC()
   useMediaSession()
+  useAuraBackground()
   const { showLevelUp, newLevel } = useAchievementsInit()
 
   useEffect(() => {
@@ -256,6 +259,7 @@ export default function App() {
       <MobilePlayer />
       <MobileNav />
       <HeyWave />
+      <FriendActivityBubble />
       <ToastContainer />
       <UpdateBanner />
       <WhatsNewModal />

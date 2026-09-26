@@ -28,9 +28,29 @@ class AudioEngine {
   private _currentUrl = ''
   private _isPlaying = false
   private _intendedToPlay = false
+  private _pendingPlay = false   // autoplay policy: play() reddedildi, odak gelince retry
   private _fadeFrame = 0
   private _normalize = false
   private _eightDInterval: number | null = null
+
+  constructor() {
+    // Pencere/sekme odağa gelince bekleyen play() varsa retry et
+    const retry = () => {
+      if (!this._pendingPlay || !this.audio || !this._intendedToPlay) return
+      this.ensureCtx()
+      this.audio.play()
+        .then(() => {
+          this._pendingPlay = false
+          this._isPlaying = true
+          this.fadeTo(this._volume, FADE_DURATION)
+        })
+        .catch(() => {})
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') retry()
+    })
+    window.addEventListener('focus', retry)
+  }
 
   get volume() { return this._volume }
   get currentUrl() { return this._currentUrl }
@@ -226,10 +246,16 @@ class AudioEngine {
       this.gainNode!.gain.value = 0
       this.audio!.play()
         .then(() => {
+          this._pendingPlay = false
           this._isPlaying = true
           this.fadeTo(this._volume, FADE_DURATION)
         })
-        .catch((e) => { console.warn('[Audio] play() rejected:', e) })
+        .catch((e) => {
+          // Browser autoplay policy: pencere odakta değilse reject gelir.
+          // _pendingPlay = true yaparak focus/visibilitychange event'inde retry edilecek.
+          console.warn('[Audio] play() rejected (autoplay policy), retry on focus:', e)
+          this._pendingPlay = true
+        })
     })
     this.audio.addEventListener('timeupdate', () => {
       this.onTimeupdate?.(this.audio!.currentTime)
@@ -329,11 +355,13 @@ class AudioEngine {
     this._currentUrl = ''
     this._isPlaying = false
     this._intendedToPlay = false
+    this._pendingPlay = false
   }
 
   pause() {
     if (!this.audio || !this._isPlaying) return
     this._intendedToPlay = false
+    this._pendingPlay = false
     this.fadeTo(0, FADE_DURATION, () => {
       this.audio?.pause()
       this._isPlaying = false

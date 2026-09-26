@@ -23,8 +23,10 @@ import {
   BarChart3, Waves, Circle, Flame, Radio,
   Maximize2, Share2, Star, Pencil, Info, ListPlus,
   Palette, Plus, Check, FileText, Save, Zap, Volume1, Landmark, Download, XCircle, Mic2,
-  Activity, Clock3, Sparkles,
+  Activity, Clock3, Sparkles, Dna, Mic,
 } from 'lucide-react'
+import SongDNAModal from '@/components/SongDNA'
+import { useVoiceCommands } from '@/hooks/useVoiceCommands'
 
 const VISUALIZER_MODES: { key: VisualizerMode; label: string; icon: typeof BarChart3 }[] = [
   { key: 'bars', label: 'Çubuk', icon: BarChart3 },
@@ -95,6 +97,10 @@ export default function NowPlayingPage() {
   const [touchY, setTouchY] = useState<number | null>(null)
   const [showGonio, setShowGonio] = useState(false)
   const [clockOpen, setClockOpen] = useState(false)
+  const [showDNA, setShowDNA] = useState(false)
+  const [voiceActive, setVoiceActive] = useState(false)
+
+  useVoiceCommands(voiceActive)
 
   const shareSong = useCallback(() => {
     if (!currentSong) return
@@ -403,6 +409,24 @@ export default function NowPlayingPage() {
                 <button onClick={() => setShowInfo(!showInfo)} className={`transition-colors ${showInfo ? 'text-wave-400' : 'text-surface-500 hover:text-wave-400'}`} title="Bilgi">
                   <Info size={15} />
                 </button>
+                <button
+                  onClick={() => setShowDNA(true)}
+                  className="text-surface-500 hover:text-amber-400 transition-colors"
+                  title="Yapay Zeka Şarkı DNA'sı"
+                >
+                  <Dna size={15} />
+                </button>
+                <button
+                  onClick={() => {
+                    const next = !voiceActive
+                    setVoiceActive(next)
+                    emitToast(next ? '🎤 Sesli komutlar dinleniyor...' : 'Sesli komutlar kapatıldı', 'info')
+                  }}
+                  className={`transition-colors ${voiceActive ? 'text-rose-400 animate-pulse' : 'text-surface-500 hover:text-rose-400'}`}
+                  title={voiceActive ? 'Sesli Komut Açık (Tıkla ve Kapat)' : 'Sesli Komutları Başlat'}
+                >
+                  <Mic size={15} />
+                </button>
                 <button onClick={() => setShowEq(!showEq)} className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${showEq ? 'bg-wave-500/10 text-wave-400 border border-wave-500/20' : 'text-surface-400 hover:text-white border border-transparent'}`}>
                   EQ
                 </button>
@@ -565,6 +589,10 @@ export default function NowPlayingPage() {
         </div>
       </div>
       <ClockMode open={clockOpen} onClose={() => setClockOpen(false)} />
+      {/* Song DNA Modal */}
+      {showDNA && currentSong && (
+        <SongDNAModal song={currentSong} onClose={() => setShowDNA(false)} />
+      )}
     </div>
   )
 }

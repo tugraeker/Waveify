@@ -8,8 +8,9 @@ import { Slider } from '@/components/ui'
 import { useAudio } from '@/hooks/useAudio'
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
-  Volume2, Music2, List, Heart,
+  Volume2, Music2, List, Heart, Sparkles,
 } from 'lucide-react'
+import { getSongAuraColor, analyzeSong, getMoodEmoji, getMoodLabel } from '@/lib/localAI'
 
 export default function Player() {
   const navigate = useNavigate()
@@ -57,7 +58,11 @@ export default function Player() {
   const progress = duration > 0 ? (displayTime / duration) * 100 : 0
 
   return (
-    <div className="hidden md:flex h-20 bg-[#181818] border-t border-[#282828] items-center px-4 gap-4 z-50">
+    <div className="hidden md:flex h-24 bg-[#0a0a0f]/90 backdrop-blur-2xl border-t border-white/[0.08] items-center px-6 gap-6 z-50 shadow-2xl relative">
+      {/* Top subtle glow bar */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-wave-500/50 to-transparent"
+      />
       {/* Song info */}
       <div className="flex-1 min-w-0 flex items-center gap-3">
         <div className="cursor-pointer flex-shrink-0" onClick={() => navigate('/now-playing')}>
@@ -70,7 +75,23 @@ export default function Player() {
           )}
         </div>
         <div className="min-w-0 cursor-pointer" onClick={() => navigate('/now-playing')}>
-          <p className="text-sm font-medium text-white truncate hover:text-[#8b5cf6] transition-colors">{currentSong.title}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-medium text-white truncate hover:text-[#8b5cf6] transition-colors">{currentSong.title}</p>
+            {(() => {
+              const fp = analyzeSong(currentSong)
+              const aura = getSongAuraColor(currentSong)
+              return (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider shrink-0 flex items-center gap-0.5"
+                  style={{ background: `${aura}22`, color: aura, border: `1px solid ${aura}55` }}
+                  title={`${getMoodLabel(fp.mood)} · ~${Math.round(fp.tempo)} BPM`}
+                >
+                  <span>{getMoodEmoji(fp.mood)}</span>
+                  <span className="hidden lg:inline">{getMoodLabel(fp.mood)}</span>
+                </span>
+              )
+            })()}
+          </div>
           <p className="text-xs text-[#a1a1a1] truncate">{currentSong.artist}</p>
         </div>
         <button onClick={toggleLike} className={`transition-colors flex-shrink-0 ${liked ? 'text-red-400' : 'text-[#666666] hover:text-red-400'}`}>
