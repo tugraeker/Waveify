@@ -75,15 +75,15 @@ export function updateDiscordPresence(data: { title?: string; artist?: string; c
     rpc.user?.setActivity({
       details,
       state,
-      // Discord sadece kayitli asset anahtarlarini kabul eder (ham URL calismaz)
-      largeImageKey: 'waveify_logo',
+      // Sarki kapagi: Discord dis URL'leri media proxy uzerinden gosterir.
+      // Kapak yoksa/bozuksa kayitli logo kullanilir.
+      largeImageKey: coverUrl || 'waveify_logo',
       largeImageText: largeText,
       smallImageKey: playState ? 'play' : 'pause',
       smallImageText: playState ? 'Playing' : 'Paused',
       startTimestamp: playState && song ? (rpcStartTime || Date.now()) : undefined,
       instance: false,
     })
-    void coverUrl
   } catch (e) { console.log('[RPC] setActivity error:', e) }
 }
 
