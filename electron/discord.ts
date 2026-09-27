@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { ipcMain } from 'electron'
 
-const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID || '1337133713371337'
+const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID || '1529162499830841617'
 
 let rpc: any = null
 let rpcReady = false
