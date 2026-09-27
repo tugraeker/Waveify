@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { supabase } from '../../../core/supabaseClient'
 import { writeLike, bumpLikeCount } from '@/lib/likes'
 import { formatDuration } from '@/lib/utils'
@@ -12,7 +13,10 @@ import type { Song } from '@/types'
 import { Play, Search as SearchIcon, X, Music, Users, ListMusic, Heart, Filter, ArrowUpDown } from 'lucide-react'
 
 export default function SearchPage() {
-  const { searchQuery, setSearchQuery, songs, setSongs, setQueue, setCurrentSong, currentSong, user } = useStore()
+  const { searchQuery, setSearchQuery, songs, setSongs, setQueue, setCurrentSong, currentSong, user } = useStore(useShallow((state) => ({
+    searchQuery: state.searchQuery, setSearchQuery: state.setSearchQuery, songs: state.songs, setSongs: state.setSongs,
+    setQueue: state.setQueue, setCurrentSong: state.setCurrentSong, currentSong: state.currentSong, user: state.user,
+  })))
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [songResults, setSongResults] = useState<Song[]>([])
@@ -115,14 +119,14 @@ export default function SearchPage() {
   const showAll = tab === 'all'
 
   return (
-    <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in" onContextMenu={(e) => { if (!(e.target as HTMLElement).closest('.song-row')) setCtxMenu(null) }}>
-      <div className="relative mb-6 max-w-md">
-        <SearchIcon size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400" />
+    <div className="p-6 md:p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in" onContextMenu={(e) => { if (!(e.target as HTMLElement).closest('.song-row')) setCtxMenu(null) }}>
+      <div className="relative mb-6 max-w-xl">
+        <SearchIcon size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
         <Input
           placeholder="Şarkı, sanatçı, söz veya liste ara..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-11 pr-10 h-11"
+          className="pl-11 pr-10 h-12 glass"
         />
         {searchQuery && (
           <button onClick={() => setSearchQuery('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-white transition-colors">

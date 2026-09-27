@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useDiscordRPC } from '@/hooks/useDiscordRPC'
 import { useMediaSession } from '@/hooks/useMediaSession'
+import { useAudioController } from '@/hooks/useAudioController'
 import Sidebar from '@/components/Sidebar'
 import Player from '@/components/Player'
 import TitleBar from '@/components/TitleBar'
@@ -75,11 +76,17 @@ const ChatPage = lazy(() => import('@/features/social/pages/ChatPage'))
 const ArtistPage = lazy(() => import('@/features/library/pages/ArtistPage'))
 
 export default function App() {
-  const { user, theme, setUser, setPlaylists, currentSong } = useStore()
+  const user = useStore((state) => state.user)
+  const theme = useStore((state) => state.theme)
+  const setUser = useStore((state) => state.setUser)
+  const setPlaylists = useStore((state) => state.setPlaylists)
+  const currentSong = useStore((state) => state.currentSong)
   const navigate = useNavigate()
   const location = useLocation()
   const [mounted, setMounted] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
+
+  useAudioController()
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
@@ -217,8 +224,12 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className="h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
+      <div className="h-screen relative overflow-hidden flex items-center justify-center">
+        <div className="app-orbs" />
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-wave-400 text-black font-display font-extrabold text-xl flex items-center justify-center shadow-[0_0_40px_rgba(198,255,62,0.45)]">W</div>
+          <div className="w-8 h-8 border-2 border-wave-400/40 border-t-wave-400 rounded-full animate-spin" />
+        </div>
       </div>
     )
   }
@@ -226,16 +237,18 @@ export default function App() {
   if (!user) return <Auth />
 
   return (
-    <div className="h-screen flex flex-col bg-[#0a0a0a] relative overflow-hidden">
-      <div className="hidden md:block">
+    <div className="h-screen flex flex-col relative overflow-hidden">
+      <div className="app-orbs" />
+      <div className="app-noise" />
+      <div className="hidden md:block relative z-20">
         <TitleBar />
       </div>
       <MobileTopBar />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative z-10 flex flex-1 overflow-hidden p-0 md:p-3 md:pt-0 md:gap-3">
         <div className="hidden md:flex">
           <Sidebar />
         </div>
-        <main className="relative flex-1 flex flex-col overflow-hidden">
+        <main className="relative flex-1 flex flex-col overflow-hidden md:rounded-[28px] md:app-main-panel">
           <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
           <Suspense fallback={<Skeleton />}>
             <RouteErrorBoundary>
@@ -266,7 +279,7 @@ export default function App() {
           </div>
         </main>
       </div>
-      <div className="hidden md:block">
+      <div className="hidden md:block relative z-20 px-3 pb-3">
         <Player />
       </div>
       <MobilePlayer />

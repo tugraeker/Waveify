@@ -11,16 +11,16 @@ const items = [
 
 export default function MobileNav() {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex flex-col items-center gap-1 px-3 py-2 transition-colors ${
-      isActive ? 'text-wave-400' : 'text-surface-400'
+    `relative flex min-w-[58px] flex-col items-center gap-1 rounded-2xl px-3 py-2 transition-all ${
+      isActive ? 'bg-wave-300/[0.075] text-wave-200' : 'text-white/40 hover:bg-white/[0.045] hover:text-white/80'
     }`
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-black border-t border-white/10 flex items-center justify-around px-2 z-50">
+    <nav aria-label="Alt gezinme" className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex h-[72px] items-center justify-around border-t border-white/[0.08] bg-[#090b13]/85 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-16px_50px_rgba(0,0,0,.25)] backdrop-blur-2xl">
       {items.map((item) => (
         <NavLink key={item.to} to={item.to} className={linkClass} end={item.to === '/'}>
-          <item.icon size={20} />
-          <span className="text-xs">{item.label}</span>
+          <item.icon size={19} strokeWidth={2} />
+          <span className="text-[9px] font-semibold tracking-wide">{item.label}</span>
         </NavLink>
       ))}
     </nav>

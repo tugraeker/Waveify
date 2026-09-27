@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { useSocket } from '@/hooks/useSocket'
 import { supabase } from '../../../core/supabaseClient'
 import { audioEngine } from '@/lib/audioEngine'
@@ -9,7 +10,9 @@ import { Play, Pause, Users, Plus, LogOut, Music, Crown, Disc, Wifi, WifiOff, Re
 import type { Song } from '@/types'
 
 export default function SyncRoom() {
-  const { user, setCurrentSong, setIsPlaying } = useStore()
+  const { user, setCurrentSong, setIsPlaying } = useStore(useShallow((state) => ({
+    user: state.user, setCurrentSong: state.setCurrentSong, setIsPlaying: state.setIsPlaying,
+  })))
   const { socket, connected, syncRoom, createRoom, joinRoom, leaveRoom, playInRoom, pauseInRoom, resumeInRoom } = useSocket()
   const [roomName, setRoomName] = useState('')
   const [roomId, setRoomId] = useState('')

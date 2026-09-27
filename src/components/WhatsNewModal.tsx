@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import { Sparkles, X, Gamepad2, Mic2, AudioWaveform, Wind, Brain, Radio, GitMerge, History, Clock, Hourglass, Sprout, CloudUpload, MonitorPlay, Activity, FlaskConical, Star, ScrollText } from 'lucide-react'
 
-const VERSION = '10.0.0'
+const VERSION = '11.0.0'
 const STORAGE_KEY = 'waveify_seen_whatsnew'
 
 const FEATURES = [
-  { icon: Gamepad2, title: 'Modüler v10 Mimari', desc: 'Uygulama src/app + src/core + src/features (library, player, social, gamify, studio, settings) yapısına taşındı. Tüm 30 route tembel yükleniyor.' },
-  { icon: AudioWaveform, title: 'Taze Supabase Şeması', desc: 'Yeni 001_init.sql: users, songs (yıl sütunu yok, created_at var), playlists, playlist_songs, friends + songs/covers bucketları ve RLS politikaları.' },
-  { icon: Mic2, title: 'Tek Komutla .exe', desc: 'npm run build:exe — yt-dlp indirir, Vite derler, portable + setup kurulumunu üretir. HashRouter ile file:// uyumu korunur.' },
-  { icon: Brain, title: 'Mağaza Bölünmesi', desc: 'Dev Zustand store user/player/queue/ui dilimlerine ayrıldı; PlayerBar, audioEngine.v2 ve saf vocalGains tablosu ile daha öngörülebilir ses.' },
-  { icon: Radio, title: 'Yıl Sorunu Temizliği', desc: 'Olmayan songs.year ve users.last_seen sorguları kaldırıldı; yıl bilgisi created_at tarihinden türetiliyor.' },
-  { icon: ScrollText, title: 'Aynı Waveify, Aynı Rotalar', desc: '30 hash route birebir korundu; NowPlaying sahne/efekt/söz panellerine, Settings profil/görünüm/ses/veri sekmelerine bölündü.' },
+  { icon: AudioWaveform, title: 'Tertemiz Ses Motoru', desc: 'Efekt zinciri sifirdan yazildi: kaynak dogrudan cikisa gider. Yankilanma imkansiz, ses kaynaktaki gibi duyulur.' },
+  { icon: Mic2, title: 'Hizli Acilis', desc: 'Agir bilesenler acilistan sonra yukleniyor, ses grafigi ilk calista kuruluyor, gereksiz 11 sayfa kaldirildi.' },
+  { icon: Brain, title: 'Midnight + Asit Tasarim', desc: 'Saf siyah zemin, asit lime vurgu, keskin koseler. Sinematik dev NowPlaying sahnesi.' },
+  { icon: Radio, title: 'Sade Sidebar', desc: '16 sayfa: Ana Sayfa, Ara, Kutuphane, Yukle, Ice Aktar, Caliyor, liste ve sosyal ozellikler.' },
+  { icon: ScrollText, title: 'Tek Ses Hatti', desc: 'Tum oynatma tek motorda birlesti; karisiklik ve cift ses riski kalmadi.' },
 ]
 
 export default function WhatsNewModal() {
@@ -32,7 +31,7 @@ export default function WhatsNewModal() {
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-display font-bold text-white">Waveify {VERSION}</h2>
-            <p className="text-xs text-surface-400">Modüler yeniden yazım: v10 mimarisi</p>
+            <p className="text-xs text-surface-400">Slim + redesign: hizli, sade, yankisiz</p>
           </div>
           <button onClick={dismiss} className="text-surface-400 hover:text-white transition-colors p-1"><X size={18} /></button>
         </div>

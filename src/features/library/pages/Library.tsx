@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { supabase } from '../../../core/supabaseClient'
 import { writeLike, bumpLikeCount } from '@/lib/likes'
 import { formatDuration } from '@/lib/utils'
@@ -13,7 +14,10 @@ import { Play, Music, AudioWaveform, Heart, Plus, ListMusic, SlidersHorizontal, 
 import { trackLike, awardXp, trackSongLiked } from '@/lib/achievements'
 
 export default function Library() {
-  const { songs, setSongs, setQueue, setCurrentSong, currentSong, user, addToQueue } = useStore()
+  const { songs, setSongs, setQueue, setCurrentSong, currentSong, user, addToQueue } = useStore(useShallow((state) => ({
+    songs: state.songs, setSongs: state.setSongs, setQueue: state.setQueue, setCurrentSong: state.setCurrentSong,
+    currentSong: state.currentSong, user: state.user, addToQueue: state.addToQueue,
+  })))
   const navigate = useNavigate()
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [showPlaylistModal, setShowPlaylistModal] = useState<Song | null>(null)
@@ -82,11 +86,11 @@ export default function Library() {
   }
 
   return (
-    <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-display font-bold">Kitaplık</h1>
+    <div className="p-6 md:p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-display font-bold tracking-tight">Kitaplık</h1>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-surface-900/50 border border-white/10 rounded-xl p-1">
+          <div className="flex items-center gap-1 glass rounded-2xl p-1">
             <button onClick={() => setView('list')} className={`p-1.5 rounded-lg transition-all ${view === 'list' ? 'bg-wave-500/15 text-wave-400' : 'text-surface-500 hover:text-white'}`} title="Liste görünümü"><List size={14} /></button>
             <button onClick={() => setView('mosaic')} className={`p-1.5 rounded-lg transition-all ${view === 'mosaic' ? 'bg-wave-500/15 text-wave-400' : 'text-surface-500 hover:text-white'}`} title="Kapak mozaik duvar"><Grid2x2 size={14} /></button>
           </div>
@@ -97,7 +101,7 @@ export default function Library() {
       </div>
 
       {showFilters && (
-        <div className="flex flex-wrap gap-3 mb-4 p-4 bg-surface-900/60 border border-surface-800/50 rounded-2xl animate-fade-in">
+        <div className="flex flex-wrap gap-3 mb-4 p-4 glass rounded-2xl animate-fade-in">
           <input
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}

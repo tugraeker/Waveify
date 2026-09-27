@@ -7,7 +7,7 @@ import { getSongAuraColor } from '@/lib/localAI'
 
 export default function FriendActivityBubble() {
   const { syncRoom, connected } = useSocket()
-  const { currentSong } = useStore()
+  const currentSong = useStore((state) => state.currentSong)
   const navigate = useNavigate()
   const [minimized, setMinimized] = useState(false)
   const [closed, setClosed] = useState(false)

@@ -5,6 +5,9 @@ import { audioEngine } from '@/lib/audioEngine'
 export function useMediaSession() {
   const currentSong = useStore((s) => s.currentSong)
   const isPlaying = useStore((s) => s.isPlaying)
+  const currentTime = useStore((s) => s.currentTime)
+  const duration = useStore((s) => s.duration)
+  const playbackRate = useStore((s) => s.playbackRate)
 
   useEffect(() => {
     if (!('mediaSession' in navigator)) return
@@ -26,28 +29,39 @@ export function useMediaSession() {
   }, [isPlaying])
 
   useEffect(() => {
+    if (!('mediaSession' in navigator) || typeof navigator.mediaSession.setPositionState !== 'function' || duration <= 0) return
+    try {
+      navigator.mediaSession.setPositionState({
+        duration,
+        playbackRate,
+        position: Math.min(currentTime, duration),
+      })
+    } catch { /* Some browsers expose MediaSession without position-state support. */ }
+  }, [currentTime, duration, playbackRate])
+
+  useEffect(() => {
     if (!('mediaSession' in navigator)) return
     navigator.mediaSession.setActionHandler('play', () => {
-      audioEngine.resume()
-      useStore.getState().setIsPlaying(true)
+      void audioEngine.resume()
     })
     navigator.mediaSession.setActionHandler('pause', () => {
       audioEngine.pause()
-      useStore.getState().setIsPlaying(false)
     })
     navigator.mediaSession.setActionHandler('previoustrack', () => {
       const state = useStore.getState()
       if (state.queue.length === 0) return
       const idx = state.queue.findIndex((s) => s.id === state.currentSong?.id)
       const prev = state.queue[idx - 1] || state.queue[state.queue.length - 1]
-      if (prev) state.setCurrentSong(prev)
+      if (prev?.id === state.currentSong?.id) state.requestPlayback()
+      else if (prev) state.setCurrentSong(prev)
     })
     navigator.mediaSession.setActionHandler('nexttrack', () => {
       const state = useStore.getState()
       if (state.queue.length === 0) return
       const idx = state.queue.findIndex((s) => s.id === state.currentSong?.id)
       const next = state.queue[idx + 1] || state.queue[0]
-      if (next) state.setCurrentSong(next)
+      if (next?.id === state.currentSong?.id) state.requestPlayback()
+      else if (next) state.setCurrentSong(next)
     })
     navigator.mediaSession.setActionHandler('seekto', (details) => {
       if (details.seekTime != null) {

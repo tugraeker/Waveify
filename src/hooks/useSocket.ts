@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import type { Song } from '@/types'
 
 const SOCKET_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
@@ -12,7 +13,9 @@ let _initUserId: string | null = null
 export function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(_socket)
   const [connected, setConnected] = useState(_connected)
-  const { user, setSyncRoom, syncRoom } = useStore()
+  const { user, setSyncRoom, syncRoom } = useStore(useShallow((state) => ({
+    user: state.user, setSyncRoom: state.setSyncRoom, syncRoom: state.syncRoom,
+  })))
 
   useEffect(() => {
     if (!user) return

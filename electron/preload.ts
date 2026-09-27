@@ -49,9 +49,9 @@ export interface ElectronAPI {
   onUpdateProgress: (cb: (p: unknown) => void) => void
   onUpdateDownloaded: (cb: () => void) => void
   onUpdateError: (cb: (msg: string) => void) => void
-  onGlobalPlayPause: (cb: () => void) => void
-  onGlobalNext: (cb: () => void) => void
-  onGlobalPrev: (cb: () => void) => void
+  onGlobalPlayPause: (cb: () => void) => () => void
+  onGlobalNext: (cb: () => void) => () => void
+  onGlobalPrev: (cb: () => void) => () => void
   // deep link (electron/deepLink.ts, waveify://song/:id -> #/song/:id)
   deepLinkReady: () => void
   onDeepLink: (cb: (url: string) => void) => void
@@ -88,9 +88,21 @@ const api: ElectronAPI = {
   onUpdateError: (cb: any) => { ipcRenderer.on('update:error', (_e: any, msg: any) => cb(msg)) },
 
   // Global media controls (tray + shortcuts)
-  onGlobalPlayPause: (cb: any) => { ipcRenderer.on('global:play-pause', () => cb()) },
-  onGlobalNext: (cb: any) => { ipcRenderer.on('global:next', () => cb()) },
-  onGlobalPrev: (cb: any) => { ipcRenderer.on('global:prev', () => cb()) },
+  onGlobalPlayPause: (cb: any) => {
+    const listener = () => cb()
+    ipcRenderer.on('global:play-pause', listener)
+    return () => ipcRenderer.removeListener('global:play-pause', listener)
+  },
+  onGlobalNext: (cb: any) => {
+    const listener = () => cb()
+    ipcRenderer.on('global:next', listener)
+    return () => ipcRenderer.removeListener('global:next', listener)
+  },
+  onGlobalPrev: (cb: any) => {
+    const listener = () => cb()
+    ipcRenderer.on('global:prev', listener)
+    return () => ipcRenderer.removeListener('global:prev', listener)
+  },
 
   // Deep link
   deepLinkReady: () => ipcRenderer.send('deep-link:ready'),

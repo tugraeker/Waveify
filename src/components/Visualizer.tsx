@@ -1,21 +1,19 @@
 import { useRef, useEffect } from 'react'
 import { useStore } from '@/store/store'
+import { audioEngine } from '@/lib/audioEngine'
 
 interface Props {
-  analyserData: Uint8Array
+  analyserData?: Uint8Array
   isPlaying: boolean
   className?: string
 }
 
-export default function Visualizer({ analyserData, isPlaying, className = '' }: Props) {
+export default function Visualizer({ analyserData = new Uint8Array(128), isPlaying, className = '' }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<number>(0)
-  const dataRef = useRef(analyserData)
   const mode = useStore((s) => s.visualizerMode)
   const colorTheme = useStore((s) => s.visualizerColorTheme)
   const sensitivity = useStore((s) => s.visualizerSensitivity)
-
-  dataRef.current = analyserData
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -29,7 +27,7 @@ export default function Visualizer({ analyserData, isPlaying, className = '' }: 
     }
 
     const draw = () => {
-      const raw = dataRef.current
+      const raw = audioEngine.getAnalyserData()
       const data = new Uint8Array(raw.length)
       for (let i = 0; i < raw.length; i++) {
         data[i] = Math.min(255, Math.max(0, raw[i] * sensitivity))

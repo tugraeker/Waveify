@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { supabase } from '../../../core/supabaseClient'
 import { Button, Input } from '@/components/ui'
 import OfflineMode from '@/components/OfflineMode'
@@ -25,7 +26,15 @@ export default function Settings() {
     coverStyle, setCoverStyle,
     crossfade, setCrossfade, crossfadeDuration, setCrossfadeDuration,
     hotkeys, setHotkeys, profileName, setProfileName, smartCache, setSmartCache,
-  } = useStore()
+  } = useStore(useShallow((state) => ({
+    user: state.user, theme: state.theme, accentColor: state.accentColor, setTheme: state.setTheme,
+    setUser: state.setUser, setAccentColor: state.setAccentColor, seekStep: state.seekStep, setSeekStep: state.setSeekStep,
+    normalize: state.normalize, setNormalize: state.setNormalize, smartShuffle: state.smartShuffle, setSmartShuffle: state.setSmartShuffle,
+    coverStyle: state.coverStyle, setCoverStyle: state.setCoverStyle, crossfade: state.crossfade,
+    setCrossfade: state.setCrossfade, crossfadeDuration: state.crossfadeDuration, setCrossfadeDuration: state.setCrossfadeDuration,
+    hotkeys: state.hotkeys, setHotkeys: state.setHotkeys, profileName: state.profileName,
+    setProfileName: state.setProfileName, smartCache: state.smartCache, setSmartCache: state.setSmartCache,
+  })))
   const navigate = useNavigate()
   const [username, setUsername] = useState(user?.username || '')
   const [bio, setBio] = useState('')

@@ -7,7 +7,7 @@ import { Menu, X } from 'lucide-react'
 export default function MobileTopBar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user } = useStore()
+  const user = useStore((state) => state.user)
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -16,27 +16,27 @@ export default function MobileTopBar() {
 
   return (
     <>
-      <div className="md:hidden h-12 bg-surface-950 border-b border-surface-800/50 flex items-center justify-between px-3 flex-shrink-0">
+      <div className="md:hidden relative z-20 flex h-[54px] flex-shrink-0 items-center justify-between border-b border-white/[0.055] bg-[#0b0d16]/75 px-3 backdrop-blur-2xl">
         <button
           onClick={() => setOpen(true)}
-          className="p-2 -ml-1 text-surface-400 hover:text-white active:scale-95 transition-all"
+          className="-ml-1 rounded-xl p-2 text-white/55 transition-all hover:bg-white/[0.06] hover:text-white active:scale-95"
           aria-label="Menü"
         >
           <Menu size={22} />
         </button>
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-          <span className="w-7 h-7 rounded-[4px] bg-wave-400 flex items-center justify-center font-display font-bold text-black text-sm">W</span>
-          <span className="text-base font-display font-bold tracking-tight">WVFY</span>
+        <div className="flex cursor-pointer items-center gap-2" onClick={() => navigate('/')}>
+          <span className="flex h-7 w-7 items-center justify-center rounded-[10px] border border-white/20 bg-gradient-to-br from-wave-200 to-wave-500 font-display text-sm font-bold text-black shadow-[0_0_18px_rgba(198,255,62,0.25)]">W</span>
+          <span className="font-display text-[15px] font-bold tracking-tight text-white">Waveify</span>
         </div>
         <button
           onClick={() => navigate('/profile')}
-          className="w-8 h-8 rounded-full overflow-hidden border border-surface-700 flex items-center justify-center bg-surface-800 active:scale-95 transition-all"
+          className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/[0.06] transition-all active:scale-95"
           aria-label="Profil"
         >
           {user?.avatar_url ? (
             <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
           ) : (
-            <span className="text-xs font-bold text-wave-400">{(user?.username || 'U')[0].toUpperCase()}</span>
+            <span className="text-xs font-bold text-wave-200">{(user?.username || 'U')[0].toUpperCase()}</span>
           )}
         </button>
       </div>

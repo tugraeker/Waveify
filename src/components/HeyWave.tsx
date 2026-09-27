@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { supabase } from '@/lib/supabase'
 import { Mic, MicOff, X, Waves, Sparkles, Music, Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, ListMusic, Radio, Send, Bot, Loader2, AlertCircle } from 'lucide-react'
 import type { Song } from '@/types'
@@ -53,7 +54,11 @@ function speak(text: string) {
 }
 
 export default function HeyWave() {
-  const { user, songs, setCurrentSong, setQueue, currentSong, isPlaying, setIsPlaying, volume, setVolume } = useStore()
+  const { user, songs, setCurrentSong, setQueue, currentSong, isPlaying, setIsPlaying, volume, setVolume } = useStore(useShallow((state) => ({
+    user: state.user, songs: state.songs, setCurrentSong: state.setCurrentSong, setQueue: state.setQueue,
+    currentSong: state.currentSong, isPlaying: state.isPlaying, setIsPlaying: state.setIsPlaying,
+    volume: state.volume, setVolume: state.setVolume,
+  })))
   const [isOpen, setIsOpen] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')

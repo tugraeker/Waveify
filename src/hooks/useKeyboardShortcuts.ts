@@ -42,21 +42,23 @@ export function useKeyboardShortcuts() {
         if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault()
         switch (action) {
           case 'playpause':
-            if (state.isPlaying) { audioEngine.pause(); state.setIsPlaying(false) }
-            else { audioEngine.resume(); state.setIsPlaying(true) }
+            if (audioEngine.isPlaying()) audioEngine.pause()
+            else void audioEngine.resume()
             break
           case 'next':
             if (state.queue.length > 0) {
               const idx = state.queue.findIndex((s) => s.id === state.currentSong?.id)
               const next = state.queue[idx + 1] || state.queue[0]
-              if (next) state.setCurrentSong(next)
+              if (next?.id === state.currentSong?.id) state.requestPlayback()
+              else if (next) state.setCurrentSong(next)
             }
             break
           case 'prev':
             if (state.queue.length > 0) {
               const idx = state.queue.findIndex((s) => s.id === state.currentSong?.id)
               const prev = state.queue[idx - 1] || state.queue[state.queue.length - 1]
-              if (prev) state.setCurrentSong(prev)
+              if (prev?.id === state.currentSong?.id) state.requestPlayback()
+              else if (prev) state.setCurrentSong(prev)
             }
             break
           case 'volumeup':
@@ -110,7 +112,8 @@ export function useKeyboardShortcuts() {
           if (!state.hotkeys.KeyP && state.queue.length > 0) {
             const idx = state.queue.findIndex((s) => s.id === state.currentSong?.id)
             const prev = state.queue[idx - 1] || state.queue[state.queue.length - 1]
-            if (prev) state.setCurrentSong(prev)
+            if (prev?.id === state.currentSong?.id) state.requestPlayback()
+            else if (prev) state.setCurrentSong(prev)
           }
           break
         case 'KeyL':

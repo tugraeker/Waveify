@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { supabase } from '../../../core/supabaseClient'
 import { writeLike } from '@/lib/likes'
 import { formatDuration, formatDate } from '@/lib/utils'
@@ -12,7 +13,10 @@ import { Play, Pause, Heart, MessageCircle, ArrowLeft, Edit3, Music2, Sparkles }
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user, setCurrentSong, setQueue, currentSong, isPlaying, songs } = useStore()
+  const { user, setCurrentSong, setQueue, currentSong, isPlaying, songs } = useStore(useShallow((state) => ({
+    user: state.user, setCurrentSong: state.setCurrentSong, setQueue: state.setQueue,
+    currentSong: state.currentSong, isPlaying: state.isPlaying, songs: state.songs,
+  })))
   const [song, setSong] = useState<Song | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState('')

@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { supabase } from '../../../core/supabaseClient'
 import { formatDuration } from '@/lib/utils'
 import { trackPlaylist } from '@/lib/achievements'
@@ -8,7 +9,10 @@ import { Music2, X, Play, GripVertical, Save, Shuffle, Star, Sparkles } from 'lu
 import type { Song } from '@/types'
 
 export default function QueuePage() {
-  const { queue, currentSong, removeFromQueue, setCurrentSong, setQueue, user, setPlaylists } = useStore()
+  const { queue, currentSong, removeFromQueue, setCurrentSong, setQueue, user, setPlaylists } = useStore(useShallow((state) => ({
+    queue: state.queue, currentSong: state.currentSong, removeFromQueue: state.removeFromQueue,
+    setCurrentSong: state.setCurrentSong, setQueue: state.setQueue, user: state.user, setPlaylists: state.setPlaylists,
+  })))
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const dragOverIdx = useRef<number | null>(null)
   const [saving, setSaving] = useState(false)

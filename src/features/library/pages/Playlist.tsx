@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { supabase } from '../../../core/supabaseClient'
 import { writeLike, bumpLikeCount } from '@/lib/likes'
 import { formatDuration } from '@/lib/utils'
@@ -14,7 +15,10 @@ import { emitToast } from '@/hooks/useToast'
 export default function PlaylistPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { activePlaylist, setActivePlaylist, setQueue, setCurrentSong, currentSong, isPlaying, user } = useStore()
+  const { activePlaylist, setActivePlaylist, setQueue, setCurrentSong, currentSong, isPlaying, user } = useStore(useShallow((state) => ({
+    activePlaylist: state.activePlaylist, setActivePlaylist: state.setActivePlaylist, setQueue: state.setQueue,
+    setCurrentSong: state.setCurrentSong, currentSong: state.currentSong, isPlaying: state.isPlaying, user: state.user,
+  })))
   const [songs, setSongs] = useState<Song[]>([])
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [isCollab, setIsCollab] = useState(false)

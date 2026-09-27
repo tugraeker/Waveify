@@ -12,10 +12,16 @@ interface AppState {
   setUser: (user: User | null) => void
   currentSong: Song | null
   setCurrentSong: (song: Song | null) => void
+  playbackRequest: number
+  requestPlayback: () => void
   isPlaying: boolean
   setIsPlaying: (playing: boolean) => void
   currentTime: number
   setCurrentTime: (time: number) => void
+  duration: number
+  setDuration: (duration: number) => void
+  isBuffering: boolean
+  setIsBuffering: (buffering: boolean) => void
   volume: number
   setVolume: (vol: number) => void
   playbackRate: number
@@ -114,10 +120,16 @@ export const useStore = create<AppState>((set) => ({
   setUser: (user) => set({ user }),
   currentSong: null,
   setCurrentSong: (song) => set({ currentSong: song }),
+  playbackRequest: 0,
+  requestPlayback: () => set((state) => ({ playbackRequest: state.playbackRequest + 1 })),
   isPlaying: false,
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   currentTime: 0,
   setCurrentTime: (time) => set({ currentTime: time }),
+  duration: 0,
+  setDuration: (duration) => set({ duration }),
+  isBuffering: false,
+  setIsBuffering: (buffering) => set({ isBuffering: buffering }),
   volume: 0.7,
   setVolume: (vol) => set({ volume: vol }),
   playbackRate: 1,

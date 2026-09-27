@@ -8,6 +8,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { supabase } from '../../../core/supabaseClient'
 import { formatDuration } from '@/lib/utils'
 import { Button } from '@/components/ui'
@@ -113,7 +114,9 @@ function MoodDistribution({ songs }: { songs: Song[] }) {
 export default function ArtistPage() {
   const { name } = useParams<{ name: string }>()
   const navigate = useNavigate()
-  const { setCurrentSong, setQueue, currentSong, isPlaying } = useStore()
+  const { setCurrentSong, setQueue, currentSong, isPlaying } = useStore(useShallow((state) => ({
+    setCurrentSong: state.setCurrentSong, setQueue: state.setQueue, currentSong: state.currentSong, isPlaying: state.isPlaying,
+  })))
 
   const [songs, setSongs]               = useState<Song[]>([])
   const [following, setFollowing]       = useState(false)

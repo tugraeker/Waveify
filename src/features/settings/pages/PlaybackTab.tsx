@@ -34,7 +34,7 @@ export default function PlaybackTab(p: any) {
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-surface-300">Ses Normalleştirme</span>
+                <span className="text-sm text-surface-300">Pik koruması</span>
                 <button onClick={() => setNormalize(!normalize)} className={`w-11 h-6 rounded-full transition-all ${normalize ? 'bg-wave-500' : 'bg-surface-700'} relative`}>
                   <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${normalize ? 'left-[22px]' : 'left-0.5'}`} />
                 </button>
@@ -52,7 +52,7 @@ export default function PlaybackTab(p: any) {
                     <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${crossfade ? 'left-[22px]' : 'left-0.5'}`} />
                   </button>
                   <input
-                    type="range" min={0} max={8} step={1} value={crossfadeDuration}
+                    type="range" min={1} max={8} step={1} value={crossfadeDuration}
                     onChange={(e) => setCrossfadeDuration(Number(e.target.value))}
                     disabled={!crossfade}
                     className="flex-1 accent-wave-400 disabled:opacity-30"

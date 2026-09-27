@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { supabase } from '@/lib/supabase'
 import { writeLike } from '@/lib/likes'
 import { emitToast } from '@/hooks/useToast'
@@ -17,7 +18,10 @@ interface Props {
 
 export default function ContextMenu({ song, x, y, onClose, onAddToPlaylist }: Props) {
   const navigate = useNavigate()
-  const { user, setCurrentSong, setQueue, queue, addToQueue, songs } = useStore()
+  const { user, setCurrentSong, setQueue, queue, addToQueue, songs } = useStore(useShallow((state) => ({
+    user: state.user, setCurrentSong: state.setCurrentSong, setQueue: state.setQueue,
+    queue: state.queue, addToQueue: state.addToQueue, songs: state.songs,
+  })))
   const [liked, setLiked] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -66,7 +70,7 @@ export default function ContextMenu({ song, x, y, onClose, onAddToPlaylist }: Pr
   return (
     <div
       ref={menuRef}
-      className="fixed z-[90] bg-surface-900 border border-surface-700 rounded-xl shadow-2xl py-1.5 min-w-[200px] animate-fade-in"
+      className="fixed z-[90] glass-panel rounded-2xl py-1.5 min-w-[200px] animate-fade-in"
       style={{ left: adjustedX, top: adjustedY }}
     >
       <div className="px-3.5 py-2 border-b border-surface-800 mb-1">

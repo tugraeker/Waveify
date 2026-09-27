@@ -22,12 +22,12 @@ function Button({
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wave-400/50 disabled:pointer-events-none disabled:opacity-40 select-none',
+        'inline-flex items-center justify-center rounded-2xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wave-400/50 disabled:pointer-events-none disabled:opacity-40 select-none',
         {
-          'bg-surface-800 hover:bg-surface-700 text-white border border-surface-700 hover:border-surface-600 active:scale-[0.97]': variant === 'default',
+          'bg-surface-800/80 hover:bg-surface-700 text-white border border-white/10 hover:border-white/20 active:scale-[0.97] backdrop-blur-xl': variant === 'default',
           'hover:bg-white/5 text-surface-300 hover:text-white active:scale-[0.97]': variant === 'ghost',
-          'border border-surface-700 hover:border-wave-400/50 text-surface-300 hover:text-white bg-transparent': variant === 'outline',
-          'bg-gradient-to-r from-wave-500 to-wave-400 hover:from-wave-400 hover:to-wave-300 text-white font-semibold shadow-lg shadow-wave-500/20 hover:shadow-wave-400/30 active:scale-[0.97]': variant === 'primary',
+          'border border-white/15 hover:border-wave-400/50 text-surface-300 hover:text-white bg-white/[0.03] backdrop-blur-xl': variant === 'outline',
+          'bg-wave-400 hover:bg-wave-300 text-black font-semibold shadow-[0_0_24px_rgba(198,255,62,0.3)] hover:shadow-[0_0_32px_rgba(198,255,62,0.45)] active:scale-[0.97]': variant === 'primary',
           'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/30 active:scale-[0.97]': variant === 'danger',
         },
         {
@@ -49,7 +49,7 @@ function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputEleme
   return (
     <input
       className={cn(
-        'flex h-11 w-full rounded-xl bg-surface-900 border border-surface-700 px-4 py-2 text-sm text-white placeholder:text-surface-400 focus:outline-none focus:border-wave-400/50 focus:ring-1 focus:ring-wave-400/20 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40',
+        'flex h-11 w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-2 text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-wave-400/50 focus:ring-2 focus:ring-wave-400/15 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40 backdrop-blur-xl',
         className
       )}
       {...props}
@@ -75,9 +75,9 @@ function Slider({
   const percent = ((value - min) / (max - min)) * 100
   return (
     <div className={cn('relative w-full h-1.5 group cursor-pointer', className)}>
-      <div className="absolute inset-0 rounded-full bg-surface-700/50" />
+      <div className="absolute inset-0 rounded-full bg-white/10" />
       <div
-        className="absolute inset-y-0 left-0 rounded-full bg-white/60 group-hover:bg-wave-400 transition-all duration-150"
+        className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-wave-400 to-cyan-300 group-hover:from-wave-300 group-hover:to-cyan-200 transition-all duration-150"
         style={{ width: `${percent}%` }}
       />
       <div

@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { useAudio } from '@/hooks/useAudio'
 import { formatDuration } from '@/lib/utils'
 import { supabase } from '../../../core/supabaseClient'
@@ -15,13 +16,13 @@ import LyricsPanel from './LyricsPanel';
 import EffectsPanel from './EffectsPanel';
 import { StrobeOverlay, Goniometer, EnergySegments, CommentDots, ClockMode, BookmarksPanel, TimestampCommentsPanel } from '@/components/NowPlayingExtras'
 import type { Song, VisualizerMode, VisualizerColorTheme, CoverStyle } from '@/types'
-import { EQ_PRESETS, EQ_BAND_FREQS, defaultEqBands, ROOM_PRESETS } from '@/types'
+import { defaultEqBands } from '@/types'
 import {
   Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
-  Volume2, ChevronDown, Heart, Music2, Disc3, X,
+  Volume2, ChevronDown, Heart, Music2, X,
   BarChart3, Waves, Circle, Flame, Radio,
   Maximize2, Share2, Star, Pencil, Info, ListPlus,
-  Palette, Plus, Check, FileText, Save, Zap, Volume1, Landmark, Download, XCircle, Mic2,
+  Palette, Plus, Check, FileText, Save, Zap, Download, XCircle,
   Activity, Clock3, Sparkles, Dna, Mic,
 } from 'lucide-react'
 import SongDNAModal from '@/components/SongDNA'
@@ -67,8 +68,22 @@ export default function NowPlayingPage() {
     setVolume, setShuffle, setRepeat, setEqualizer, resetEqualizer, setVisualizerMode,
     setVisualizerColorTheme, setVisualizerSensitivity, setQueue, setCurrentSong,
     setCrossfade, setCrossfadeDuration, songRatings, setSongRating,
-    songNotes, setSongNote, playlists, audioEffects, setAudioEffects,
-    radio, setRadio, queue, coverStyle, setCoverStyle } = useStore()
+    songNotes, setSongNote, playlists,
+    radio, setRadio, queue, coverStyle, setCoverStyle,
+  } = useStore(useShallow((state) => ({
+    currentSong: state.currentSong, volume: state.volume, shuffle: state.shuffle, repeat: state.repeat,
+    equalizer: state.equalizer, user: state.user, visualizerMode: state.visualizerMode,
+    visualizerColorTheme: state.visualizerColorTheme, visualizerSensitivity: state.visualizerSensitivity,
+    crossfade: state.crossfade, crossfadeDuration: state.crossfadeDuration, eqPresets: state.eqPresets,
+    saveEqPreset: state.saveEqPreset, deleteEqPreset: state.deleteEqPreset, loadEqPreset: state.loadEqPreset,
+    setVolume: state.setVolume, setShuffle: state.setShuffle, setRepeat: state.setRepeat,
+    setEqualizer: state.setEqualizer, resetEqualizer: state.resetEqualizer, setVisualizerMode: state.setVisualizerMode,
+    setVisualizerColorTheme: state.setVisualizerColorTheme, setVisualizerSensitivity: state.setVisualizerSensitivity,
+    setQueue: state.setQueue, setCurrentSong: state.setCurrentSong, setCrossfade: state.setCrossfade,
+    setCrossfadeDuration: state.setCrossfadeDuration, songRatings: state.songRatings, setSongRating: state.setSongRating,
+    songNotes: state.songNotes, setSongNote: state.setSongNote, playlists: state.playlists,
+    radio: state.radio, setRadio: state.setRadio, queue: state.queue, coverStyle: state.coverStyle, setCoverStyle: state.setCoverStyle,
+  })))
   const { isPlaying, currentTime, duration, togglePlay, seek, nextSong, prevSong, analyserData } = useAudio()
   const [showEq, setShowEq] = useState(false)
   const [liked, setLiked] = useState(false)
@@ -88,7 +103,7 @@ export default function NowPlayingPage() {
   const [editingLyrics, setEditingLyrics] = useState(false)
   const [lyricsText, setLyricsText] = useState('')
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false)
-  const [eqTab, setEqTab] = useState<'graphic' | 'presets' | 'effects'>('graphic')
+  const [eqTab, setEqTab] = useState<'graphic' | 'presets'>('graphic')
   const [savingPreset, setSavingPreset] = useState('')
   const [showEqPresets, setShowEqPresets] = useState(false)
   const [editingCover, setEditingCover] = useState(false)
@@ -273,7 +288,7 @@ export default function NowPlayingPage() {
   const aura = currentSong ? getSongAuraColor(currentSong) : '#C6FF3E'
 
   return (
-    <div className="h-full flex flex-col bg-black overflow-hidden relative">
+    <div className="h-full flex flex-col overflow-hidden relative">
       {/* Kapaktan tasen ortam parlamasi */}
       <div
         className="pointer-events-none absolute inset-0 transition-all duration-1000"
@@ -556,8 +571,6 @@ export default function NowPlayingPage() {
               setSavingPreset={setSavingPreset}
               handleSavePreset={handleSavePreset}
               resetEqualizer={resetEqualizer}
-              audioEffects={audioEffects}
-              setAudioEffects={setAudioEffects}
             />
           )}
           </div>

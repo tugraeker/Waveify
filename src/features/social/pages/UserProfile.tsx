@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, type Dispatch, type SetStateAction } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
+import { useShallow } from 'zustand/react/shallow'
 import { personaFromGenres } from '@/lib/social'
 import { supabase } from '../../../core/supabaseClient'
 import { writeLike } from '@/lib/likes'
@@ -57,7 +58,9 @@ const FONTS = [
 export default function UserProfile() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user: currentUser, setCurrentSong, setQueue, setUser } = useStore()
+  const { user: currentUser, setCurrentSong, setQueue, setUser } = useStore(useShallow((state) => ({
+    user: state.user, setCurrentSong: state.setCurrentSong, setQueue: state.setQueue, setUser: state.setUser,
+  })))
   const [username, setUsername] = useState('')
   const [bio, setBio] = useState('')
   const [editUsername, setEditUsername] = useState('')
