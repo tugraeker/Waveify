@@ -148,43 +148,36 @@ export default function Home() {
 
   return (
     <div className="p-8 overflow-y-auto h-full scrollbar-thin animate-fade-in relative z-10">
-      {/* Dynamic Aurora Top Hero Banner */}
-      <div className="relative mb-10 p-8 rounded-3xl bg-gradient-to-r from-wave-950/60 via-surface-900/60 to-purple-950/40 border border-white/[0.08] backdrop-blur-2xl overflow-hidden shadow-2xl">
-        <div className="absolute -top-12 -left-12 w-64 h-64 bg-wave-500/20 blur-3xl rounded-full pointer-events-none" />
-        <div className="absolute -bottom-12 -right-12 w-64 h-64 bg-purple-500/15 blur-3xl rounded-full pointer-events-none" />
-
+      {/* Asit hero */}
+      <div className="relative mb-10 p-8 rounded bg-surface-900 border border-white/10 border-l-4 border-l-wave-400 overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-wave-400 animate-pulse" />
-              <span className="text-xs font-bold uppercase tracking-widest text-wave-400 font-mono">Waveify Acoustic Engine v10</span>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-2.5 h-2.5 bg-wave-400 animate-pulse" />
+              <span className="text-xs font-bold uppercase tracking-widest text-wave-300 font-mono">Waveify v10</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-display font-extrabold text-white tracking-tight">
-              {greeting}, <span className="bg-clip-text text-transparent bg-gradient-to-r from-wave-300 via-purple-300 to-cyan-300">{user?.username || 'Dinleyici'}</span>
+            <h1 className="font-display font-bold text-white tracking-tight clamp-title">
+              {greeting}, {user?.username || 'Dinleyici'}
             </h1>
             <p className="text-sm text-surface-300 mt-2 max-w-lg">
-              Arkadaşlarınla senkronize müzik dinle, yapay zeka ile şarkı DNA'nı keşfet ve ruh haline göre ses akışını başlat.
+              Arkadaşlarınla senkronize müzik dinle, ruh haline göre akışı başlat.
             </p>
 
             {user && (
               <div className="flex items-center gap-3 mt-4">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.06] border border-white/10 text-xs font-medium text-surface-200 backdrop-blur-md">
-                  <Award size={14} className="text-amber-400" />
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-surface-800 border border-white/10 text-xs font-bold text-surface-200">
+                  <Award size={14} className="text-wave-300" />
                   <span>Seviye <strong className="text-white">{lv.level}</strong></span>
                   <span className="text-surface-600">·</span>
-                  <span className="text-amber-300 font-mono">{xp} XP</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-300 backdrop-blur-md">
-                  <Sparkles size={14} />
-                  <span>AI Motoru Aktif</span>
+                  <span className="text-wave-300 font-mono">{xp} XP</span>
                 </div>
               </div>
             )}
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
-            <div className={`p-3.5 rounded-2xl bg-black/40 border border-white/[0.08] backdrop-blur-xl flex items-center gap-3 text-xs ${heatLevel >= 3 ? 'border-amber-500/40 shadow-lg shadow-amber-500/10' : ''}`}>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/30 flex items-center justify-center">
+            <div className={`p-3.5 rounded bg-black border border-white/10 flex items-center gap-3 text-xs ${heatLevel >= 3 ? 'border-wave-400/50' : ''}`}>
+              <div className="w-10 h-10 rounded bg-surface-800 border border-white/10 flex items-center justify-center">
                 <Flame size={18} className={heatLevel >= 4 ? 'text-orange-400' : heatLevel >= 2 ? 'text-amber-400' : 'text-rose-500'} />
               </div>
               <div>
@@ -193,8 +186,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-black/40 border border-white/[0.08] backdrop-blur-xl flex items-center gap-3 text-xs">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center text-lg">
+            <div className="p-3.5 rounded bg-black border border-white/10 flex items-center gap-3 text-xs">
+              <div className="w-10 h-10 rounded bg-surface-800 border border-white/10 flex items-center justify-center text-lg">
                 {weather.emoji}
               </div>
               <div>
