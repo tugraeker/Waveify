@@ -26,8 +26,8 @@ export default function MobileTopBar() {
           <Menu size={22} />
         </button>
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-          <Logo size={26} className="shadow-lg shadow-wave-500/20" />
-          <span className="text-base font-extrabold text-gradient tracking-tight">Waveify</span>
+          <span className="w-7 h-7 rounded-[4px] bg-wave-400 flex items-center justify-center font-display font-bold text-black text-sm">W</span>
+          <span className="text-base font-display font-bold tracking-tight">WVFY</span>
         </div>
         <button
           onClick={() => navigate('/profile')}
