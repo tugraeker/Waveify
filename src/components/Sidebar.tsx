@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { supabase } from '@/lib/supabase'
-import { Logo } from '@/components/Logo'
 import {
   Home, Search, Library, Upload, Users,
   MessageSquare, ListMusic, History, Globe,
@@ -45,24 +44,19 @@ export default function Sidebar() {
   }, [user?.id])
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
+    `flex items-center gap-3 px-3 py-2.5 rounded text-sm font-bold transition-all duration-150 relative ${
       isActive
-        ? 'bg-gradient-to-r from-wave-500/20 to-purple-500/10 text-white shadow-sm shadow-wave-500/10 border border-wave-500/30'
-        : 'text-surface-300 hover:bg-white/[0.05] hover:text-white'
-    }`
+        ? 'bg-surface-800 text-white'
+        : 'text-surface-400 hover:bg-surface-800/60 hover:text-white'
+    }${isActive ? ' before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-wave-400' : ''}`
 
   return (
-    <div className="w-64 h-full bg-[#0a0a0f]/80 backdrop-blur-2xl border-r border-white/[0.06] flex flex-col overflow-hidden relative z-30">
-      <div className="drag-region h-16 flex items-center justify-between px-6 flex-shrink-0 border-b border-white/[0.04]">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-wave-600 to-purple-500 flex items-center justify-center shadow-lg shadow-wave-500/20">
-            <Logo size={20} />
-          </div>
-          <span className="text-xl font-display font-extrabold text-white tracking-tight">Waveify</span>
+    <div className="w-[220px] h-full bg-black border-r border-white/10 flex flex-col overflow-hidden relative z-30">
+      <div className="drag-region h-16 flex items-center gap-3 px-5 flex-shrink-0 border-b border-white/10">
+        <div className="w-8 h-8 rounded-[4px] bg-wave-400 flex items-center justify-center">
+          <span className="font-display font-bold text-black text-sm leading-none">W</span>
         </div>
-        <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-wave-500/10 border border-wave-500/30 text-wave-400">
-          PRO
-        </span>
+        <span className="text-lg font-display font-bold text-white tracking-tight">WVFY</span>
       </div>
 
       <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-3 space-y-1">
@@ -74,7 +68,7 @@ export default function Sidebar() {
         ))}
 
         <div className="pt-4 pb-2">
-          <p className="px-3 text-xs text-[#666666] uppercase tracking-wider font-medium">Sosyal</p>
+          <p className="px-3 text-xs text-surface-500 uppercase tracking-wider font-medium">Sosyal</p>
         </div>
         {socialItems.map((item) => (
           <NavLink key={item.to} to={item.to} className={linkClass}>
@@ -84,7 +78,7 @@ export default function Sidebar() {
         ))}
 
         <div className="pt-4 pb-2">
-          <p className="px-3 text-xs text-[#666666] uppercase tracking-wider font-medium">Müzik</p>
+          <p className="px-3 text-xs text-surface-500 uppercase tracking-wider font-medium">Müzik</p>
         </div>
         {musicItems.map((item) => (
           <NavLink key={item.to} to={item.to} className={linkClass}>
@@ -94,7 +88,7 @@ export default function Sidebar() {
         ))}
 
         <div className="pt-4 pb-2">
-          <p className="px-3 text-xs text-[#666666] uppercase tracking-wider font-medium">Diğer</p>
+          <p className="px-3 text-xs text-surface-500 uppercase tracking-wider font-medium">Diğer</p>
         </div>
         {bottomItems.map((item) => (
           <NavLink key={item.to} to={item.to} className={linkClass}>
@@ -111,7 +105,7 @@ export default function Sidebar() {
         )}
       </nav>
 
-      <div className="px-3 py-3 border-t border-[#282828]">
+      <div className="px-3 py-3 border-t border-white/10">
         <NavLink to="/profile" className={linkClass}>
           <User size={18} />
           <span>Profilim</span>
@@ -122,7 +116,7 @@ export default function Sidebar() {
         </NavLink>
       </div>
 
-      <div className="px-5 py-2 text-[10px] text-[#666666] text-center border-t border-[#282828]">
+      <div className="px-5 py-2 text-[10px] text-surface-500 text-center border-t border-white/10">
         v{__APP_VERSION__}
       </div>
     </div>

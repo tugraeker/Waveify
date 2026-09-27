@@ -40,14 +40,14 @@ export default function Player() {
 
   if (!currentSong) {
     return (
-      <div className="hidden md:flex h-20 bg-[#181818] border-t border-[#282828] items-center px-5">
-        <div className="flex items-center gap-4 text-[#666666]">
-          <div className="w-12 h-12 rounded-lg bg-[#282828] flex items-center justify-center">
+      <div className="hidden md:flex h-[76px] bg-black border-t border-white/10 items-center px-5">
+        <div className="flex items-center gap-4 text-surface-500">
+          <div className="w-14 h-14 rounded bg-surface-800 flex items-center justify-center">
             <Music2 size={20} />
           </div>
           <div>
-            <p className="text-sm font-medium">Henüz şarkı yok</p>
-            <p className="text-xs text-[#666666]">Kitaplıktan bir şarkı seç</p>
+            <p className="text-sm font-bold">Henüz şarkı yok</p>
+            <p className="text-xs text-surface-500">Kitaplıktan bir şarkı seç</p>
           </div>
         </div>
       </div>
@@ -58,25 +58,21 @@ export default function Player() {
   const progress = duration > 0 ? (displayTime / duration) * 100 : 0
 
   return (
-    <div className="hidden md:flex h-24 bg-[#0a0a0f]/90 backdrop-blur-2xl border-t border-white/[0.08] items-center px-6 gap-6 z-50 shadow-2xl relative">
-      {/* Top subtle glow bar */}
-      <div
-        className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-wave-500/50 to-transparent"
-      />
+    <div className="hidden md:flex h-[76px] bg-black border-t border-white/10 items-center px-5 gap-5 z-50 relative">
       {/* Song info */}
       <div className="flex-1 min-w-0 flex items-center gap-3">
         <div className="cursor-pointer flex-shrink-0" onClick={() => navigate('/now-playing')}>
           {currentSong.cover_url ? (
-            <img src={currentSong.cover_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+            <img src={currentSong.cover_url} alt="" className="w-14 h-14 rounded object-cover" />
           ) : (
-            <div className="w-12 h-12 rounded-lg bg-[#282828] flex items-center justify-center">
-              <Music2 size={20} className="text-[#666666]" />
+            <div className="w-14 h-14 rounded bg-surface-800 flex items-center justify-center">
+              <Music2 size={20} className="text-surface-500" />
             </div>
           )}
         </div>
         <div className="min-w-0 cursor-pointer" onClick={() => navigate('/now-playing')}>
           <div className="flex items-center gap-1.5">
-            <p className="text-sm font-medium text-white truncate hover:text-[#8b5cf6] transition-colors">{currentSong.title}</p>
+            <p className="text-sm font-bold text-white truncate hover:text-wave-300 transition-colors">{currentSong.title}</p>
             {(() => {
               const fp = analyzeSong(currentSong)
               const aura = getSongAuraColor(currentSong)
@@ -92,9 +88,9 @@ export default function Player() {
               )
             })()}
           </div>
-          <p className="text-xs text-[#a1a1a1] truncate">{currentSong.artist}</p>
+          <p className="text-xs text-surface-400 truncate">{currentSong.artist}</p>
         </div>
-        <button onClick={toggleLike} className={`transition-colors flex-shrink-0 ${liked ? 'text-red-400' : 'text-[#666666] hover:text-red-400'}`}>
+        <button onClick={toggleLike} className={`transition-colors flex-shrink-0 ${liked ? 'text-wave-400' : 'text-surface-500 hover:text-wave-300'}`}>
           <Heart size={15} fill={liked ? 'currentColor' : 'none'} />
         </button>
       </div>
@@ -102,34 +98,34 @@ export default function Player() {
       {/* Center controls */}
       <div className="flex-none w-full max-w-[500px]">
         <div className="flex items-center justify-center gap-3 mb-1.5">
-          <button onClick={() => setShuffle(!shuffle)} className={`transition-colors ${shuffle ? 'text-[#8b5cf6]' : 'text-[#a1a1a1] hover:text-white'}`}>
+          <button onClick={() => setShuffle(!shuffle)} className={`transition-colors ${shuffle ? 'text-wave-400' : 'text-surface-400 hover:text-white'}`}>
             <Shuffle size={15} />
           </button>
-          <button onClick={prevSong} className="text-[#a1a1a1] hover:text-white transition-colors">
+          <button onClick={prevSong} className="text-surface-400 hover:text-white transition-colors">
             <SkipBack size={17} />
           </button>
           <button
             onClick={togglePlay}
-            className="bg-[#8b5cf6] text-white rounded-full p-2.5 hover:bg-[#7c3aed] transition-colors"
+            className="bg-wave-400 text-black rounded-full p-2.5 hover:bg-wave-300 transition-colors"
           >
             {isPlaying ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" className="ml-0.5" />}
           </button>
-          <button onClick={nextSong} className="text-[#a1a1a1] hover:text-white transition-colors">
+          <button onClick={nextSong} className="text-surface-400 hover:text-white transition-colors">
             <SkipForward size={17} />
           </button>
           <button
             onClick={() => setRepeat(repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off')}
-            className={`transition-colors ${repeat !== 'off' ? 'text-[#8b5cf6]' : 'text-[#a1a1a1] hover:text-white'}`}
+            className={`transition-colors ${repeat !== 'off' ? 'text-wave-400' : 'text-surface-400 hover:text-white'}`}
           >
             <Repeat size={15} />
           </button>
         </div>
         <div className="flex items-center gap-2.5">
-          <span className="text-[11px] text-[#666666] w-9 text-right font-mono">{formatDuration(displayTime)}</span>
-          <div className="flex-1 relative h-1.5 group">
-            <div className="absolute inset-0 rounded-full bg-[#3a3a3a]" />
+          <span className="text-[11px] text-surface-500 w-9 text-right font-mono">{formatDuration(displayTime)}</span>
+          <div className="flex-1 relative h-1 group">
+            <div className="absolute inset-0 rounded-full bg-surface-700" />
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-[#8b5cf6] transition-all duration-75"
+              className="absolute inset-y-0 left-0 rounded-full bg-wave-400 transition-all duration-75"
               style={{ width: `${progress}%` }}
             />
             <input
@@ -143,7 +139,7 @@ export default function Player() {
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
           </div>
-          <span className="text-[11px] text-[#666666] w-9 font-mono">{formatDuration(duration)}</span>
+          <span className="text-[11px] text-surface-500 w-9 font-mono">{formatDuration(duration)}</span>
         </div>
       </div>
 
@@ -157,20 +153,20 @@ export default function Player() {
             setPlaybackRate(next)
             audioEngine.setPlaybackRate(next)
           }}
-          className={`text-xs font-mono font-bold px-2 py-1 rounded transition-colors ${playbackRate !== 1 ? 'bg-[#8b5cf6]/10 text-[#8b5cf6]' : 'text-[#666666] hover:text-white'}`}
+          className={`text-xs font-mono font-bold px-2 py-1 rounded transition-colors ${playbackRate !== 1 ? 'bg-wave-400/15 text-wave-300' : 'text-surface-500 hover:text-white'}`}
         >
           {playbackRate}x
         </button>
-        <button onClick={() => navigate('/queue')} className="text-[#a1a1a1] hover:text-white transition-colors relative">
+        <button onClick={() => navigate('/queue')} className="text-surface-400 hover:text-white transition-colors relative">
           <List size={17} />
           {queue.length > 1 && (
-            <span className="absolute -top-1.5 -right-1.5 bg-[#8b5cf6] text-white text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
+            <span className="absolute -top-1.5 -right-1.5 bg-wave-400 text-black text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
               {queue.length}
             </span>
           )}
         </button>
         <div className="flex items-center gap-1.5" onMouseEnter={() => setShowVol(true)} onMouseLeave={() => setShowVol(false)}>
-          <Volume2 size={15} className="text-[#a1a1a1] hover:text-white transition-colors cursor-pointer" />
+          <Volume2 size={15} className="text-surface-400 hover:text-white transition-colors cursor-pointer" />
           {showVol && (
             <div className="w-16 animate-fade-in">
               <Slider value={volume * 100} onChange={(v) => setVolume(v / 100)} />
