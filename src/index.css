@@ -4,29 +4,32 @@
 
 @layer base {
   :root {
-    --surface-50: 255 255 255;
-    --surface-100: 220 220 230;
-    --surface-200: 160 160 175;
-    --surface-300: 110 110 125;
-    --surface-400: 70 70 85;
-    --surface-500: 45 45 58;
-    --surface-600: 30 30 40;
-    --surface-700: 22 22 30;
-    --surface-800: 16 16 22;
-    --surface-900: 10 10 15;
-    --surface-950: 7 7 11;
+    --surface-50: 242 255 240;
+    --surface-100: 220 235 220;
+    --surface-200: 160 175 160;
+    --surface-300: 138 160 136;
+    --surface-400: 90 110 90;
+    --surface-500: 60 75 62;
+    --surface-600: 35 45 36;
+    --surface-700: 22 30 22;
+    --surface-800: 14 20 14;
+    --surface-900: 8 12 8;
+    --surface-950: 4 6 4;
 
-    --wave-50: 245 243 255;
-    --wave-100: 237 233 254;
-    --wave-200: 221 214 254;
-    --wave-300: 196 181 253;
-    --wave-400: 139 92 246;
-    --wave-500: 139 92 246;
-    --wave-600: 124 58 237;
-    --wave-700: 109 40 217;
-    --wave-800: 91 33 182;
-    --wave-900: 76 29 149;
-    --wave-950: 46 16 101;
+    --wave-50: 247 255 235;
+    --wave-100: 238 255 214;
+    --wave-200: 220 255 170;
+    --wave-300: 208 255 120;
+    --wave-400: 198 255 62;
+    --wave-500: 198 255 62;
+    --wave-600: 170 230 40;
+    --wave-700: 140 195 30;
+    --wave-800: 105 150 25;
+    --wave-900: 75 110 20;
+    --wave-950: 45 70 12;
+
+    --acid: #C6FF3E;
+    --ice: #7DF9FF;
   }
 
   * {
@@ -34,7 +37,7 @@
   }
 
   body {
-    @apply bg-[#07070b] text-white selection:bg-wave-500/30 selection:text-white;
+    @apply bg-black text-white selection:bg-wave-500/30 selection:text-black;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: 'cv11', 'ss01';
     letter-spacing: -0.015em;

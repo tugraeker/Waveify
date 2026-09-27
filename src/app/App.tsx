@@ -88,8 +88,8 @@ export default function App() {
 
   useEffect(() => {
     const root = document.documentElement
-    root.style.setProperty('--wave-400', '139 92 246')
-    root.style.setProperty('--wave-500', '139 92 246')
+    root.style.setProperty('--wave-400', '198 255 62')
+    root.style.setProperty('--wave-500', '198 255 62')
   }, [])
 
   useKeyboardShortcuts()
