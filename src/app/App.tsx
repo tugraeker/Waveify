@@ -7,21 +7,49 @@ import { useDiscordRPC } from '@/hooks/useDiscordRPC'
 import { useMediaSession } from '@/hooks/useMediaSession'
 import Sidebar from '@/components/Sidebar'
 import Player from '@/components/Player'
-import HeyWave from '@/components/HeyWave'
 import TitleBar from '@/components/TitleBar'
 import MobileTopBar from '@/components/MobileTopBar'
 import MobileNav from '@/components/MobileNav'
 import MobilePlayer from '@/components/MobilePlayer'
 import ToastContainer from '@/components/ToastContainer'
-import UpdateBanner from '@/components/UpdateBanner'
-import WhatsNewModal from '@/components/WhatsNewModal'
 import { Skeleton } from '@/core/ui/Skeleton'
 import { RouteErrorBoundary } from '@/core/errorBoundary'
 import { useAchievementsInit } from '@/hooks/useAchievements'
 import { useAuraBackground } from '@/hooks/useAuraBackground'
-import FriendActivityBubble from '@/components/FriendActivityBubble'
 import { Trophy } from 'lucide-react'
 import type { Song } from '@/types'
+
+// v10-slim: agir kabuk bilesenleri acilistan SONRA yuklenir (ilk boyamada degiller).
+const HeyWave = lazy(() => import('@/components/HeyWave'))
+const FriendActivityBubble = lazy(() => import('@/components/FriendActivityBubble'))
+const UpdateBanner = lazy(() => import('@/components/UpdateBanner'))
+const WhatsNewModal = lazy(() => import('@/components/WhatsNewModal'))
+
+function DeferredExtras() {
+  const { showLevelUp, newLevel } = useAchievementsInit()
+  return (
+    <>
+      <Suspense fallback={null}>
+        <HeyWave />
+        <FriendActivityBubble />
+        <UpdateBanner />
+        <WhatsNewModal />
+      </Suspense>
+      {showLevelUp && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => {}}>
+          <div className="text-center animate-level-up">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-yellow-500/30 animate-bounce glow-amber">
+              <Trophy size={48} className="text-white" />
+            </div>
+            <h2 className="text-3xl font-display font-bold text-white mb-1 text-glow">Seviye Atladın!</h2>
+            <p className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-fuchsia-400 to-cyan-400 mb-2">Seviye {newLevel}</p>
+            <p className="text-surface-400 text-sm">Tebrikler! Yeni bir seviyeye ulaştın.</p>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
 
 // v10 canonical lazy route table. Paths identical to v9 src/App.tsx.
 // Quests (gamify) has NO default export on purpose — it is not a route,
@@ -42,19 +70,9 @@ const SyncRoom = lazy(() => import('@/features/social/pages/SyncRoom'))
 const History = lazy(() => import('@/features/library/pages/History'))
 const Import = lazy(() => import('@/features/library/pages/Import'))
 const Settings = lazy(() => import('@/features/settings/pages/Settings'))
-const Stats = lazy(() => import('@/features/settings/pages/Stats'))
 const Admin = lazy(() => import('@/features/settings/pages/Admin'))
 const ChatPage = lazy(() => import('@/features/social/pages/ChatPage'))
 const ArtistPage = lazy(() => import('@/features/library/pages/ArtistPage'))
-const Discover = lazy(() => import('@/features/gamify/pages/Discover'))
-const BadgeGallery = lazy(() => import('@/features/gamify/pages/BadgeGallery'))
-const PodcastPage = lazy(() => import('@/features/studio/pages/Podcast'))
-const RadioPage = lazy(() => import('@/features/studio/pages/Radio'))
-const Charts = lazy(() => import('@/features/gamify/pages/Charts'))
-const AIDJ = lazy(() => import('@/features/gamify/pages/AIDJ'))
-const VisualLab = lazy(() => import('@/features/gamify/pages/VisualLab'))
-const LiveSessions = lazy(() => import('@/features/gamify/pages/LiveSessions'))
-const Studio = lazy(() => import('@/features/studio/pages/Studio'))
 
 export default function App() {
   const { user, theme, setUser, setPlaylists, currentSong } = useStore()
@@ -78,7 +96,12 @@ export default function App() {
   useDiscordRPC()
   useMediaSession()
   useAuraBackground()
-  const { showLevelUp, newLevel } = useAchievementsInit()
+  // Agir ekstralar ilk boyamadan SONRA (idle) yuklenir
+  const [deferExtras, setDeferExtras] = useState(false)
+  useEffect(() => {
+    const t = window.setTimeout(() => setDeferExtras(true), 2500)
+    return () => window.clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -233,19 +256,9 @@ export default function App() {
               <Route path="/history" element={<History />} />
               <Route path="/import" element={<Import />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/stats" element={<Stats />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/artist/:name" element={<ArtistPage />} />
-              <Route path="/discover" element={<Discover />} />
-              <Route path="/badges" element={<BadgeGallery />} />
-              <Route path="/podcast" element={<PodcastPage />} />
-              <Route path="/radio" element={<RadioPage />} />
-              <Route path="/charts" element={<Charts />} />
-              <Route path="/ai-dj" element={<AIDJ />} />
-              <Route path="/visual-lab" element={<VisualLab />} />
-              <Route path="/live-sessions" element={<LiveSessions />} />
-              <Route path="/studio" element={<Studio />} />
               <Route path="/auth" element={<Auth />} />
             </Routes>
             </RouteErrorBoundary>
@@ -258,23 +271,8 @@ export default function App() {
       </div>
       <MobilePlayer />
       <MobileNav />
-      <HeyWave />
-      <FriendActivityBubble />
       <ToastContainer />
-      <UpdateBanner />
-      <WhatsNewModal />
-      {showLevelUp && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => {}}>
-          <div className="text-center animate-level-up">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-yellow-500/30 animate-bounce glow-amber">
-              <Trophy size={48} className="text-white" />
-            </div>
-            <h2 className="text-3xl font-display font-bold text-white mb-1 text-glow">Seviye Atladın!</h2>
-            <p className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-fuchsia-400 to-cyan-400 mb-2">Seviye {newLevel}</p>
-            <p className="text-surface-400 text-sm">Tebrikler! Yeni bir seviyeye ulaştın.</p>
-          </div>
-        </div>
-      )}
+      {deferExtras && <DeferredExtras />}
     </div>
   )
 }

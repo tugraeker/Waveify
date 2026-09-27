@@ -2,7 +2,6 @@ import { useEffect, useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
 import { useAudio } from '@/hooks/useAudio'
-import { audioEngine } from '@/lib/audioEngine'
 import { formatDuration } from '@/lib/utils'
 import { supabase } from '../../../core/supabaseClient'
 import { writeLike } from '@/lib/likes'
@@ -229,9 +228,7 @@ export default function NowPlayingPage() {
     else prevSong()
   }
 
-  useEffect(() => {
-    audioEngine.setEffects(audioEffects)
-  }, [audioEffects])
+  // Efekt motoru kaldirildi (v10-slim): ses her zaman islenmemis cikar.
 
   const [cached, setCached] = useState(false)
   const [caching, setCaching] = useState(false)

@@ -5,9 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { Logo } from '@/components/Logo'
 import {
   Home, Search, Library, Upload, Users,
-  MessageSquare, ListMusic, BarChart3, Trophy,
-  Settings, User, Radio, History, Globe,
-  Bot, Eye, Radio as RadioIcon, Wand2,
+  MessageSquare, ListMusic, History, Globe,
+  Settings, User,
 } from 'lucide-react'
 
 const mainItems = [
@@ -25,17 +24,9 @@ const socialItems = [
 const musicItems = [
   { to: '/now-playing', icon: ListMusic, label: 'Şimdi Çalıyor' },
   { to: '/queue', icon: ListMusic, label: 'Sıradakiler' },
-  { to: '/discover', icon: Radio, label: 'Keşfet' },
-  { to: '/charts', icon: Trophy, label: 'Charts' },
-  { to: '/ai-dj', icon: Bot, label: 'AI DJ' },
-  { to: '/visual-lab', icon: Eye, label: 'Visual Lab' },
-  { to: '/live-sessions', icon: RadioIcon, label: 'Live Sessions' },
-  { to: '/studio', icon: Wand2, label: 'Studio' },
 ]
 
 const bottomItems = [
-  { to: '/stats', icon: BarChart3, label: 'İstatistikler' },
-  { to: '/badges', icon: Trophy, label: 'Rozetler' },
   { to: '/history', icon: History, label: 'Geçmiş' },
   { to: '/import', icon: Globe, label: 'İçe Aktar' },
 ]
