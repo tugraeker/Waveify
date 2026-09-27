@@ -1,7 +1,7 @@
 import { Palette, Monitor, Moon } from 'lucide-react';
 
 const accentColors: { key: any; label: string; color: string }[] = [
-  { key: 'wave', label: 'Mor', color: '#8b5cf6' },
+  { key: 'wave', label: 'Asit', color: '#C6FF3E' },
 ];
 
 export default function AppearanceTab(p: any) {

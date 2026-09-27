@@ -9,7 +9,7 @@ import { Save, LogOut, User, Lock, Palette, Loader2, Globe, Eye, Activity, Paint
 import type { AccentColor, CoverStyle } from '@/types'
 
 const accentColors: { key: AccentColor; label: string; color: string }[] = [
-  { key: 'wave', label: 'Mor', color: '#8b5cf6' },
+  { key: 'wave', label: 'Asit', color: '#C6FF3E' },
 ]
 
 export default function Settings() {

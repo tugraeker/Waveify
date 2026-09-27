@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 
 const ACCENT_COLORS: { key: AccentColor; label: string; color: string }[] = [
-  { key: 'wave', label: 'Mor', color: '#8b5cf6' },
+  { key: 'wave', label: 'Asit', color: '#C6FF3E' },
 ]
 
 const PROFILE_THEMES = [
