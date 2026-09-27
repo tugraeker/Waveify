@@ -4,7 +4,7 @@ import { audioEngine } from '@/lib/audioEngine'
 import { useAudio } from '@/hooks/useAudio'
 import { formatDuration } from '@/lib/utils'
 import { Play, Pause, SkipBack, SkipForward, Music2, Heart } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { writeLike, bumpLikeCount } from '@/lib/likes'
 
@@ -12,8 +12,12 @@ export default function MobilePlayer() {
   const navigate = useNavigate()
   const currentSong = useStore((state) => state.currentSong)
   const user = useStore((state) => state.user)
-  const { isPlaying, currentTime, duration, togglePlay, nextSong, prevSong } = useAudio()
+  const { isPlaying, currentTime, duration, togglePlay, nextSong, prevSong, seek } = useAudio()
   const [liked, setLiked] = useState(false)
+  const [isSeeking, setIsSeeking] = useState(false)
+  const [seekPreview, setSeekPreview] = useState(0)
+  const isSeekingRef = useRef(false)
+  const seekPreviewRef = useRef(0)
 
   useEffect(() => {
     if (!currentSong || !user) { setLiked(false); return }
@@ -30,12 +34,58 @@ export default function MobilePlayer() {
     bumpLikeCount(currentSong.id, currentSong.likes_count, liked ? -1 : 1)
   }
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+  const displayTime = isSeeking ? seekPreview : currentTime
+  const progress = duration > 0 ? Math.min(100, Math.max(0, (displayTime / duration) * 100)) : 0
+
+  const beginSeek = () => {
+    isSeekingRef.current = true
+    seekPreviewRef.current = currentTime
+    setSeekPreview(currentTime)
+    setIsSeeking(true)
+  }
+  const updateSeek = (value: number) => {
+    seekPreviewRef.current = value
+    setSeekPreview(value)
+  }
+  const finishSeek = () => {
+    if (!isSeekingRef.current) return
+    isSeekingRef.current = false
+    setIsSeeking(false)
+    seek(seekPreviewRef.current)
+  }
+  const cancelSeek = () => {
+    isSeekingRef.current = false
+    setIsSeeking(false)
+  }
 
   return (
     <div className="md:hidden z-40 mx-2 mb-[76px] overflow-hidden rounded-[20px] border border-white/[0.11] bg-[#171a24]/85 shadow-[0_14px_40px_rgba(0,0,0,.32)] backdrop-blur-2xl">
-      <div className="h-[2px] bg-white/[0.08]">
-        <div className="h-full bg-gradient-to-r from-wave-300 via-cyan-200 to-violet-300 transition-all duration-200" style={{ width: `${progress}%` }} />
+      <div className="relative h-2 bg-white/[0.08]" title="Parçada ilerle">
+        <div className="pointer-events-none absolute inset-y-0 left-0 bg-gradient-to-r from-wave-300 via-cyan-200 to-violet-300 transition-[width] duration-150" style={{ width: `${progress}%` }} />
+        <input
+          aria-label="Parçada ilerle"
+          type="range"
+          min={0}
+          max={Math.max(duration, 0.1)}
+          step={0.1}
+          value={Math.min(displayTime, duration || displayTime)}
+          disabled={!currentSong || duration <= 0}
+          onPointerDown={beginSeek}
+          onChange={(event) => updateSeek(Number(event.target.value))}
+          onPointerUp={finishSeek}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault()
+              cancelSeek()
+            } else if (!isSeekingRef.current) {
+              beginSeek()
+            }
+          }}
+          onKeyUp={finishSeek}
+          onBlur={finishSeek}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-default"
+          style={{ touchAction: 'none' }}
+        />
       </div>
       <div className="flex items-center gap-2.5 px-3 py-2.5">
         <div className="relative flex-shrink-0 cursor-pointer" onClick={() => navigate('/now-playing')}>
@@ -74,7 +124,7 @@ export default function MobilePlayer() {
         )}
         {currentSong && (
           <span className="hidden font-mono text-[9px] tabular-nums text-white/35 min-[380px]:block">
-            {formatDuration(currentTime)} / {formatDuration(duration)}
+            {formatDuration(displayTime)} / {formatDuration(duration)}
           </span>
         )}
       </div>
