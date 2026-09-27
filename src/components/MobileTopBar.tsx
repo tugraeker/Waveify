@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/store'
-import { Logo } from '@/components/Logo'
 import Sidebar from '@/components/Sidebar'
 import { Menu, X } from 'lucide-react'
 

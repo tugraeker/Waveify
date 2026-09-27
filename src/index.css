@@ -82,7 +82,19 @@
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#8b5cf6] to-[#a78bfa];
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-wave-300 to-wave-500;
+  }
+
+  .clamp-title {
+    font-size: clamp(2rem, 6vw, 4.5rem);
+  }
+
+  .fade-up {
+    animation: fadeUp 0.24s ease-out both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .font-display {

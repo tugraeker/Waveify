@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import SongDNAModal from '@/components/SongDNA'
 import { useVoiceCommands } from '@/hooks/useVoiceCommands'
+import { getSongAuraColor } from '@/lib/localAI'
 
 const VISUALIZER_MODES: { key: VisualizerMode; label: string; icon: typeof BarChart3 }[] = [
   { key: 'bars', label: 'Çubuk', icon: BarChart3 },
@@ -269,9 +270,15 @@ export default function NowPlayingPage() {
 
   const progress = duration > 0 ? ((isSeeking ? seekValue : currentTime) / duration) * 100 : 0
   const bands = equalizer.bands || defaultEqBands()
+  const aura = currentSong ? getSongAuraColor(currentSong) : '#C6FF3E'
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-surface-900 to-surface-950 overflow-hidden">
+    <div className="h-full flex flex-col bg-black overflow-hidden relative">
+      {/* Kapaktan tasen ortam parlamasi */}
+      <div
+        className="pointer-events-none absolute inset-0 transition-all duration-1000"
+        style={{ background: `radial-gradient(ellipse 80% 55% at 50% 0%, ${aura}26, transparent 70%)` }}
+      />
       <StrobeOverlay />
       <div className="flex items-center p-5 flex-shrink-0">
         <button onClick={() => navigate(-1)} className="text-surface-400 hover:text-white transition-colors p-1">
@@ -283,8 +290,12 @@ export default function NowPlayingPage() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-4"
+      <div className="flex-1 overflow-y-auto scrollbar-thin px-4 relative"
         onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        <div className="flex flex-col items-center gap-2 pt-2 pb-1 text-center">
+          <h1 className="font-display font-bold text-white leading-[0.95] tracking-tight clamp-title">{currentSong.title}</h1>
+          <p className="text-sm font-bold uppercase tracking-[0.25em] text-wave-300">{currentSong.artist}</p>
+        </div>
         <div className="flex flex-col items-center gap-5 py-4">
           <StageView
             currentSong={currentSong}
@@ -342,7 +353,7 @@ export default function NowPlayingPage() {
                 <EnergySegments songId={currentSong.id} duration={duration} />
                 <CommentDots songId={currentSong.id} duration={duration} onSeek={seek} />
                 <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-white/60 group-hover:bg-wave-400 transition-all duration-75 z-20"
+                  className="absolute inset-y-0 left-0 rounded-full bg-wave-400 transition-all duration-75 z-20"
                   style={{ width: `${progress}%` }}
                 />
                 <input
@@ -366,7 +377,7 @@ export default function NowPlayingPage() {
               <button onClick={prevSong} className="text-surface-400 hover:text-white transition-colors">
                 <SkipBack size={20} />
               </button>
-              <button onClick={togglePlay} className="bg-white text-surface-950 rounded-full p-3.5 hover:scale-105 transition-all shadow-2xl hover:shadow-white/10 active:scale-95">
+              <button onClick={togglePlay} className="bg-wave-400 text-black rounded-full p-3.5 hover:bg-wave-300 hover:scale-105 transition-all active:scale-95">
                 {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-1" />}
               </button>
               <button onClick={nextSong} className="text-surface-400 hover:text-white transition-colors">
